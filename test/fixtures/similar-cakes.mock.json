@@ -1,0 +1,70 @@
+{
+  "result": [
+    {
+      "id": "mock-cake-1",
+      "image": {
+        "s3Url": "https://example.com/mock-cake-1.jpg"
+      },
+      "owner_store_id": "mock-store-1",
+      "cursor": "mock-cursor-1",
+      "tag_ins": ["mock", "lettering"],
+      "user_like_ids": [],
+      "score": 0.11
+    },
+    {
+      "id": "mock-cake-2",
+      "image": {
+        "s3Url": "https://example.com/mock-cake-2.jpg"
+      },
+      "owner_store_id": "mock-store-1",
+      "cursor": "mock-cursor-2",
+      "tag_ins": ["mock", "flower"],
+      "user_like_ids": [],
+      "score": 0.12
+    },
+    {
+      "id": "mock-cake-3",
+      "image": {
+        "s3Url": "https://example.com/mock-cake-3.jpg"
+      },
+      "owner_store_id": "mock-store-2",
+      "cursor": "mock-cursor-3",
+      "tag_ins": ["mock", "birthday"],
+      "user_like_ids": [],
+      "score": 0.13
+    },
+    {
+      "id": "mock-cake-4",
+      "image": {
+        "s3Url": "https://example.com/mock-cake-4.jpg"
+      },
+      "owner_store_id": "mock-store-3",
+      "cursor": "mock-cursor-4",
+      "tag_ins": ["mock", "character"],
+      "user_like_ids": [],
+      "score": 0.14
+    },
+    {
+      "id": "mock-cake-5",
+      "image": {
+        "s3Url": "https://example.com/mock-cake-5.jpg"
+      },
+      "owner_store_id": "mock-store-2",
+      "cursor": "mock-cursor-5",
+      "tag_ins": ["mock", "custom"],
+      "user_like_ids": [],
+      "score": 0.15
+    },
+    {
+      "id": "mock-cake-6",
+      "image": {
+        "s3Url": "https://example.com/mock-cake-6.jpg"
+      },
+      "owner_store_id": "mock-store-4",
+      "cursor": "mock-cursor-6",
+      "tag_ins": ["mock", "minimal"],
+      "user_like_ids": [],
+      "score": 0.16
+    }
+  ]
+}

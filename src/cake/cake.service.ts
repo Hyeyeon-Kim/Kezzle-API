@@ -507,25 +507,40 @@ export class CakeService {
     lat: number,
     dist: number,
     size: number,
-    user: IUser,
   ) {
-    const apiUrl = `https://api.kezzlecake.com/vit/cakes/similar-search?id=${cakeid}&lon=${lon}&lat=${lat}&dist=${dist}&size=${size}`; // 외부 API의 엔드포인트 URL
+    const vitApiBaseUrl =
+      process.env.VIT_API_BASE_URL ?? 'https://api.kezzlecake.com/vit';
+    const apiUrl = `${vitApiBaseUrl}/cakes/similar-search?id=${cakeid}&lon=${lon}&lat=${lat}&dist=${dist}&size=${size}`; // 외부 API의 엔드포인트 URL
     const response = await this.httpService.get(apiUrl).toPromise();
     const cakes = response.data.result;
 
+    const storeIds = [
+      ...new Set(cakes.map((cake) => cake.owner_store_id).filter(Boolean)),
+    ];
+    const stores = await this.storeModel.find({
+      _id: {
+        $in: storeIds,
+      },
+    });
+    const storeMap = new Map(
+      stores.map((store) => [store._id.toString(), store]),
+    );
+
     // TODO: 케이크가 안 올수도 있다 return은 빈 배열
-    const cakeResponse = await Promise.all(
-      cakes.map(async (cake) => {
-        const store = await this.storeService.findOne(
-          cake.owner_store_id,
-          user,
-        );
-        return await new CakeSimilarResponseDto(
+    const cakeResponse = cakes
+      .map((cake) => {
+        const store = storeMap.get(cake.owner_store_id);
+
+        if (!store) {
+          return null;
+        }
+
+        return new CakeSimilarResponseDto(
           cake,
           new StoreSimpleResponseDto(store),
         );
-      }),
-    );
+      })
+      .filter((cake) => cake !== null);
     return new CakesResponseDto(cakeResponse, false);
   }
 
