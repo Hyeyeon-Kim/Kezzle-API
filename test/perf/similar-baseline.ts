@@ -64,6 +64,10 @@ function getBaselineMode(): BaselineMode {
   return process.env.BASELINE_MODE === 'batch' ? 'batch' : 'current';
 }
 
+function isDebugEnabled(): boolean {
+  return process.env.BASELINE_DEBUG === '1';
+}
+
 function elapsedMs(start: bigint): number {
   return Number(process.hrtime.bigint() - start) / 1_000_000;
 }
@@ -259,6 +263,16 @@ async function main(): Promise<void> {
   const iterations = getEnvNumber('BASELINE_ITERATIONS', DEFAULT_ITERATIONS);
   const sizes = getScenarioSizes();
   const mode = getBaselineMode();
+
+  if (isDebugEnabled()) {
+    mongoose.set('debug', (collectionName, methodName, ...args) => {
+      console.log(
+        `[mongoose] ${collectionName}.${methodName}`,
+        JSON.stringify(args[0] ?? null),
+      );
+    });
+  }
+
   const connection = await mongoose.createConnection(mongoUrl, {
     user: process.env.MONGODB_USERNAME,
     pass: process.env.MONGODB_PASSWORD,
