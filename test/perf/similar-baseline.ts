@@ -13,6 +13,7 @@ type ScenarioResult = {
   storeCalls: number;
   mode: BaselineMode;
   duplication: BaselineDuplication;
+  skew: BaselineSkew;
   total: Percentiles;
   ai: Percentiles;
   storeHydration: Percentiles;
@@ -50,6 +51,8 @@ type SeededStore = StoreSnapshot & { _id: string };
 type BaselineMode = 'current' | 'batch' | 'lookup' | 'denorm';
 
 type BaselineDuplication = 'low' | 'mid' | 'high';
+
+type BaselineSkew = 'uniform' | 'zipf' | 'hotspot';
 
 const DEFAULT_STORE_COUNT = 200;
 const DEFAULT_ITERATIONS = 100;
@@ -119,6 +122,80 @@ function computeUniquePoolSize(
   return Math.max(1, Math.round(size / DUPLICATION_DIVISOR[duplication]));
 }
 
+function getBaselineSkew(): BaselineSkew {
+  const raw = process.env.BASELINE_SKEW;
+
+  if (raw === 'zipf' || raw === 'hotspot') {
+    return raw;
+  }
+
+  return 'uniform';
+}
+
+function buildRankAssignments(
+  size: number,
+  poolSize: number,
+  skew: BaselineSkew,
+): number[] {
+  if (skew === 'uniform' || poolSize <= 1) {
+    return Array.from({ length: size }, (_, i) => i % poolSize);
+  }
+
+  if (skew === 'hotspot') {
+    const hotCount = Math.floor(size * 0.9);
+    const rest = size - hotCount;
+    const tailRanks = poolSize - 1;
+    const restPerRank = Math.floor(rest / tailRanks);
+    let leftover = rest - restPerRank * tailRanks;
+    const counts: number[] = [hotCount];
+
+    for (let i = 1; i < poolSize; i += 1) {
+      const extra = leftover > 0 ? 1 : 0;
+      counts.push(restPerRank + extra);
+
+      if (leftover > 0) {
+        leftover -= 1;
+      }
+    }
+
+    return expandCounts(counts);
+  }
+
+  // zipf with s=1
+  const weights: number[] = [];
+  let total = 0;
+
+  for (let i = 0; i < poolSize; i += 1) {
+    const w = 1 / (i + 1);
+    weights.push(w);
+    total += w;
+  }
+
+  const exact = weights.map((w) => (w / total) * size);
+  const counts = exact.map((c) => Math.floor(c));
+  const remainder = size - counts.reduce((a, b) => a + b, 0);
+  const frac = exact.map((c, i) => ({ rank: i, frac: c - Math.floor(c) }));
+  frac.sort((a, b) => b.frac - a.frac);
+
+  for (let i = 0; i < remainder && i < frac.length; i += 1) {
+    counts[frac[i].rank] += 1;
+  }
+
+  return expandCounts(counts);
+}
+
+function expandCounts(counts: number[]): number[] {
+  const assignments: number[] = [];
+
+  for (let i = 0; i < counts.length; i += 1) {
+    for (let j = 0; j < counts[i]; j += 1) {
+      assignments.push(i);
+    }
+  }
+
+  return assignments;
+}
+
 function isDebugEnabled(): boolean {
   return process.env.BASELINE_DEBUG === '1';
 }
@@ -153,9 +230,12 @@ function generateMockCakes(
   size: number,
   storeIds: string[],
   storeMap?: Map<string, SeededStore>,
+  skew: BaselineSkew = 'uniform',
 ): MockCake[] {
+  const assignments = buildRankAssignments(size, storeIds.length, skew);
+
   return Array.from({ length: size }, (_, index) => {
-    const storeId = storeIds[index % storeIds.length];
+    const storeId = storeIds[assignments[index]];
     const snapshot = storeMap?.get(storeId);
 
     return {
@@ -276,6 +356,7 @@ async function runIteration(
   storeMap: Map<string, SeededStore>,
   seededCakes: SeededCake[],
   mode: BaselineMode,
+  skew: BaselineSkew,
 ): Promise<IterationResult> {
   const totalStart = process.hrtime.bigint();
 
@@ -287,6 +368,7 @@ async function runIteration(
           size,
           storePool,
           mode === 'denorm' ? storeMap : undefined,
+          skew,
         );
   const aiMs = elapsedMs(aiStart);
 
@@ -410,6 +492,7 @@ async function measureScenario(
   storeMap: Map<string, SeededStore>,
   mode: BaselineMode,
   duplication: BaselineDuplication,
+  skew: BaselineSkew,
 ): Promise<ScenarioResult> {
   const uniquePoolSize = Math.min(
     computeUniquePoolSize(size, duplication),
@@ -429,6 +512,7 @@ async function measureScenario(
         storeMap,
         seededCakes,
         mode,
+        skew,
       );
     }
 
@@ -447,6 +531,7 @@ async function measureScenario(
         storeMap,
         seededCakes,
         mode,
+        skew,
       );
       aiDurations.push(result.aiMs);
       storeHydrationDurations.push(result.hydrationMs);
@@ -456,7 +541,7 @@ async function measureScenario(
     }
 
     return {
-      scenario: `${mode}-dup-${duplication}-size-${size}`,
+      scenario: `${mode}-dup-${duplication}-skew-${skew}-size-${size}`,
       iterations,
       warmupIterations,
       cakeResultSize: size,
@@ -464,6 +549,7 @@ async function measureScenario(
       storeCalls,
       mode,
       duplication,
+      skew,
       total: toPercentiles(totalDurations),
       ai: toPercentiles(aiDurations),
       storeHydration: toPercentiles(storeHydrationDurations),
@@ -478,13 +564,14 @@ async function measureScenario(
 function printResults(results: ScenarioResult[]): void {
   console.log(
     [
-      '| scenario | mode | duplication | iterations | warmup | cake result size | unique store ids | store calls | total p50 | total p95 | total p99 | ai p95 | store hydration p95 | store hydration p99 |',
-      '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+      '| scenario | mode | duplication | skew | iterations | warmup | cake result size | unique store ids | store calls | total p50 | total p95 | total p99 | ai p95 | store hydration p95 | store hydration p99 |',
+      '| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
       ...results.map((result) =>
         [
           `| ${result.scenario}`,
           result.mode,
           result.duplication,
+          result.skew,
           result.iterations,
           result.warmupIterations,
           result.cakeResultSize,
@@ -518,6 +605,7 @@ async function main(): Promise<void> {
   const sizes = getScenarioSizes();
   const mode = getBaselineMode();
   const duplications = getBaselineDuplications();
+  const skew = getBaselineSkew();
 
   const debug = isDebugEnabled();
 
@@ -573,6 +661,7 @@ async function main(): Promise<void> {
             storeMap,
             mode,
             duplication,
+            skew,
           ),
         );
       }
