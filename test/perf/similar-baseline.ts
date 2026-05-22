@@ -6,10 +6,12 @@ import { CakeSimilarResponseDto } from '../../src/cake/dto/response-similar-cake
 type ScenarioResult = {
   scenario: string;
   iterations: number;
+  warmupIterations: number;
   cakeResultSize: number;
   uniqueStoreIds: number;
   storeCalls: number;
   mode: BaselineMode;
+  duplication: BaselineDuplication;
   total: Percentiles;
   ai: Percentiles;
   storeHydration: Percentiles;
@@ -35,10 +37,20 @@ type MockCake = {
 
 type BaselineMode = 'current' | 'batch';
 
+type BaselineDuplication = 'low' | 'mid' | 'high';
+
 const DEFAULT_STORE_COUNT = 200;
 const DEFAULT_ITERATIONS = 100;
+const DEFAULT_WARMUP_ITERATIONS = 10;
 const DEFAULT_SIZES = [10, 20, 50];
+const DEFAULT_DUPLICATIONS: BaselineDuplication[] = ['low', 'mid', 'high'];
 const BASELINE_OWNER_USER_ID = 'kan-16-baseline-user';
+
+const DUPLICATION_DIVISOR: Record<BaselineDuplication, number> = {
+  low: 1,
+  mid: 2,
+  high: 5,
+};
 
 function getEnvNumber(name: string, defaultValue: number): number {
   const value = Number(process.env[name]);
@@ -62,6 +74,30 @@ function getScenarioSizes(): number[] {
 
 function getBaselineMode(): BaselineMode {
   return process.env.BASELINE_MODE === 'batch' ? 'batch' : 'current';
+}
+
+function getBaselineDuplications(): BaselineDuplication[] {
+  const raw = process.env.BASELINE_DUPLICATION;
+
+  if (!raw) {
+    return DEFAULT_DUPLICATIONS;
+  }
+
+  const values = raw
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(
+      (value): value is BaselineDuplication => value in DUPLICATION_DIVISOR,
+    );
+
+  return values.length > 0 ? values : DEFAULT_DUPLICATIONS;
+}
+
+function computeUniquePoolSize(
+  size: number,
+  duplication: BaselineDuplication,
+): number {
+  return Math.max(1, Math.round(size / DUPLICATION_DIVISOR[duplication]));
 }
 
 function isDebugEnabled(): boolean {
@@ -137,13 +173,106 @@ async function seedStores(
   return stores.map((store) => store._id.toString());
 }
 
+type IterationResult = {
+  aiMs: number;
+  hydrationMs: number;
+  totalMs: number;
+  uniqueStoreIds: number;
+  storeCalls: number;
+};
+
+async function runIteration(
+  storeModel: mongoose.Model<Store>,
+  size: number,
+  storePool: string[],
+  mode: BaselineMode,
+): Promise<IterationResult> {
+  const totalStart = process.hrtime.bigint();
+
+  const aiStart = process.hrtime.bigint();
+  const cakes = generateMockCakes(size, storePool);
+  const aiMs = elapsedMs(aiStart);
+
+  const uniqueStoreIds = new Set(cakes.map((cake) => cake.owner_store_id)).size;
+
+  const storeHydrationStart = process.hrtime.bigint();
+  let storeCalls = 0;
+  let responses: CakeSimilarResponseDto[];
+
+  if (mode === 'batch') {
+    const targetStoreIds = [
+      ...new Set(cakes.map((cake) => cake.owner_store_id).filter(Boolean)),
+    ];
+    storeCalls = 1;
+    const stores = await storeModel.find({
+      _id: {
+        $in: targetStoreIds,
+      },
+    });
+    const storeMap = new Map(
+      stores.map((store) => [store._id.toString(), store]),
+    );
+
+    responses = cakes
+      .map((cake) => {
+        const store = storeMap.get(cake.owner_store_id);
+
+        if (!store) {
+          return null;
+        }
+
+        return new CakeSimilarResponseDto(
+          cake,
+          new StoreSimpleResponseDto(store),
+        );
+      })
+      .filter((cake) => cake !== null);
+  } else {
+    responses = await Promise.all(
+      cakes.map(async (cake) => {
+        const store = await storeModel.findById(cake.owner_store_id);
+
+        return new CakeSimilarResponseDto(
+          cake,
+          new StoreSimpleResponseDto(store),
+        );
+      }),
+    );
+    storeCalls = cakes.length;
+  }
+
+  const hydrationMs = elapsedMs(storeHydrationStart);
+
+  if (responses.length !== size) {
+    throw new Error(
+      `Unexpected response length. expected=${size}, actual=${responses.length}`,
+    );
+  }
+
+  const totalMs = elapsedMs(totalStart);
+
+  return { aiMs, hydrationMs, totalMs, uniqueStoreIds, storeCalls };
+}
+
 async function measureScenario(
   storeModel: mongoose.Model<Store>,
   size: number,
   iterations: number,
+  warmupIterations: number,
   storeIds: string[],
   mode: BaselineMode,
+  duplication: BaselineDuplication,
 ): Promise<ScenarioResult> {
+  const uniquePoolSize = Math.min(
+    computeUniquePoolSize(size, duplication),
+    storeIds.length,
+  );
+  const storePool = storeIds.slice(0, uniquePoolSize);
+
+  for (let iteration = 0; iteration < warmupIterations; iteration += 1) {
+    await runIteration(storeModel, size, storePool, mode);
+  }
+
   const totalDurations: number[] = [];
   const aiDurations: number[] = [];
   const storeHydrationDurations: number[] = [];
@@ -151,77 +280,23 @@ async function measureScenario(
   let uniqueStoreIds = 0;
 
   for (let iteration = 0; iteration < iterations; iteration += 1) {
-    const totalStart = process.hrtime.bigint();
-
-    const aiStart = process.hrtime.bigint();
-    const cakes = generateMockCakes(size, storeIds);
-    aiDurations.push(elapsedMs(aiStart));
-
-    uniqueStoreIds = new Set(cakes.map((cake) => cake.owner_store_id)).size;
-
-    const storeHydrationStart = process.hrtime.bigint();
-    let responses: CakeSimilarResponseDto[];
-
-    if (mode === 'batch') {
-      const targetStoreIds = [
-        ...new Set(cakes.map((cake) => cake.owner_store_id).filter(Boolean)),
-      ];
-      storeCalls += 1;
-      const stores = await storeModel.find({
-        _id: {
-          $in: targetStoreIds,
-        },
-      });
-      const storeMap = new Map(
-        stores.map((store) => [store._id.toString(), store]),
-      );
-
-      responses = cakes
-        .map((cake) => {
-          const store = storeMap.get(cake.owner_store_id);
-
-          if (!store) {
-            return null;
-          }
-
-          return new CakeSimilarResponseDto(
-            cake,
-            new StoreSimpleResponseDto(store),
-          );
-        })
-        .filter((cake) => cake !== null);
-    } else {
-      responses = await Promise.all(
-        cakes.map(async (cake) => {
-          storeCalls += 1;
-          const store = await storeModel.findById(cake.owner_store_id);
-
-          return new CakeSimilarResponseDto(
-            cake,
-            new StoreSimpleResponseDto(store),
-          );
-        }),
-      );
-    }
-
-    storeHydrationDurations.push(elapsedMs(storeHydrationStart));
-
-    if (responses.length !== size) {
-      throw new Error(
-        `Unexpected response length. expected=${size}, actual=${responses.length}`,
-      );
-    }
-
-    totalDurations.push(elapsedMs(totalStart));
+    const result = await runIteration(storeModel, size, storePool, mode);
+    aiDurations.push(result.aiMs);
+    storeHydrationDurations.push(result.hydrationMs);
+    totalDurations.push(result.totalMs);
+    storeCalls += result.storeCalls;
+    uniqueStoreIds = result.uniqueStoreIds;
   }
 
   return {
-    scenario: `${mode}-size-${size}`,
+    scenario: `${mode}-dup-${duplication}-size-${size}`,
     iterations,
+    warmupIterations,
     cakeResultSize: size,
     uniqueStoreIds,
     storeCalls,
     mode,
+    duplication,
     total: toPercentiles(totalDurations),
     ai: toPercentiles(aiDurations),
     storeHydration: toPercentiles(storeHydrationDurations),
@@ -231,12 +306,15 @@ async function measureScenario(
 function printResults(results: ScenarioResult[]): void {
   console.log(
     [
-      '| scenario | iterations | cake result size | unique store ids | store calls | total p50 | total p95 | total p99 | ai p95 | store hydration p95 | store hydration p99 |',
-      '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+      '| scenario | mode | duplication | iterations | warmup | cake result size | unique store ids | store calls | total p50 | total p95 | total p99 | ai p95 | store hydration p95 | store hydration p99 |',
+      '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
       ...results.map((result) =>
         [
           `| ${result.scenario}`,
+          result.mode,
+          result.duplication,
           result.iterations,
+          result.warmupIterations,
           result.cakeResultSize,
           result.uniqueStoreIds,
           result.storeCalls,
@@ -261,8 +339,13 @@ async function main(): Promise<void> {
 
   const storeCount = getEnvNumber('BASELINE_STORE_COUNT', DEFAULT_STORE_COUNT);
   const iterations = getEnvNumber('BASELINE_ITERATIONS', DEFAULT_ITERATIONS);
+  const warmupIterations = getEnvNumber(
+    'BASELINE_WARMUP',
+    DEFAULT_WARMUP_ITERATIONS,
+  );
   const sizes = getScenarioSizes();
   const mode = getBaselineMode();
+  const duplications = getBaselineDuplications();
 
   if (isDebugEnabled()) {
     mongoose.set('debug', (collectionName, methodName, ...args) => {
@@ -284,16 +367,20 @@ async function main(): Promise<void> {
     const seededStoreIds = await seedStores(storeModel, storeCount);
     const results: ScenarioResult[] = [];
 
-    for (const size of sizes) {
-      results.push(
-        await measureScenario(
-          storeModel,
-          size,
-          iterations,
-          seededStoreIds,
-          mode,
-        ),
-      );
+    for (const duplication of duplications) {
+      for (const size of sizes) {
+        results.push(
+          await measureScenario(
+            storeModel,
+            size,
+            iterations,
+            warmupIterations,
+            seededStoreIds,
+            mode,
+            duplication,
+          ),
+        );
+      }
     }
 
     printResults(results);
