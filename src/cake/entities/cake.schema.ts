@@ -35,6 +35,24 @@ export class Cake {
 
   @Prop({ type: Boolean, index: true, default: false })
   is_delete: boolean;
+
+  @Prop({
+    type: {
+      name: { type: String },
+      address: { type: String },
+      taste: { type: [String] },
+      latitude: { type: String },
+      longitude: { type: String },
+    },
+    required: false,
+  })
+  owner_store_snapshot?: {
+    name: string;
+    address: string;
+    taste: string[];
+    latitude: string;
+    longitude: string;
+  };
 }
 
 const schema = SchemaFactory.createForClass(Cake);

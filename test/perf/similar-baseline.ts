@@ -24,6 +24,14 @@ type Percentiles = {
   p99: number;
 };
 
+type StoreSnapshot = {
+  name: string;
+  address: string;
+  taste: string[];
+  latitude: string;
+  longitude: string;
+};
+
 type MockCake = {
   id: string;
   image: {
@@ -34,9 +42,12 @@ type MockCake = {
   tag_ins: string[];
   user_like_ids: string[];
   score: number;
+  owner_store_snapshot?: StoreSnapshot;
 };
 
-type BaselineMode = 'current' | 'batch' | 'lookup';
+type SeededStore = StoreSnapshot & { _id: string };
+
+type BaselineMode = 'current' | 'batch' | 'lookup' | 'denorm';
 
 type BaselineDuplication = 'low' | 'mid' | 'high';
 
@@ -77,7 +88,7 @@ function getScenarioSizes(): number[] {
 function getBaselineMode(): BaselineMode {
   const raw = process.env.BASELINE_MODE;
 
-  if (raw === 'batch' || raw === 'lookup') {
+  if (raw === 'batch' || raw === 'lookup' || raw === 'denorm') {
     return raw;
   }
 
@@ -138,9 +149,14 @@ function formatMs(value: number): string {
   return `${value.toFixed(2)}ms`;
 }
 
-function generateMockCakes(size: number, storeIds: string[]): MockCake[] {
+function generateMockCakes(
+  size: number,
+  storeIds: string[],
+  storeMap?: Map<string, SeededStore>,
+): MockCake[] {
   return Array.from({ length: size }, (_, index) => {
     const storeId = storeIds[index % storeIds.length];
+    const snapshot = storeMap?.get(storeId);
 
     return {
       id: `baseline-cake-${size}-${index + 1}`,
@@ -152,6 +168,15 @@ function generateMockCakes(size: number, storeIds: string[]): MockCake[] {
       tag_ins: ['baseline'],
       user_like_ids: [],
       score: index / 100,
+      owner_store_snapshot: snapshot
+        ? {
+            name: snapshot.name,
+            address: snapshot.address,
+            taste: snapshot.taste,
+            latitude: snapshot.latitude,
+            longitude: snapshot.longitude,
+          }
+        : undefined,
     };
   });
 }
@@ -206,7 +231,7 @@ function mockCakesFromSeed(seeded: SeededCake[]): MockCake[] {
 async function seedStores(
   storeModel: mongoose.Model<Store>,
   storeCount: number,
-): Promise<string[]> {
+): Promise<SeededStore[]> {
   await storeModel.deleteMany({ owner_user_id: BASELINE_OWNER_USER_ID });
 
   const stores = await storeModel.insertMany(
@@ -225,7 +250,14 @@ async function seedStores(
     })),
   );
 
-  return stores.map((store) => store._id.toString());
+  return stores.map((store) => ({
+    _id: store._id.toString(),
+    name: store.name,
+    address: store.address,
+    taste: store.taste,
+    longitude: String(store.location.coordinates[0]),
+    latitude: String(store.location.coordinates[1]),
+  }));
 }
 
 type IterationResult = {
@@ -241,6 +273,7 @@ async function runIteration(
   cakeModel: mongoose.Model<Cake>,
   size: number,
   storePool: string[],
+  storeMap: Map<string, SeededStore>,
   seededCakes: SeededCake[],
   mode: BaselineMode,
 ): Promise<IterationResult> {
@@ -250,7 +283,11 @@ async function runIteration(
   const cakes =
     mode === 'lookup'
       ? mockCakesFromSeed(seededCakes)
-      : generateMockCakes(size, storePool);
+      : generateMockCakes(
+          size,
+          storePool,
+          mode === 'denorm' ? storeMap : undefined,
+        );
   const aiMs = elapsedMs(aiStart);
 
   const uniqueStoreIds = new Set(cakes.map((cake) => cake.owner_store_id)).size;
@@ -287,6 +324,23 @@ async function runIteration(
         );
       })
       .filter((cake) => cake !== null);
+  } else if (mode === 'denorm') {
+    storeCalls = 0;
+    responses = cakes.map((cake) => {
+      const snapshot = cake.owner_store_snapshot;
+
+      return new CakeSimilarResponseDto(
+        cake,
+        new StoreSimpleResponseDto({
+          _id: cake.owner_store_id,
+          name: snapshot?.name,
+          address: snapshot?.address,
+          taste: snapshot?.taste,
+          latitude: snapshot?.latitude,
+          longitude: snapshot?.longitude,
+        }),
+      );
+    });
   } else if (mode === 'lookup') {
     const cakeObjectIds = seededCakes.map((cake) => cake._id);
     storeCalls = 1;
@@ -352,16 +406,18 @@ async function measureScenario(
   size: number,
   iterations: number,
   warmupIterations: number,
-  storeIds: string[],
+  seededStores: SeededStore[],
+  storeMap: Map<string, SeededStore>,
   mode: BaselineMode,
   duplication: BaselineDuplication,
 ): Promise<ScenarioResult> {
   const uniquePoolSize = Math.min(
     computeUniquePoolSize(size, duplication),
-    storeIds.length,
+    seededStores.length,
   );
-  const storePool = storeIds.slice(0, uniquePoolSize);
-  const seededCakes = await seedCakes(cakeModel, size, storePool);
+  const storePool = seededStores.slice(0, uniquePoolSize).map((s) => s._id);
+  const seededCakes =
+    mode === 'lookup' ? await seedCakes(cakeModel, size, storePool) : [];
 
   try {
     for (let iteration = 0; iteration < warmupIterations; iteration += 1) {
@@ -370,6 +426,7 @@ async function measureScenario(
         cakeModel,
         size,
         storePool,
+        storeMap,
         seededCakes,
         mode,
       );
@@ -387,6 +444,7 @@ async function measureScenario(
         cakeModel,
         size,
         storePool,
+        storeMap,
         seededCakes,
         mode,
       );
@@ -411,7 +469,9 @@ async function measureScenario(
       storeHydration: toPercentiles(storeHydrationDurations),
     };
   } finally {
-    await cakeModel.deleteMany({ cursor: BASELINE_CAKE_CURSOR });
+    if (mode === 'lookup') {
+      await cakeModel.deleteMany({ cursor: BASELINE_CAKE_CURSOR });
+    }
   }
 }
 
@@ -496,7 +556,8 @@ async function main(): Promise<void> {
   }
 
   try {
-    const seededStoreIds = await seedStores(storeModel, storeCount);
+    const seededStores = await seedStores(storeModel, storeCount);
+    const storeMap = new Map(seededStores.map((store) => [store._id, store]));
     const results: ScenarioResult[] = [];
 
     for (const duplication of duplications) {
@@ -508,7 +569,8 @@ async function main(): Promise<void> {
             size,
             iterations,
             warmupIterations,
-            seededStoreIds,
+            seededStores,
+            storeMap,
             mode,
             duplication,
           ),
