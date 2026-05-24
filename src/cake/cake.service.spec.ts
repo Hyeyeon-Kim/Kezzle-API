@@ -10,32 +10,28 @@ describe('CakeService', () => {
         name: 'Mock Store 1',
         address: 'Seoul mock address 1',
         taste: ['vanilla', 'choco'],
-        longitude: '127.01',
-        latitude: '37.01',
+        location: { coordinates: [127.01, 37.01] },
       },
       {
         _id: { toString: () => 'mock-store-2' },
         name: 'Mock Store 2',
         address: 'Seoul mock address 2',
         taste: ['strawberry'],
-        longitude: '127.02',
-        latitude: '37.02',
+        location: { coordinates: [127.02, 37.02] },
       },
       {
         _id: { toString: () => 'mock-store-3' },
         name: 'Mock Store 3',
         address: 'Seoul mock address 3',
         taste: ['earl-grey'],
-        longitude: '127.03',
-        latitude: '37.03',
+        location: { coordinates: [127.03, 37.03] },
       },
       {
         _id: { toString: () => 'mock-store-4' },
         name: 'Mock Store 4',
         address: 'Seoul mock address 4',
         taste: ['cream-cheese'],
-        longitude: '127.04',
-        latitude: '37.04',
+        location: { coordinates: [127.04, 37.04] },
       },
     ];
 
@@ -47,7 +43,9 @@ describe('CakeService', () => {
         findOne: jest.fn(),
       };
       const storeModel = {
-        find: jest.fn().mockResolvedValue(mockStores),
+        find: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue(mockStores),
+        }),
       };
       const service = new CakeService(
         {} as any,
@@ -79,11 +77,19 @@ describe('CakeService', () => {
       );
       expect(storeService.findOne).not.toHaveBeenCalled();
       expect(storeModel.find).toHaveBeenCalledTimes(1);
-      expect(storeModel.find).toHaveBeenCalledWith({
-        _id: {
-          $in: ['mock-store-1', 'mock-store-2', 'mock-store-3', 'mock-store-4'],
+      expect(storeModel.find).toHaveBeenCalledWith(
+        {
+          _id: {
+            $in: [
+              'mock-store-1',
+              'mock-store-2',
+              'mock-store-3',
+              'mock-store-4',
+            ],
+          },
         },
-      });
+        { name: 1, address: 1, taste: 1, location: 1 },
+      );
       expect(ownerStoreIds).toHaveLength(6);
       expect(uniqueOwnerStoreIds.size).toBe(4);
       expect(response.hasMore).toBe(false);
@@ -98,8 +104,8 @@ describe('CakeService', () => {
         owner_store_name: 'Mock Store 1',
         owner_store_address: 'Seoul mock address 1',
         owner_store_taste: ['vanilla', 'choco'],
-        owner_store_latitude: '37.01',
-        owner_store_longitude: '127.01',
+        owner_store_latitude: 37.01,
+        owner_store_longitude: 127.01,
       });
     });
 
@@ -108,7 +114,9 @@ describe('CakeService', () => {
         get: jest.fn().mockReturnValue(of({ data: similarCakes })),
       };
       const storeModel = {
-        find: jest.fn().mockResolvedValue(mockStores.slice(0, 3)),
+        find: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue(mockStores.slice(0, 3)),
+        }),
       };
       const service = new CakeService(
         {} as any,
