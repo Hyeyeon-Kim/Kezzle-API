@@ -41,7 +41,7 @@ export class StoreSimpleResponseDto {
     this.name = data?.name;
     this.address = data?.address;
     this.taste = data?.taste;
-    this.longitude = data?.longitude;
-    this.latitude = data?.latitude;
+    this.longitude = data?.location?.coordinates?.[0];
+    this.latitude = data?.location?.coordinates?.[1];
   }
 }
