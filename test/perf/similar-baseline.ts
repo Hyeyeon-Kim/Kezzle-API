@@ -163,11 +163,12 @@ async function measureScenario(
         ...new Set(cakes.map((cake) => cake.owner_store_id).filter(Boolean)),
       ];
       storeCalls += 1;
-      const stores = await storeModel.find({
-        _id: {
-          $in: targetStoreIds,
-        },
-      });
+      const stores = await storeModel
+        .find(
+          { _id: { $in: targetStoreIds } },
+          { name: 1, address: 1, taste: 1, location: 1 },
+        )
+        .lean();
       const storeMap = new Map(
         stores.map((store) => [store._id.toString(), store]),
       );

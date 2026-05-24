@@ -517,11 +517,12 @@ export class CakeService {
     const storeIds = [
       ...new Set(cakes.map((cake) => cake.owner_store_id).filter(Boolean)),
     ];
-    const stores = await this.storeModel.find({
-      _id: {
-        $in: storeIds,
-      },
-    });
+    const stores = await this.storeModel
+      .find(
+        { _id: { $in: storeIds } },
+        { name: 1, address: 1, taste: 1, location: 1 },
+      )
+      .lean();
     const storeMap = new Map(
       stores.map((store) => [store._id.toString(), store]),
     );
