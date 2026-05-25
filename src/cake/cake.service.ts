@@ -17,14 +17,13 @@ import { UploadService } from 'src/upload/upload.service';
 import { ObjectId } from 'mongodb';
 import * as XLSX from 'xlsx'; // TODO:나중에 이거 바꿔야함
 import ICake from './interface/cake.interface';
-import { StoreSimpleResponseDto } from 'src/store/dto/response-simple-store.dto';
-import { CakeSimilarResponseDto } from './dto/response-similar-cake.dto';
 import { LogService } from 'src/log/log.service';
 import { PopularCakesResponseDto } from './dto/response-popular-cakes.dto';
 import { AnniversaryService } from 'src/anniversary/anniversary.service';
 import { CakeSimpleResponseDto } from './dto/response-cake-simple.dto';
 import { CounterService } from 'src/counter/counter.service';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
+import { SimilarCakeService } from './similar-cake.service';
 
 @Injectable()
 export class CakeService {
@@ -39,6 +38,7 @@ export class CakeService {
     private readonly logService: LogService,
     private readonly anniversaryService: AnniversaryService,
     private readonly counterService: CounterService,
+    private readonly similarCakeService: SimilarCakeService,
   ) {}
 
   // async findAll(user: IUser, after, limit: number): Promise<CakesResponseDto> {
@@ -508,41 +508,7 @@ export class CakeService {
     dist: number,
     size: number,
   ) {
-    const vitApiBaseUrl =
-      process.env.VIT_API_BASE_URL ?? 'https://api.kezzlecake.com/vit';
-    const apiUrl = `${vitApiBaseUrl}/cakes/similar-search?id=${cakeid}&lon=${lon}&lat=${lat}&dist=${dist}&size=${size}`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
-    const cakes = response.data.result;
-
-    const storeIds = [
-      ...new Set(cakes.map((cake) => cake.owner_store_id).filter(Boolean)),
-    ];
-    const stores = await this.storeModel
-      .find(
-        { _id: { $in: storeIds } },
-        { name: 1, address: 1, taste: 1, location: 1 },
-      )
-      .lean();
-    const storeMap = new Map(
-      stores.map((store) => [store._id.toString(), store]),
-    );
-
-    // TODO: 케이크가 안 올수도 있다 return은 빈 배열
-    const cakeResponse = cakes
-      .map((cake) => {
-        const store = storeMap.get(cake.owner_store_id);
-
-        if (!store) {
-          return null;
-        }
-
-        return new CakeSimilarResponseDto(
-          cake,
-          new StoreSimpleResponseDto(store),
-        );
-      })
-      .filter((cake) => cake !== null);
-    return new CakesResponseDto(cakeResponse, false);
+    return this.similarCakeService.execute(cakeid, lon, lat, dist, size);
   }
 
   async anniversary(anniId: string, user: IUser, page: number) {
