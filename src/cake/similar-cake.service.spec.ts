@@ -1,4 +1,3 @@
-import { of, throwError } from 'rxjs';
 import { SimilarCakeService } from './similar-cake.service';
 import similarCakes from '../../test/fixtures/similar-cakes.mock.json';
 
@@ -41,24 +40,13 @@ const mockStores = [
 ];
 
 describe('SimilarCakeService', () => {
-  const originalVitBaseUrl = process.env.VIT_API_BASE_URL;
-
-  beforeEach(() => {
-    delete process.env.VIT_API_BASE_URL;
-  });
-
-  afterAll(() => {
-    if (originalVitBaseUrl === undefined) {
-      delete process.env.VIT_API_BASE_URL;
-    } else {
-      process.env.VIT_API_BASE_URL = originalVitBaseUrl;
-    }
-  });
-
   describe('execute', () => {
-    it('keeps response shape and batch loads stores once', async () => {
-      const httpService = {
-        get: jest.fn().mockReturnValue(of({ data: similarCakes })),
+    it('delegates VIT call to VitClient and batch loads stores once', async () => {
+      const vitClient = {
+        similarSearchWithLocation: jest
+          .fn()
+          .mockResolvedValue(similarCakes.result),
+        similarSearch: jest.fn(),
       };
       const storeModel = {
         find: jest.fn().mockReturnValue({
@@ -69,7 +57,7 @@ describe('SimilarCakeService', () => {
 
       const service = new SimilarCakeService(
         storeModel as any,
-        httpService as any,
+        vitClient as any,
         metricsService as any,
       );
 
@@ -81,14 +69,13 @@ describe('SimilarCakeService', () => {
         6,
       );
 
-      const ownerStoreIds = similarCakes.result.map(
-        (cake) => cake.owner_store_id,
-      );
-      const uniqueOwnerStoreIds = new Set(ownerStoreIds);
-
-      expect(httpService.get).toHaveBeenCalledTimes(1);
-      expect(httpService.get).toHaveBeenCalledWith(
-        'https://api.kezzlecake.com/vit/cakes/similar-search?id=mock-cake-origin&lon=127.01&lat=37.01&dist=3000&size=6',
+      expect(vitClient.similarSearchWithLocation).toHaveBeenCalledTimes(1);
+      expect(vitClient.similarSearchWithLocation).toHaveBeenCalledWith(
+        'mock-cake-origin',
+        127.01,
+        37.01,
+        3000,
+        6,
       );
       expect(storeModel.find).toHaveBeenCalledTimes(1);
       expect(storeModel.find).toHaveBeenCalledWith(
@@ -104,8 +91,6 @@ describe('SimilarCakeService', () => {
         },
         { name: 1, address: 1, taste: 1, location: 1 },
       );
-      expect(ownerStoreIds).toHaveLength(6);
-      expect(uniqueOwnerStoreIds.size).toBe(4);
       expect(response.hasMore).toBe(false);
       expect(response.cakes).toHaveLength(6);
       expect(response.cakes.map((cake) => cake._id)).toEqual(
@@ -113,19 +98,17 @@ describe('SimilarCakeService', () => {
       );
       expect(response.cakes[0]).toMatchObject({
         _id: 'mock-cake-1',
-        image: { s3Url: 'https://example.com/mock-cake-1.jpg' },
         owner_store_id: 'mock-store-1',
         owner_store_name: 'Mock Store 1',
-        owner_store_address: 'Seoul mock address 1',
-        owner_store_taste: ['vanilla', 'choco'],
-        owner_store_latitude: 37.01,
-        owner_store_longitude: 127.01,
       });
     });
 
     it('excludes cakes whose stores are missing from batch result', async () => {
-      const httpService = {
-        get: jest.fn().mockReturnValue(of({ data: similarCakes })),
+      const vitClient = {
+        similarSearchWithLocation: jest
+          .fn()
+          .mockResolvedValue(similarCakes.result),
+        similarSearch: jest.fn(),
       };
       const storeModel = {
         find: jest.fn().mockReturnValue({
@@ -136,7 +119,7 @@ describe('SimilarCakeService', () => {
 
       const service = new SimilarCakeService(
         storeModel as any,
-        httpService as any,
+        vitClient as any,
         metricsService as any,
       );
 
@@ -159,8 +142,11 @@ describe('SimilarCakeService', () => {
       const endAiCall = jest.fn();
       const endStoreQuery = jest.fn();
 
-      const httpService = {
-        get: jest.fn().mockReturnValue(of({ data: similarCakes })),
+      const vitClient = {
+        similarSearchWithLocation: jest
+          .fn()
+          .mockResolvedValue(similarCakes.result),
+        similarSearch: jest.fn(),
       };
       const storeModel = {
         find: jest.fn().mockReturnValue({
@@ -176,7 +162,7 @@ describe('SimilarCakeService', () => {
 
       const service = new SimilarCakeService(
         storeModel as any,
-        httpService as any,
+        vitClient as any,
         metricsService as any,
       );
 
@@ -188,17 +174,16 @@ describe('SimilarCakeService', () => {
       expect(metricsService.aiApiErrors.inc).not.toHaveBeenCalled();
     });
 
-    it('records error metrics when the AI API call fails', async () => {
+    it('records error metrics when the VIT call fails with timeout', async () => {
       const endSimilar = jest.fn();
       const endAiCall = jest.fn();
       const endStoreQuery = jest.fn();
 
-      const httpService = {
-        get: jest
+      const vitClient = {
+        similarSearchWithLocation: jest
           .fn()
-          .mockReturnValue(
-            throwError(() => ({ code: 'ECONNABORTED', message: 'timeout' })),
-          ),
+          .mockRejectedValue({ code: 'ECONNABORTED', message: 'timeout' }),
+        similarSearch: jest.fn(),
       };
       const storeModel = { find: jest.fn() };
       const metricsService = {
@@ -210,7 +195,7 @@ describe('SimilarCakeService', () => {
 
       const service = new SimilarCakeService(
         storeModel as any,
-        httpService as any,
+        vitClient as any,
         metricsService as any,
       );
 

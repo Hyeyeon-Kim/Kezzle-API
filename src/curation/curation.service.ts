@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Curation } from './entities/curation.schema';
 import { Model } from 'mongoose';
-import { HttpService } from '@nestjs/axios';
 import { CurationDto } from './dto/response-curation.dto';
 import { CurationsDto } from './dto/response-curations.dto';
 import { HomeCurationDto } from './dto/response-home-curation.dto';
@@ -19,21 +18,20 @@ import { RankResponseDto } from 'src/search/dto/response-search-rank.dto';
 import { HomeCurationDtoV2 } from './dto/response-home-curation.dto.v2';
 import { CakesSimpleResponseDto } from 'src/cake/dto/response-cakes-simple.dto';
 import IUser from 'src/user/interfaces/user.interface';
+import { ClipClient } from 'src/ai-search/clip-client';
 
 @Injectable()
 export class CurationService {
   constructor(
     @InjectModel(Curation.name, 'kezzle')
     private readonly curationModel: Model<Curation>,
-    private readonly httpService: HttpService,
+    private readonly clipClient: ClipClient,
     private readonly cakeService: CakeService,
     private readonly anniversaryService: AnniversaryService,
     private readonly searchService: SearchService,
   ) {}
   async createCuration(keyword: string, disc: string, note: string) {
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search?keyword=${keyword}&size=100`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
-    const cakes = response.data.result;
+    const cakes = await this.clipClient.koSearch(keyword, 100);
 
     return await this.curationModel.create({
       cakes: cakes,
@@ -48,9 +46,7 @@ export class CurationService {
       throw new CurationNotFoundException(curationId);
     });
 
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search?keyword=${curation.key}&size=100`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
-    const cakes = response.data.result;
+    const cakes = await this.clipClient.koSearch(curation.key, 100);
 
     curation.cakes = cakes;
     curation.save();
@@ -115,11 +111,13 @@ export class CurationService {
     });
 
     if (Number.isNaN(page)) page = 0;
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search-page?keyword=${curation.key}&size=20&page=${page}`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
-    const cakes = response.data.result;
+    const { result } = await this.clipClient.koSearchPage(
+      curation.key,
+      20,
+      page,
+    );
 
-    const Response = await cakes.map((cake) => new CakeSimpleResponseDto(cake));
+    const Response = result.map((cake) => new CakeSimpleResponseDto(cake));
     return new CurationCakeResponsDto(curation.description, Response);
   }
 }

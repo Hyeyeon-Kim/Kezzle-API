@@ -6,12 +6,12 @@ import { SimilarCakeService } from './similar-cake.service';
 import { CakeController } from './cake.controller';
 import { Store, StoreSchema } from 'src/store/entities/store.schema';
 import { UploadModule } from '../upload/upload.module';
-import { HttpModule } from '@nestjs/axios';
 import { StoreModule } from 'src/store/store.module';
 import { LogModule } from 'src/log/log.module';
 import { AnniversaryModule } from 'src/anniversary/anniversary.module';
 import { CounterModule } from 'src/counter/counter.module';
 import { MetricsModule } from 'src/metrics/metrics.module';
+import { AiSearchModule } from 'src/ai-search/ai-search.module';
 
 @Module({
   imports: [
@@ -24,12 +24,12 @@ import { MetricsModule } from 'src/metrics/metrics.module';
       'kezzle',
     ),
     UploadModule,
-    HttpModule,
     forwardRef(() => StoreModule),
     LogModule,
     AnniversaryModule,
     CounterModule,
     MetricsModule,
+    AiSearchModule,
   ],
   controllers: [CakeController],
   providers: [CakeService, SimilarCakeService],

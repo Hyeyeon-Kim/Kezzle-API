@@ -2,7 +2,6 @@ import { StoreService } from './../store/store.service';
 import { CakesResponseDto } from './dto/response-cakes.dto';
 import { Model, PipelineStage } from 'mongoose';
 import { Inject, Injectable, forwardRef } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cake } from './entities/cake.schema';
 import { UpdateCakeDto } from './dto/update-cake.dto';
@@ -24,6 +23,8 @@ import { CakeSimpleResponseDto } from './dto/response-cake-simple.dto';
 import { CounterService } from 'src/counter/counter.service';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
 import { SimilarCakeService } from './similar-cake.service';
+import { VitClient } from 'src/ai-search/vit-client';
+import { ClipClient } from 'src/ai-search/clip-client';
 
 @Injectable()
 export class CakeService {
@@ -34,11 +35,12 @@ export class CakeService {
     private readonly uploadService: UploadService,
     @Inject(forwardRef(() => StoreService))
     private readonly storeService: StoreService,
-    private readonly httpService: HttpService,
     private readonly logService: LogService,
     private readonly anniversaryService: AnniversaryService,
     private readonly counterService: CounterService,
     private readonly similarCakeService: SimilarCakeService,
+    private readonly vitClient: VitClient,
+    private readonly clipClient: ClipClient,
   ) {}
 
   // async findAll(user: IUser, after, limit: number): Promise<CakesResponseDto> {
@@ -202,9 +204,7 @@ export class CakeService {
       )[0]._id.toString();
     }
 
-    const apiUrl = `https://api.kezzlecake.com/vit/cakes/similar-search?id=${userLikedCakeId}&size=6`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
-    const cakes = response.data.result;
+    const cakes = await this.vitClient.similarSearch(userLikedCakeId, 6);
 
     return cakes.map((cake) => new CakeSimpleResponseDto(cake));
   }
@@ -516,10 +516,8 @@ export class CakeService {
     const anniversary =
       await this.anniversaryService.getAnniversaryWord(anniId);
     const keyword = anniversary.keyword.join(', ');
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search-page?keyword=${keyword}&size=20&page=${page}`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
-    const cakes = response.data.result;
-    const cakeResponse = await cakes.map(
+    const { result } = await this.clipClient.koSearchPage(keyword, 20, page);
+    const cakeResponse = result.map(
       (cake) => new CakeResponseDto(cake, user.firebaseUid),
     );
     return new CakesResponseDto(cakeResponse, false);

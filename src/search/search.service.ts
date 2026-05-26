@@ -1,5 +1,4 @@
 import { LogService } from './../log/log.service';
-import { HttpService } from '@nestjs/axios';
 import { CakesResponseDto } from 'src/cake/dto/response-cakes.dto';
 import IUser from 'src/user/interfaces/user.interface';
 import { Injectable } from '@nestjs/common';
@@ -7,20 +6,23 @@ import { RankResponseDto } from './dto/response-search-rank.dto';
 import { LatestResponseDto } from './dto/response-latest-search.dto';
 import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
 import { CakesSearchResponseDto } from 'src/cake/dto/response-search-cake.dto';
+import { ClipClient } from 'src/ai-search/clip-client';
 
 @Injectable()
 export class SearchService {
   constructor(
-    private readonly httpService: HttpService,
+    private readonly clipClient: ClipClient,
     private readonly logService: LogService,
   ) {}
 
   async search(keywords: string, page: number, user: IUser) {
     if (!keywords) return new CakesResponseDto([], false);
 
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search-page?keyword=${keywords}&size=18&page=${page}`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
-    const cakes = response.data.result;
+    const { result, nextPage, isLastPage } = await this.clipClient.koSearchPage(
+      keywords,
+      18,
+      page,
+    );
 
     if (page === 0 || page === undefined) {
       const keywordArr = keywords.split(',').map((keyword) => keyword.trim());
@@ -31,14 +33,10 @@ export class SearchService {
       }
     }
 
-    const cakeResponse = await cakes.map(
+    const cakeResponse = result.map(
       (cake) => new CakeResponseDto(cake, user.firebaseUid),
     );
-    return new CakesSearchResponseDto(
-      cakeResponse,
-      response.data.nextPage,
-      response.data.isLastPage,
-    );
+    return new CakesSearchResponseDto(cakeResponse, nextPage, isLastPage);
   }
 
   async getRank(
