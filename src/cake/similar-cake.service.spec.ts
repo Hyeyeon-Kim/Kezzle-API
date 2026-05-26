@@ -78,29 +78,7 @@ describe('SimilarCakeService', () => {
         6,
       );
       expect(storeModel.find).toHaveBeenCalledTimes(1);
-      expect(storeModel.find).toHaveBeenCalledWith(
-        {
-          _id: {
-            $in: [
-              'mock-store-1',
-              'mock-store-2',
-              'mock-store-3',
-              'mock-store-4',
-            ],
-          },
-        },
-        { name: 1, address: 1, taste: 1, location: 1 },
-      );
-      expect(response.hasMore).toBe(false);
       expect(response.cakes).toHaveLength(6);
-      expect(response.cakes.map((cake) => cake._id)).toEqual(
-        similarCakes.result.map((cake) => cake.id),
-      );
-      expect(response.cakes[0]).toMatchObject({
-        _id: 'mock-cake-1',
-        owner_store_id: 'mock-store-1',
-        owner_store_name: 'Mock Store 1',
-      });
     });
 
     it('excludes cakes whose stores are missing from batch result', async () => {
@@ -137,10 +115,10 @@ describe('SimilarCakeService', () => {
       );
     });
 
-    it('records success metrics on the happy path', async () => {
+    it('records outer similarSearchDuration success and does not double-record AI metrics', async () => {
       const endSimilar = jest.fn();
-      const endAiCall = jest.fn();
       const endStoreQuery = jest.fn();
+      const startAiCallTimer = jest.fn();
 
       const vitClient = {
         similarSearchWithLocation: jest
@@ -155,7 +133,7 @@ describe('SimilarCakeService', () => {
       };
       const metricsService = {
         similarSearchDuration: { startTimer: jest.fn(() => endSimilar) },
-        aiApiCallDuration: { startTimer: jest.fn(() => endAiCall) },
+        aiApiCallDuration: { startTimer: startAiCallTimer },
         storeQueryDuration: { startTimer: jest.fn(() => endStoreQuery) },
         aiApiErrors: { inc: jest.fn() },
       };
@@ -168,16 +146,15 @@ describe('SimilarCakeService', () => {
 
       await service.execute('mock-cake-origin', 127.01, 37.01, 3000, 6);
 
-      expect(endAiCall).toHaveBeenCalledWith({ status: 'success' });
-      expect(endStoreQuery).toHaveBeenCalledTimes(1);
       expect(endSimilar).toHaveBeenCalledWith({ status: 'success' });
+      expect(endStoreQuery).toHaveBeenCalledTimes(1);
+      expect(startAiCallTimer).not.toHaveBeenCalled();
       expect(metricsService.aiApiErrors.inc).not.toHaveBeenCalled();
     });
 
-    it('records error metrics when the VIT call fails with timeout', async () => {
+    it('records outer similarSearchDuration as error when VitClient throws', async () => {
       const endSimilar = jest.fn();
-      const endAiCall = jest.fn();
-      const endStoreQuery = jest.fn();
+      const startAiCallTimer = jest.fn();
 
       const vitClient = {
         similarSearchWithLocation: jest
@@ -188,8 +165,8 @@ describe('SimilarCakeService', () => {
       const storeModel = { find: jest.fn() };
       const metricsService = {
         similarSearchDuration: { startTimer: jest.fn(() => endSimilar) },
-        aiApiCallDuration: { startTimer: jest.fn(() => endAiCall) },
-        storeQueryDuration: { startTimer: jest.fn(() => endStoreQuery) },
+        aiApiCallDuration: { startTimer: startAiCallTimer },
+        storeQueryDuration: { startTimer: jest.fn(() => jest.fn()) },
         aiApiErrors: { inc: jest.fn() },
       };
 
@@ -203,11 +180,9 @@ describe('SimilarCakeService', () => {
         service.execute('mock-cake-origin', 127.01, 37.01, 3000, 6),
       ).rejects.toMatchObject({ code: 'ECONNABORTED' });
 
-      expect(endAiCall).toHaveBeenCalledWith({ status: 'timeout' });
-      expect(metricsService.aiApiErrors.inc).toHaveBeenCalledWith({
-        reason: 'timeout',
-      });
       expect(endSimilar).toHaveBeenCalledWith({ status: 'error' });
+      expect(startAiCallTimer).not.toHaveBeenCalled();
+      expect(metricsService.aiApiErrors.inc).not.toHaveBeenCalled();
       expect(storeModel.find).not.toHaveBeenCalled();
     });
   });

@@ -28,27 +28,6 @@ export class SimilarCakeService {
       this.metricsService.similarSearchDuration.startTimer();
 
     try {
-      const cakes = await this.callVitApi(cakeid, lon, lat, dist, size);
-      const storeMap = await this.loadStoresByIds(cakes);
-      const cakeResponse = this.assembleResponse(cakes, storeMap);
-
-      endSimilarSearch({ status: 'success' });
-      return new CakesResponseDto(cakeResponse, false);
-    } catch (err) {
-      endSimilarSearch({ status: 'error' });
-      throw err;
-    }
-  }
-
-  private async callVitApi(
-    cakeid: string,
-    lon: number,
-    lat: number,
-    dist: number,
-    size: number,
-  ) {
-    const endAiCall = this.metricsService.aiApiCallDuration.startTimer();
-    try {
       const cakes = await this.vitClient.similarSearchWithLocation(
         cakeid,
         lon,
@@ -56,12 +35,13 @@ export class SimilarCakeService {
         dist,
         size,
       );
-      endAiCall({ status: 'success' });
-      return cakes;
+      const storeMap = await this.loadStoresByIds(cakes);
+      const cakeResponse = this.assembleResponse(cakes, storeMap);
+
+      endSimilarSearch({ status: 'success' });
+      return new CakesResponseDto(cakeResponse, false);
     } catch (err) {
-      const reason = err?.code === 'ECONNABORTED' ? 'timeout' : 'error';
-      endAiCall({ status: reason });
-      this.metricsService.aiApiErrors.inc({ reason });
+      endSimilarSearch({ status: 'error' });
       throw err;
     }
   }

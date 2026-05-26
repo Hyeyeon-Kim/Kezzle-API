@@ -1,14 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { Counter, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
+import {
+  Counter,
+  Histogram,
+  Registry,
+  collectDefaultMetrics,
+} from 'prom-client';
 
 @Injectable()
 export class MetricsService {
   readonly registry: Registry;
 
   readonly similarSearchDuration: Histogram<'status'>;
-  readonly aiApiCallDuration: Histogram<'status'>;
+  readonly aiApiCallDuration: Histogram<'status' | 'model' | 'endpoint'>;
   readonly storeQueryDuration: Histogram;
-  readonly aiApiErrors: Counter<'reason'>;
+  readonly aiApiErrors: Counter<'reason' | 'model' | 'endpoint'>;
 
   constructor() {
     this.registry = new Registry();
@@ -24,8 +29,8 @@ export class MetricsService {
 
     this.aiApiCallDuration = new Histogram({
       name: 'ai_api_call_duration_seconds',
-      help: 'Duration of AI API (VIT) calls in similar()',
-      labelNames: ['status'],
+      help: 'Duration of AI API calls (VIT/CLIP)',
+      labelNames: ['status', 'model', 'endpoint'],
       buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
       registers: [this.registry],
     });
@@ -40,8 +45,8 @@ export class MetricsService {
 
     this.aiApiErrors = new Counter({
       name: 'ai_api_errors_total',
-      help: 'Total AI API errors in similar()',
-      labelNames: ['reason'],
+      help: 'Total AI API errors (VIT/CLIP)',
+      labelNames: ['reason', 'model', 'endpoint'],
       registers: [this.registry],
     });
   }

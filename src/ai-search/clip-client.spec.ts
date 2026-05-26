@@ -1,5 +1,10 @@
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { ClipClient } from './clip-client';
+
+const buildMetricsService = () => ({
+  aiApiCallDuration: { startTimer: jest.fn(() => jest.fn()) },
+  aiApiErrors: { inc: jest.fn() },
+});
 
 describe('ClipClient', () => {
   const originalClipBaseUrl = process.env.CLIP_API_BASE_URL;
@@ -22,7 +27,8 @@ describe('ClipClient', () => {
       const httpService = {
         get: jest.fn().mockReturnValue(of({ data: { result: expected } })),
       };
-      const client = new ClipClient(httpService as any);
+      const metricsService = buildMetricsService();
+      const client = new ClipClient(httpService as any, metricsService as any);
 
       const result = await client.koSearch('생일', 100);
 
@@ -38,13 +44,57 @@ describe('ClipClient', () => {
       const httpService = {
         get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
       };
-      const client = new ClipClient(httpService as any);
+      const metricsService = buildMetricsService();
+      const client = new ClipClient(httpService as any, metricsService as any);
 
       await client.koSearch('test', 6);
 
       expect(httpService.get).toHaveBeenCalledWith(
         'http://kezzle-clip-server:8002/cakes/ko-search?keyword=test&size=6',
       );
+    });
+
+    it('records success metric with model=clip and endpoint=ko-search', async () => {
+      const endTimer = jest.fn();
+      const httpService = {
+        get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
+      };
+      const metricsService = {
+        aiApiCallDuration: { startTimer: jest.fn(() => endTimer) },
+        aiApiErrors: { inc: jest.fn() },
+      };
+      const client = new ClipClient(httpService as any, metricsService as any);
+
+      await client.koSearch('test', 6);
+
+      expect(metricsService.aiApiCallDuration.startTimer).toHaveBeenCalledWith({
+        model: 'clip',
+        endpoint: 'ko-search',
+      });
+      expect(endTimer).toHaveBeenCalledWith({ status: 'success' });
+    });
+
+    it('records error metric when call fails', async () => {
+      const endTimer = jest.fn();
+      const httpService = {
+        get: jest.fn().mockReturnValue(throwError(() => ({ message: 'boom' }))),
+      };
+      const metricsService = {
+        aiApiCallDuration: { startTimer: jest.fn(() => endTimer) },
+        aiApiErrors: { inc: jest.fn() },
+      };
+      const client = new ClipClient(httpService as any, metricsService as any);
+
+      await expect(client.koSearch('test', 6)).rejects.toMatchObject({
+        message: 'boom',
+      });
+
+      expect(endTimer).toHaveBeenCalledWith({ status: 'error' });
+      expect(metricsService.aiApiErrors.inc).toHaveBeenCalledWith({
+        reason: 'error',
+        model: 'clip',
+        endpoint: 'ko-search',
+      });
     });
   });
 
@@ -58,7 +108,8 @@ describe('ClipClient', () => {
           }),
         ),
       };
-      const client = new ClipClient(httpService as any);
+      const metricsService = buildMetricsService();
+      const client = new ClipClient(httpService as any, metricsService as any);
 
       const response = await client.koSearchPage('딸기', 20, 1);
 
@@ -69,6 +120,28 @@ describe('ClipClient', () => {
       expect(response.result).toBe(result);
       expect(response.nextPage).toBe(2);
       expect(response.isLastPage).toBe(false);
+    });
+
+    it('records success metric with model=clip and endpoint=ko-search-page', async () => {
+      const endTimer = jest.fn();
+      const httpService = {
+        get: jest
+          .fn()
+          .mockReturnValue(of({ data: { result: [], nextPage: 2 } })),
+      };
+      const metricsService = {
+        aiApiCallDuration: { startTimer: jest.fn(() => endTimer) },
+        aiApiErrors: { inc: jest.fn() },
+      };
+      const client = new ClipClient(httpService as any, metricsService as any);
+
+      await client.koSearchPage('keyword', 20, 0);
+
+      expect(metricsService.aiApiCallDuration.startTimer).toHaveBeenCalledWith({
+        model: 'clip',
+        endpoint: 'ko-search-page',
+      });
+      expect(endTimer).toHaveBeenCalledWith({ status: 'success' });
     });
   });
 });
