@@ -19,6 +19,7 @@ describe('CakeService', () => {
         similarCakeService as any,
         {} as any,
         {} as any,
+        {} as any,
       );
 
       const result = await service.similar(

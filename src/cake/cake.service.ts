@@ -25,6 +25,7 @@ import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
 import { SimilarCakeService } from './similar-cake.service';
 import { VitClient } from 'src/ai-search/vit-client';
 import { ClipClient } from 'src/ai-search/clip-client';
+import { StoreRepository } from 'src/store/store.repository';
 
 @Injectable()
 export class CakeService {
@@ -41,6 +42,7 @@ export class CakeService {
     private readonly similarCakeService: SimilarCakeService,
     private readonly vitClient: VitClient,
     private readonly clipClient: ClipClient,
+    private readonly storeRepository: StoreRepository,
   ) {}
 
   // async findAll(user: IUser, after, limit: number): Promise<CakesResponseDto> {
@@ -80,29 +82,10 @@ export class CakeService {
   ): Promise<CakesResponseDto> {
     let cakes;
 
-    const geoNear: PipelineStage.GeoNear = {
-      $geoNear: {
-        near: { type: 'Point', coordinates: [longitude, latitude] },
-        distanceField: 'dist',
-        spherical: true,
-      },
-    };
-
-    if (!Number.isNaN(distance)) {
-      geoNear.$geoNear.maxDistance = distance;
-    }
-
-    let storeIdsInLocation = await this.storeModel.aggregate([
-      geoNear,
-      {
-        $project: {
-          _id: 1,
-        },
-      },
-    ]);
-
-    storeIdsInLocation = storeIdsInLocation.map((store) =>
-      store._id.toString(),
+    const storeIdsInLocation = await this.storeRepository.findIdsByGeoNear(
+      longitude,
+      latitude,
+      distance,
     );
 
     let match: PipelineStage.Match;
@@ -219,29 +202,10 @@ export class CakeService {
   ): Promise<CakesResponseDto> {
     let cakes;
 
-    const geoNear: PipelineStage.GeoNear = {
-      $geoNear: {
-        near: { type: 'Point', coordinates: [longitude, latitude] },
-        distanceField: 'dist',
-        spherical: true,
-      },
-    };
-
-    if (!Number.isNaN(distance)) {
-      geoNear.$geoNear.maxDistance = distance;
-    }
-
-    let storeIdsInLocation = await this.storeModel.aggregate([
-      geoNear,
-      {
-        $project: {
-          _id: 1,
-        },
-      },
-    ]);
-
-    storeIdsInLocation = storeIdsInLocation.map((store) =>
-      store._id.toString(),
+    const storeIdsInLocation = await this.storeRepository.findIdsByGeoNear(
+      longitude,
+      latitude,
+      distance,
     );
 
     let match: PipelineStage.Match;

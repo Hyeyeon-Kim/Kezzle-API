@@ -39,24 +39,29 @@ const mockStores = [
   },
 ];
 
+const STORE_PROJECTION = {
+  name: 1,
+  address: 1,
+  taste: 1,
+  location: 1,
+};
+
 describe('SimilarCakeService', () => {
   describe('execute', () => {
-    it('delegates VIT call to VitClient and batch loads stores once', async () => {
+    it('delegates VIT call to VitClient and loads stores via StoreRepository once', async () => {
       const vitClient = {
         similarSearchWithLocation: jest
           .fn()
           .mockResolvedValue(similarCakes.result),
         similarSearch: jest.fn(),
       };
-      const storeModel = {
-        find: jest.fn().mockReturnValue({
-          lean: jest.fn().mockResolvedValue(mockStores),
-        }),
+      const storeRepository = {
+        findByIdsWithProjection: jest.fn().mockResolvedValue(mockStores),
       };
       const metricsService = buildMetricsService();
 
       const service = new SimilarCakeService(
-        storeModel as any,
+        storeRepository as any,
         vitClient as any,
         metricsService as any,
       );
@@ -77,7 +82,11 @@ describe('SimilarCakeService', () => {
         3000,
         6,
       );
-      expect(storeModel.find).toHaveBeenCalledTimes(1);
+      expect(storeRepository.findByIdsWithProjection).toHaveBeenCalledTimes(1);
+      expect(storeRepository.findByIdsWithProjection).toHaveBeenCalledWith(
+        ['mock-store-1', 'mock-store-2', 'mock-store-3', 'mock-store-4'],
+        STORE_PROJECTION,
+      );
       expect(response.cakes).toHaveLength(6);
     });
 
@@ -88,15 +97,15 @@ describe('SimilarCakeService', () => {
           .mockResolvedValue(similarCakes.result),
         similarSearch: jest.fn(),
       };
-      const storeModel = {
-        find: jest.fn().mockReturnValue({
-          lean: jest.fn().mockResolvedValue(mockStores.slice(0, 3)),
-        }),
+      const storeRepository = {
+        findByIdsWithProjection: jest
+          .fn()
+          .mockResolvedValue(mockStores.slice(0, 3)),
       };
       const metricsService = buildMetricsService();
 
       const service = new SimilarCakeService(
-        storeModel as any,
+        storeRepository as any,
         vitClient as any,
         metricsService as any,
       );
@@ -126,10 +135,8 @@ describe('SimilarCakeService', () => {
           .mockResolvedValue(similarCakes.result),
         similarSearch: jest.fn(),
       };
-      const storeModel = {
-        find: jest.fn().mockReturnValue({
-          lean: jest.fn().mockResolvedValue(mockStores),
-        }),
+      const storeRepository = {
+        findByIdsWithProjection: jest.fn().mockResolvedValue(mockStores),
       };
       const metricsService = {
         similarSearchDuration: { startTimer: jest.fn(() => endSimilar) },
@@ -139,7 +146,7 @@ describe('SimilarCakeService', () => {
       };
 
       const service = new SimilarCakeService(
-        storeModel as any,
+        storeRepository as any,
         vitClient as any,
         metricsService as any,
       );
@@ -162,7 +169,9 @@ describe('SimilarCakeService', () => {
           .mockRejectedValue({ code: 'ECONNABORTED', message: 'timeout' }),
         similarSearch: jest.fn(),
       };
-      const storeModel = { find: jest.fn() };
+      const storeRepository = {
+        findByIdsWithProjection: jest.fn(),
+      };
       const metricsService = {
         similarSearchDuration: { startTimer: jest.fn(() => endSimilar) },
         aiApiCallDuration: { startTimer: startAiCallTimer },
@@ -171,7 +180,7 @@ describe('SimilarCakeService', () => {
       };
 
       const service = new SimilarCakeService(
-        storeModel as any,
+        storeRepository as any,
         vitClient as any,
         metricsService as any,
       );
@@ -183,7 +192,7 @@ describe('SimilarCakeService', () => {
       expect(endSimilar).toHaveBeenCalledWith({ status: 'error' });
       expect(startAiCallTimer).not.toHaveBeenCalled();
       expect(metricsService.aiApiErrors.inc).not.toHaveBeenCalled();
-      expect(storeModel.find).not.toHaveBeenCalled();
+      expect(storeRepository.findByIdsWithProjection).not.toHaveBeenCalled();
     });
   });
 });

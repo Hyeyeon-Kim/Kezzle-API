@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Store, StoreSchema } from './entities/store.schema';
 import { UploadModule } from 'src/upload/upload.module';
 import { CakeModule } from 'src/cake/cake.module';
+import { StoreRepository } from './store.repository';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { CakeModule } from 'src/cake/cake.module';
     UploadModule,
   ],
   controllers: [StoreController],
-  providers: [StoreService],
-  exports: [StoreService],
+  providers: [StoreService, StoreRepository],
+  exports: [StoreService, StoreRepository],
 })
 export class StoreModule {}
