@@ -1,4 +1,4 @@
-import { Inject, Injectable, forwardRef } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -16,7 +16,8 @@ import { UpdateStoreLogoDto } from './dto/update-store-logo.dto';
 import { S3 } from 'aws-sdk';
 import { StoresResponseDto } from './dto/response-stores.dto';
 import { UpdateStoreImageDto } from './dto/update-store-image.dto';
-import { CakeService } from 'src/cake/cake.service';
+import { CakeRepository } from 'src/cake/cake.repository';
+import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
 
 @Injectable()
 export class StoreService {
@@ -24,8 +25,7 @@ export class StoreService {
   constructor(
     @InjectModel(Store.name, 'kezzle')
     private readonly storeModel: Model<Store>,
-    @Inject(forwardRef(() => CakeService))
-    private readonly cakeService: CakeService,
+    private readonly cakeRepository: CakeRepository,
     private readonly uploadService: UploadService,
   ) {}
 
@@ -77,14 +77,20 @@ export class StoreService {
       stores = stores.slice(0, stores.length - 1);
     }
 
-    const storeResponse = await Promise.all(
-      stores.map(async (store) => {
-        const cakes = await this.cakeService.findStoreCake(store._id, user);
-        return await new StoreResponseDto(store, user.firebaseUid, cakes);
-      }),
-    );
+    const storeIds = stores.map((store) => store._id.toString());
+    const cakesByStoreId =
+      await this.cakeRepository.findRecentByStoreIds(storeIds);
 
-    return await new StoresResponseDto(storeResponse, hasMore);
+    const storeResponse = stores.map((store) => {
+      const storeIdStr = store._id.toString();
+      const cakeDocs = cakesByStoreId.get(storeIdStr) ?? [];
+      const cakes = cakeDocs.map(
+        (cake) => new CakeResponseDto(cake, user.firebaseUid),
+      );
+      return new StoreResponseDto(store, user.firebaseUid, cakes);
+    });
+
+    return new StoresResponseDto(storeResponse, hasMore);
   }
 
   async create(createStoreDto: CreateStoreDto): Promise<Store> {

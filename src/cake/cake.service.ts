@@ -1,7 +1,6 @@
-import { StoreService } from './../store/store.service';
 import { CakesResponseDto } from './dto/response-cakes.dto';
 import { Model, PipelineStage } from 'mongoose';
-import { Inject, Injectable, forwardRef } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cake } from './entities/cake.schema';
 import { UpdateCakeDto } from './dto/update-cake.dto';
@@ -34,8 +33,6 @@ export class CakeService {
     @InjectModel(Store.name, 'kezzle')
     private readonly storeModel: Model<Store>,
     private readonly uploadService: UploadService,
-    @Inject(forwardRef(() => StoreService))
-    private readonly storeService: StoreService,
     private readonly logService: LogService,
     private readonly anniversaryService: AnniversaryService,
     private readonly counterService: CounterService,

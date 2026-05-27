@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { StoreController } from './store.controller';
 import { StoreService } from './store.service';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -13,7 +13,7 @@ import { StoreRepository } from './store.repository';
       [{ name: Store.name, schema: StoreSchema }],
       'kezzle',
     ),
-    forwardRef(() => CakeModule),
+    CakeModule,
     UploadModule,
   ],
   controllers: [StoreController],

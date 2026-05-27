@@ -15,7 +15,6 @@ describe('CakeService', () => {
         {} as any,
         {} as any,
         {} as any,
-        {} as any,
         similarCakeService as any,
         {} as any,
         {} as any,
