@@ -13,6 +13,7 @@ import { CurationModule } from './curation/curation.module';
 import { LogModule } from './log/log.module';
 import { AnniversaryModule } from './anniversary/anniversary.module';
 import { CounterModule } from './counter/counter.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { CounterModule } from './counter/counter.module';
     LogModule,
     AnniversaryModule,
     CounterModule,
+    MetricsModule,
   ],
   controllers: [],
   providers: [

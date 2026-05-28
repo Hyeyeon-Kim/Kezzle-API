@@ -1,13 +1,10 @@
-import { Inject, Injectable, forwardRef } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
-import { InjectModel } from '@nestjs/mongoose';
 import { Store } from './entities/store.schema';
-import { Model, PipelineStage } from 'mongoose';
 import { DetailStoreResponseDto } from './dto/response-detail-store.dto';
 import { StoreResponseDto } from './dto/response-store.dto';
 import IUser from 'src/user/interfaces/user.interface';
-import { StoreNotFoundException } from './exceptions/store-not-found.exception';
 import { StoresNotFoundException } from './exceptions/stores-not-found.exception';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
 import { Roles } from 'src/user/entities/roles.enum';
@@ -16,17 +13,17 @@ import { UpdateStoreLogoDto } from './dto/update-store-logo.dto';
 import { S3 } from 'aws-sdk';
 import { StoresResponseDto } from './dto/response-stores.dto';
 import { UpdateStoreImageDto } from './dto/update-store-image.dto';
-import { CakeService } from 'src/cake/cake.service';
+import { CakeRepository } from 'src/cake/cake.repository';
+import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
+import { StoreRepository } from './store.repository';
 
 @Injectable()
 export class StoreService {
   private s3 = new S3();
   constructor(
-    @InjectModel(Store.name, 'kezzle')
-    private readonly storeModel: Model<Store>,
-    @Inject(forwardRef(() => CakeService))
-    private readonly cakeService: CakeService,
+    private readonly cakeRepository: CakeRepository,
     private readonly uploadService: UploadService,
+    private readonly storeRepository: StoreRepository,
   ) {}
 
   async findAll(
@@ -37,36 +34,8 @@ export class StoreService {
     after: number,
     limit: number,
   ) {
-    let stores;
-
-    const geoNear: PipelineStage.GeoNear = {
-      $geoNear: {
-        near: { type: 'Point', coordinates: [longitude, latitude] },
-        distanceField: 'dist',
-        spherical: true,
-      },
-    };
-
-    if (!Number.isNaN(distance)) {
-      geoNear.$geoNear.maxDistance = distance;
-    }
-
-    const match: PipelineStage.Match = {
-      $match: {
-        dist: {
-          $gt: after,
-        },
-      },
-    };
-
-    const pipeline = [geoNear, match];
-
-    if (Number.isNaN(after)) {
-      pipeline.pop();
-    }
-    stores = await this.storeModel
-      .aggregate(pipeline)
-      .limit(limit + 1)
+    let stores = await this.storeRepository
+      .findByGeoNear(longitude, latitude, distance, after, limit + 1)
       .catch(() => {
         throw new StoresNotFoundException();
       });
@@ -77,25 +46,28 @@ export class StoreService {
       stores = stores.slice(0, stores.length - 1);
     }
 
-    const storeResponse = await Promise.all(
-      stores.map(async (store) => {
-        const cakes = await this.cakeService.findStoreCake(store._id, user);
-        return await new StoreResponseDto(store, user.firebaseUid, cakes);
-      }),
-    );
+    const storeIds = stores.map((store) => store._id.toString());
+    const cakesByStoreId =
+      await this.cakeRepository.findRecentByStoreIds(storeIds);
 
-    return await new StoresResponseDto(storeResponse, hasMore);
+    const storeResponse = stores.map((store) => {
+      const storeIdStr = store._id.toString();
+      const cakeDocs = cakesByStoreId.get(storeIdStr) ?? [];
+      const cakes = cakeDocs.map(
+        (cake) => new CakeResponseDto(cake, user.firebaseUid),
+      );
+      return new StoreResponseDto(store, user.firebaseUid, cakes);
+    });
+
+    return new StoresResponseDto(storeResponse, hasMore);
   }
 
   async create(createStoreDto: CreateStoreDto): Promise<Store> {
-    const createdStore = new this.storeModel(createStoreDto);
-    return await createdStore.save();
+    return this.storeRepository.create(createStoreDto);
   }
 
   async findOne(storeid: string, user: IUser): Promise<DetailStoreResponseDto> {
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
     return new DetailStoreResponseDto(store, user.firebaseUid);
   }
 
@@ -104,9 +76,7 @@ export class StoreService {
     updateData: UpdateStoreDto,
     user: IUser,
   ) {
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
 
     if (
       store.owner_user_id !== user.firebaseUid &&
@@ -114,33 +84,22 @@ export class StoreService {
     ) {
       throw new UserNotOwnerException(user.firebaseUid, store.owner_user_id);
     }
-    return await this.storeModel.updateOne(
-      {
-        _id: storeid,
-      },
-      {
-        $set: updateData,
-      },
-    );
+    return await this.storeRepository.updateOneById(storeid, updateData);
   }
 
   async removeContent(storeid: string, user: IUser) {
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
     if (
       store.owner_user_id !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
     ) {
       throw new UserNotOwnerException(user.firebaseUid, store.owner_user_id);
     }
-    return await this.storeModel.deleteOne({ _id: storeid });
+    return await this.storeRepository.deleteById(storeid);
   }
 
   async changeLogo(storeid: string, user: IUser, file) {
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
 
     if (
       store.owner_user_id !== user.firebaseUid &&
@@ -158,20 +117,11 @@ export class StoreService {
       await this.uploadService.create(path, file),
     );
 
-    return await this.storeModel.updateOne(
-      {
-        _id: storeid,
-      },
-      {
-        $set: updatedata,
-      },
-    );
+    return await this.storeRepository.updateOneById(storeid, updatedata);
   }
 
   async Imageupload(storeid: string, user: IUser, file) {
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
 
     if (
       store.owner_user_id !== user.firebaseUid &&
@@ -187,20 +137,11 @@ export class StoreService {
       store.detail_images,
     );
 
-    return await this.storeModel.updateOne(
-      {
-        _id: storeid,
-      },
-      {
-        $set: updatedata,
-      },
-    );
+    return await this.storeRepository.updateOneById(storeid, updatedata);
   }
 
   async Imageremove(storeid: string, user: IUser, fileIdx: number) {
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
 
     if (
       store.owner_user_id !== user.firebaseUid &&
@@ -214,13 +155,6 @@ export class StoreService {
     const deleteData = store.detail_images.splice(fileIdx, 1);
     await this.uploadService.remove(path, deleteData[0].s3Url);
 
-    return await this.storeModel.updateOne(
-      {
-        _id: storeid,
-      },
-      {
-        $set: store,
-      },
-    );
+    return await this.storeRepository.updateOneById(storeid, store);
   }
 }

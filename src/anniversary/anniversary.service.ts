@@ -2,15 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Anniversary } from './entities/anniversary.schema';
 import { Model } from 'mongoose';
-import { HttpService } from '@nestjs/axios';
 import { AnniversaryDto } from './dto/response-anniversary.dto';
+import { ClipClient } from 'src/ai-search/clip-client';
 
 @Injectable()
 export class AnniversaryService {
   constructor(
     @InjectModel(Anniversary.name, 'kezzle')
     private readonly AnniversaryModel: Model<Anniversary>,
-    private readonly httpService: HttpService,
+    private readonly clipClient: ClipClient,
   ) {}
 
   async getAnniversaryWord(id: string) {
@@ -27,9 +27,7 @@ export class AnniversaryService {
       })
       .limit(1);
     const keyword = anniversary[0].keyword.join(', ');
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search?keyword=${keyword}&size=6`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
-    const cakes = response.data.result;
+    const cakes = await this.clipClient.koSearch(keyword, 6);
 
     const images = [];
     for (const cake of cakes) {
