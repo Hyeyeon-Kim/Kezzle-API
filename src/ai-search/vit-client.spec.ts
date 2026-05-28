@@ -127,6 +127,20 @@ describe('VitClient', () => {
       expect(result).toBe(expected);
     });
 
+    it('encodes id query parameter safely', async () => {
+      const httpService = {
+        get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
+      };
+      const metricsService = buildMetricsService();
+      const client = new VitClient(httpService as any, metricsService as any);
+
+      await client.similarSearch('cake id/한글', 6);
+
+      expect(httpService.get).toHaveBeenCalledWith(
+        'https://api.kezzlecake.com/vit/cakes/similar-search?id=cake+id%2F%ED%95%9C%EA%B8%80&size=6',
+      );
+    });
+
     it('records success metric with same labels as similarSearchWithLocation', async () => {
       const endTimer = jest.fn();
       const httpService = {

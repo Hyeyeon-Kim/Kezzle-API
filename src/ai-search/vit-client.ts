@@ -14,7 +14,10 @@ export class VitClient {
 
   async similarSearch(id: string, size: number): Promise<any[]> {
     return this.measure(ENDPOINT_SIMILAR_SEARCH, async () => {
-      const apiUrl = `${this.baseUrl()}/cakes/similar-search?id=${id}&size=${size}`;
+      const apiUrl = this.buildUrl('/cakes/similar-search', {
+        id,
+        size,
+      });
       const response = await this.httpService.get(apiUrl).toPromise();
       return response.data.result;
     });
@@ -28,7 +31,13 @@ export class VitClient {
     size: number,
   ): Promise<any[]> {
     return this.measure(ENDPOINT_SIMILAR_SEARCH, async () => {
-      const apiUrl = `${this.baseUrl()}/cakes/similar-search?id=${id}&lon=${lon}&lat=${lat}&dist=${dist}&size=${size}`;
+      const apiUrl = this.buildUrl('/cakes/similar-search', {
+        id,
+        lon,
+        lat,
+        dist,
+        size,
+      });
       const response = await this.httpService.get(apiUrl).toPromise();
       return response.data.result;
     });
@@ -57,5 +66,16 @@ export class VitClient {
 
   private baseUrl(): string {
     return process.env.VIT_API_BASE_URL ?? 'https://api.kezzlecake.com/vit';
+  }
+
+  private buildUrl(
+    path: string,
+    params: Record<string, string | number>,
+  ): string {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      query.set(key, String(value));
+    });
+    return `${this.baseUrl()}${path}?${query.toString()}`;
   }
 }

@@ -21,7 +21,10 @@ export class ClipClient {
 
   async koSearch(keyword: string, size: number): Promise<any[]> {
     return this.measure(ENDPOINT_KO_SEARCH, async () => {
-      const apiUrl = `${this.baseUrl()}/cakes/ko-search?keyword=${keyword}&size=${size}`;
+      const apiUrl = this.buildUrl('/cakes/ko-search', {
+        keyword,
+        size,
+      });
       const response = await this.httpService.get(apiUrl).toPromise();
       return response.data.result;
     });
@@ -33,7 +36,11 @@ export class ClipClient {
     page: number,
   ): Promise<ClipKoSearchPageResult> {
     return this.measure(ENDPOINT_KO_SEARCH_PAGE, async () => {
-      const apiUrl = `${this.baseUrl()}/cakes/ko-search-page?keyword=${keyword}&size=${size}&page=${page}`;
+      const apiUrl = this.buildUrl('/cakes/ko-search-page', {
+        keyword,
+        size,
+        page,
+      });
       const response = await this.httpService.get(apiUrl).toPromise();
       return {
         result: response.data.result,
@@ -66,5 +73,16 @@ export class ClipClient {
 
   private baseUrl(): string {
     return process.env.CLIP_API_BASE_URL ?? 'https://api.kezzlecake.com/clip';
+  }
+
+  private buildUrl(
+    path: string,
+    params: Record<string, string | number>,
+  ): string {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      query.set(key, String(value));
+    });
+    return `${this.baseUrl()}${path}?${query.toString()}`;
   }
 }

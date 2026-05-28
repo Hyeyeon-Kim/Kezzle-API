@@ -34,9 +34,23 @@ describe('ClipClient', () => {
 
       expect(httpService.get).toHaveBeenCalledTimes(1);
       expect(httpService.get).toHaveBeenCalledWith(
-        'https://api.kezzlecake.com/clip/cakes/ko-search?keyword=생일&size=100',
+        'https://api.kezzlecake.com/clip/cakes/ko-search?keyword=%EC%83%9D%EC%9D%BC&size=100',
       );
       expect(result).toBe(expected);
+    });
+
+    it('encodes keyword query parameter safely', async () => {
+      const httpService = {
+        get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
+      };
+      const metricsService = buildMetricsService();
+      const client = new ClipClient(httpService as any, metricsService as any);
+
+      await client.koSearch('딸기, 초코 & cream', 100);
+
+      expect(httpService.get).toHaveBeenCalledWith(
+        'https://api.kezzlecake.com/clip/cakes/ko-search?keyword=%EB%94%B8%EA%B8%B0%2C+%EC%B4%88%EC%BD%94+%26+cream&size=100',
+      );
     });
 
     it('uses CLIP_API_BASE_URL env override when set', async () => {
@@ -115,7 +129,7 @@ describe('ClipClient', () => {
 
       expect(httpService.get).toHaveBeenCalledTimes(1);
       expect(httpService.get).toHaveBeenCalledWith(
-        'https://api.kezzlecake.com/clip/cakes/ko-search-page?keyword=딸기&size=20&page=1',
+        'https://api.kezzlecake.com/clip/cakes/ko-search-page?keyword=%EB%94%B8%EA%B8%B0&size=20&page=1',
       );
       expect(response.result).toBe(result);
       expect(response.nextPage).toBe(2);
