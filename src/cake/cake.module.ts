@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Cake, CakeSchema } from './entities/cake.schema';
 import { CakeService } from './cake.service';
 import { SimilarCakeService } from './similar-cake.service';
-import { CakeRepository } from './cake.repository';
+import { CakeRepositoryModule } from './cake-repository.module';
 import { CakeController } from './cake.controller';
 import { Store, StoreSchema } from 'src/store/entities/store.schema';
 import { UploadModule } from '../upload/upload.module';
@@ -12,6 +12,7 @@ import { AnniversaryModule } from 'src/anniversary/anniversary.module';
 import { CounterModule } from 'src/counter/counter.module';
 import { MetricsModule } from 'src/metrics/metrics.module';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
+import { StoreRepositoryModule } from 'src/store/store-repository.module';
 
 @Module({
   imports: [
@@ -29,9 +30,11 @@ import { AiSearchModule } from 'src/ai-search/ai-search.module';
     CounterModule,
     MetricsModule,
     AiSearchModule,
+    CakeRepositoryModule,
+    StoreRepositoryModule,
   ],
   controllers: [CakeController],
-  providers: [CakeService, SimilarCakeService, CakeRepository],
-  exports: [CakeService, CakeRepository],
+  providers: [CakeService, SimilarCakeService],
+  exports: [CakeService, CakeRepositoryModule],
 })
 export class CakeModule {}

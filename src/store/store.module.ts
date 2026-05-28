@@ -4,8 +4,8 @@ import { StoreService } from './store.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Store, StoreSchema } from './entities/store.schema';
 import { UploadModule } from 'src/upload/upload.module';
-import { CakeModule } from 'src/cake/cake.module';
-import { StoreRepository } from './store.repository';
+import { StoreRepositoryModule } from './store-repository.module';
+import { CakeRepositoryModule } from 'src/cake/cake-repository.module';
 
 @Module({
   imports: [
@@ -13,11 +13,12 @@ import { StoreRepository } from './store.repository';
       [{ name: Store.name, schema: StoreSchema }],
       'kezzle',
     ),
-    CakeModule,
     UploadModule,
+    StoreRepositoryModule,
+    CakeRepositoryModule,
   ],
   controllers: [StoreController],
-  providers: [StoreService, StoreRepository],
-  exports: [StoreService, StoreRepository],
+  providers: [StoreService],
+  exports: [StoreService, StoreRepositoryModule],
 })
 export class StoreModule {}
