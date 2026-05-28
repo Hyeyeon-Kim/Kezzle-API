@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { CakeService } from 'src/cake/cake.service';
 import { CakeRepository } from 'src/cake/cake.repository';
 import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
 import { CakeAlredyLikeException } from 'src/cake/exceptions/cake-already-like.exception';
@@ -19,7 +18,6 @@ export class LikeService {
     @InjectModel(User.name, 'kezzle') private userModel: Model<User>,
     private readonly cakeRepository: CakeRepository,
     private readonly storeRepository: StoreRepository,
-    private readonly cakeService: CakeService,
     private readonly logService: LogService,
   ) {}
 
@@ -48,13 +46,17 @@ export class LikeService {
       });
 
     const stores = await this.storeRepository.findByUserLike(userid);
+    const storeIds = stores.map((store) => store._id.toString());
+    const cakesByStoreId =
+      await this.cakeRepository.findRecentByStoreIds(storeIds);
 
-    return Promise.all(
-      stores.map(async (store) => {
-        const cakes = await this.cakeService.findStoreCake(store._id, Iuser);
-        return new StoreLikeResponseDto(store, user.firebaseUid, cakes);
-      }),
-    );
+    return stores.map((store) => {
+      const storeId = store._id.toString();
+      const cakes = (cakesByStoreId.get(storeId) ?? []).map(
+        (cake) => new CakeResponseDto(cake, Iuser.firebaseUid),
+      );
+      return new StoreLikeResponseDto(store, user.firebaseUid, cakes);
+    });
   }
 
   async cakeAddLikeList(cakeid: string, user: IUser): Promise<boolean> {

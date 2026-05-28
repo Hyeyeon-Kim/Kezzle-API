@@ -3,9 +3,9 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { LikeService } from './like.service';
 import { LikeController } from './like.controller';
 import { User, UserSchema } from 'src/user/entities/user.schema';
-import { CakeModule } from './../cake/cake.module';
+import { CakeRepositoryModule } from 'src/cake/cake-repository.module';
 import { UserModule } from 'src/user/user.module';
-import { StoreModule } from 'src/store/store.module';
+import { StoreRepositoryModule } from 'src/store/store-repository.module';
 import { LogModule } from 'src/log/log.module';
 
 @Module({
@@ -14,9 +14,9 @@ import { LogModule } from 'src/log/log.module';
       [{ name: User.name, schema: UserSchema }],
       'kezzle',
     ),
-    CakeModule,
+    CakeRepositoryModule,
     UserModule,
-    StoreModule,
+    StoreRepositoryModule,
     LogModule,
   ],
   providers: [LikeService],
