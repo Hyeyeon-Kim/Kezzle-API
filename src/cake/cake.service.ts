@@ -1,14 +1,8 @@
 import { CakesResponseDto } from './dto/response-cakes.dto';
-import { Model, PipelineStage } from 'mongoose';
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Cake } from './entities/cake.schema';
 import { UpdateCakeDto } from './dto/update-cake.dto';
 import { CakeResponseDto } from './dto/response-cake.dto';
 import IUser from 'src/user/interfaces/user.interface';
-import { Store } from 'src/store/entities/store.schema';
-import { CakeNotFoundException } from './exceptions/cake-not-found.exception';
-import { StoreNotFoundException } from 'src/store/exceptions/store-not-found.exception';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UploadService } from 'src/upload/upload.service';
@@ -30,9 +24,6 @@ import { CakeRepository } from './cake.repository';
 @Injectable()
 export class CakeService {
   constructor(
-    @InjectModel(Cake.name, 'kezzle') private readonly cakeModel: Model<Cake>,
-    @InjectModel(Store.name, 'kezzle')
-    private readonly storeModel: Model<Store>,
     private readonly uploadService: UploadService,
     private readonly logService: LogService,
     private readonly anniversaryService: AnniversaryService,
@@ -44,33 +35,6 @@ export class CakeService {
     private readonly cakeRepository: CakeRepository,
   ) {}
 
-  // async findAll(user: IUser, after, limit: number): Promise<CakesResponseDto> {
-  //   let cakes;
-  //   limit = 5;
-  //   if (after === undefined) {
-  //     cakes = await this.cakeModel
-  //       .find()
-  //       .sort({ cursor: 1 })
-  //       .limit(limit + 1);
-  //   } else {
-  //     cakes = await this.cakeModel
-  //       .find({
-  //         cursor: { $gt: after },
-  //       })
-  //       .sort({ cursor: 1 })
-  //       .limit(limit + 1)
-  //       .exec();
-  //   }
-  //   let hasMore = false;
-  //   if (cakes.length > limit) {
-  //     hasMore = true;
-  //     cakes = cakes.slice(0, cakes.length - 1);
-  //   }
-  //   const cakeResponse = await cakes.map(
-  //     (cake) => new CakeResponseDto(cake, user.firebaseUid),
-  //   );
-  //   return new CakesResponseDto(cakeResponse, hasMore);
-  // }
   async findAll(
     user: IUser,
     latitude: number,
@@ -79,48 +43,17 @@ export class CakeService {
     after: string,
     limit: number,
   ): Promise<CakesResponseDto> {
-    let cakes;
-
     const storeIdsInLocation = await this.storeRepository.findIdsByGeoNear(
       longitude,
       latitude,
       distance,
     );
 
-    let match: PipelineStage.Match;
-    if (after === undefined || after.trim() === '') {
-      match = {
-        $match: {
-          is_delete: false,
-          owner_store_id: {
-            $in: storeIdsInLocation,
-          },
-        },
-      };
-    } else {
-      match = {
-        $match: {
-          is_delete: false,
-          owner_store_id: {
-            $in: storeIdsInLocation,
-          },
-          cursor: {
-            $gt: after,
-          },
-        },
-      };
-    }
-
-    cakes = await this.cakeModel
-      .aggregate([
-        {
-          $sort: {
-            cursor: 1,
-          },
-        },
-        match,
-      ])
-      .limit(limit + 1);
+    let cakes = await this.cakeRepository.findInStoresByCursor(
+      storeIdsInLocation,
+      after,
+      limit + 1,
+    );
     let hasMore = false;
 
     if (cakes.length > limit) {
@@ -140,26 +73,7 @@ export class CakeService {
       limit = 20;
     }
 
-    const pipelines: PipelineStage[] = [
-      {
-        $sort: {
-          _id: -1,
-        },
-      },
-    ];
-
-    if (after !== undefined) {
-      pipelines.push({
-        $match: {
-          is_delete: false,
-          _id: {
-            $lt: new ObjectId(after),
-          },
-        },
-      });
-    }
-
-    let cakes = await this.cakeModel.aggregate(pipelines).limit(limit + 1);
+    let cakes = await this.cakeRepository.findNewest(after, limit + 1);
     let hasMore = false;
 
     if (cakes.length > limit) {
@@ -179,11 +93,9 @@ export class CakeService {
 
     if (
       userLikedCakeId === undefined ||
-      (await this.cakeModel.findById(userLikedCakeId)) === null
+      (await this.cakeRepository.findById(userLikedCakeId)) === null
     ) {
-      userLikedCakeId = (
-        await this.cakeModel.aggregate([{ $sample: { size: 1 } }])
-      )[0]._id.toString();
+      userLikedCakeId = (await this.cakeRepository.sampleOne())._id.toString();
     }
 
     const cakes = await this.vitClient.similarSearch(userLikedCakeId, 6);
@@ -199,39 +111,17 @@ export class CakeService {
     after: string,
     limit: number,
   ): Promise<CakesResponseDto> {
-    let cakes;
-
     const storeIdsInLocation = await this.storeRepository.findIdsByGeoNear(
       longitude,
       latitude,
       distance,
     );
 
-    let match: PipelineStage.Match;
-    if (after === undefined || after.trim() === '') {
-      match = {
-        $match: {
-          is_delete: false,
-          owner_store_id: {
-            $in: storeIdsInLocation,
-          },
-        },
-      };
-    } else {
-      match = {
-        $match: {
-          is_delete: false,
-          owner_store_id: {
-            $in: storeIdsInLocation,
-          },
-          _id: {
-            $gt: new ObjectId(after),
-          },
-        },
-      };
-    }
-
-    cakes = await this.cakeModel.aggregate([match]).limit(limit + 1);
+    let cakes = await this.cakeRepository.findInStoresAfterId(
+      storeIdsInLocation,
+      after,
+      limit + 1,
+    );
     let hasMore = false;
 
     if (cakes.length > limit) {
@@ -247,9 +137,7 @@ export class CakeService {
   }
 
   async findOne(cakeid: string, user: IUser): Promise<CakeResponseDto> {
-    const cake = await this.cakeModel.findById(cakeid).catch(() => {
-      throw new CakeNotFoundException(cakeid);
-    });
+    const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
     return new CakeResponseDto(cake, user.firebaseUid);
   }
 
@@ -374,30 +262,16 @@ export class CakeService {
     after,
     limit: number,
   ): Promise<CakesResponseDto> {
-    await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    await this.storeRepository.findByIdOrThrow(storeid);
 
     if (Number.isNaN(limit)) {
       limit = 20;
     }
-    let cakes;
-    if (after === undefined) {
-      cakes = await this.cakeModel
-        .find({
-          is_delete: false,
-          owner_store_id: storeid,
-        })
-        .limit(limit + 1);
-    } else {
-      cakes = await this.cakeModel
-        .find({
-          is_delete: false,
-          _id: { $gt: after },
-          owner_store_id: storeid,
-        })
-        .limit(limit + 1);
-    }
+    let cakes = await this.cakeRepository.findByStoreIdAfter(
+      storeid,
+      after,
+      limit + 1,
+    );
 
     let hasMore = false;
 
@@ -406,24 +280,16 @@ export class CakeService {
       cakes = cakes.slice(0, cakes.length - 1);
     }
 
-    const cakeResponse = await cakes.map(
+    const cakeResponse = cakes.map(
       (cake) => new CakeResponseDto(cake, user.firebaseUid),
     );
     return new CakesResponseDto(cakeResponse, hasMore);
   }
 
   async findStoreCake(storeid, user: IUser) {
-    await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    await this.storeRepository.findByIdOrThrow(storeid);
 
-    const cakes = await this.cakeModel
-      .find({
-        is_delete: false,
-        owner_store_id: storeid,
-      })
-      .sort({ createdAt: -1 })
-      .limit(20);
+    const cakes = await this.cakeRepository.findRecentByStoreId(storeid, 20);
 
     return cakes.map((cake) => new CakeResponseDto(cake, user.firebaseUid));
   }

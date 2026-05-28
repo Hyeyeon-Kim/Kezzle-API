@@ -35,6 +35,162 @@ describe('CakeRepository', () => {
     });
   });
 
+  describe('findById', () => {
+    it('delegates to cakeModel.findById (returns null when missing)', async () => {
+      const cakeModel = { findById: jest.fn().mockResolvedValue(null) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      const result = await repo.findById('cake-1');
+
+      expect(cakeModel.findById).toHaveBeenCalledWith('cake-1');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('sampleOne', () => {
+    it('returns first element of $sample aggregate', async () => {
+      const sampled = { _id: 'random-cake' };
+      const cakeModel = {
+        aggregate: jest.fn().mockResolvedValue([sampled]),
+      };
+      const repo = new CakeRepository(cakeModel as any);
+
+      const result = await repo.sampleOne();
+
+      expect(cakeModel.aggregate).toHaveBeenCalledWith([
+        { $sample: { size: 1 } },
+      ]);
+      expect(result).toBe(sampled);
+    });
+  });
+
+  describe('findInStoresByCursor', () => {
+    it('sorts by cursor asc and adds cursor filter when after present', async () => {
+      const limit = jest.fn().mockResolvedValue([{ _id: 'c1' }]);
+      const cakeModel = { aggregate: jest.fn().mockReturnValue({ limit }) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await repo.findInStoresByCursor(['s1', 's2'], 'cursor-10', 5);
+
+      expect(cakeModel.aggregate).toHaveBeenCalledWith([
+        { $sort: { cursor: 1 } },
+        {
+          $match: {
+            is_delete: false,
+            owner_store_id: { $in: ['s1', 's2'] },
+            cursor: { $gt: 'cursor-10' },
+          },
+        },
+      ]);
+      expect(limit).toHaveBeenCalledWith(5);
+    });
+
+    it('omits cursor filter when after is empty', async () => {
+      const limit = jest.fn().mockResolvedValue([]);
+      const cakeModel = { aggregate: jest.fn().mockReturnValue({ limit }) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await repo.findInStoresByCursor(['s1'], '', 5);
+
+      const pipeline = cakeModel.aggregate.mock.calls[0][0];
+      expect(pipeline[1].$match.cursor).toBeUndefined();
+    });
+  });
+
+  describe('findInStoresAfterId', () => {
+    it('adds _id ObjectId filter when after present', async () => {
+      const limit = jest.fn().mockResolvedValue([]);
+      const cakeModel = { aggregate: jest.fn().mockReturnValue({ limit }) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await repo.findInStoresAfterId(['s1'], '507f1f77bcf86cd799439011', 5);
+
+      const pipeline = cakeModel.aggregate.mock.calls[0][0];
+      expect(pipeline[0].$match.owner_store_id).toEqual({ $in: ['s1'] });
+      expect(pipeline[0].$match._id.$gt.toString()).toBe(
+        '507f1f77bcf86cd799439011',
+      );
+      expect(limit).toHaveBeenCalledWith(5);
+    });
+  });
+
+  describe('findNewest', () => {
+    it('sorts by _id desc and adds _id ObjectId $lt filter when after present', async () => {
+      const limit = jest.fn().mockResolvedValue([]);
+      const cakeModel = { aggregate: jest.fn().mockReturnValue({ limit }) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await repo.findNewest('507f1f77bcf86cd799439011', 21);
+
+      const pipeline = cakeModel.aggregate.mock.calls[0][0];
+      expect(pipeline[0]).toEqual({ $sort: { _id: -1 } });
+      expect(pipeline[1].$match._id.$lt.toString()).toBe(
+        '507f1f77bcf86cd799439011',
+      );
+      expect(limit).toHaveBeenCalledWith(21);
+    });
+
+    it('omits match stage when after is undefined', async () => {
+      const limit = jest.fn().mockResolvedValue([]);
+      const cakeModel = { aggregate: jest.fn().mockReturnValue({ limit }) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await repo.findNewest(undefined as any, 21);
+
+      const pipeline = cakeModel.aggregate.mock.calls[0][0];
+      expect(pipeline).toHaveLength(1);
+    });
+  });
+
+  describe('findByStoreIdAfter', () => {
+    it('uses raw _id $gt filter when after present', async () => {
+      const limit = jest.fn().mockResolvedValue([]);
+      const cakeModel = { find: jest.fn().mockReturnValue({ limit }) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await repo.findByStoreIdAfter('s1', 'raw-id', 5);
+
+      expect(cakeModel.find).toHaveBeenCalledWith({
+        is_delete: false,
+        owner_store_id: 's1',
+        _id: { $gt: 'raw-id' },
+      });
+      expect(limit).toHaveBeenCalledWith(5);
+    });
+
+    it('omits _id filter when after is undefined', async () => {
+      const limit = jest.fn().mockResolvedValue([]);
+      const cakeModel = { find: jest.fn().mockReturnValue({ limit }) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await repo.findByStoreIdAfter('s1', undefined, 5);
+
+      expect(cakeModel.find).toHaveBeenCalledWith({
+        is_delete: false,
+        owner_store_id: 's1',
+      });
+    });
+  });
+
+  describe('findRecentByStoreId', () => {
+    it('finds non-deleted cakes by store, sorted createdAt desc, limited', async () => {
+      const limit = jest.fn().mockResolvedValue([{ _id: 'c1' }]);
+      const sort = jest.fn().mockReturnValue({ limit });
+      const cakeModel = { find: jest.fn().mockReturnValue({ sort }) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      const result = await repo.findRecentByStoreId('s1', 20);
+
+      expect(cakeModel.find).toHaveBeenCalledWith({
+        is_delete: false,
+        owner_store_id: 's1',
+      });
+      expect(sort).toHaveBeenCalledWith({ createdAt: -1 });
+      expect(limit).toHaveBeenCalledWith(20);
+      expect(result).toEqual([{ _id: 'c1' }]);
+    });
+  });
+
   describe('create', () => {
     it('delegates to cakeModel.create', async () => {
       const created = { _id: 'new-cake' };

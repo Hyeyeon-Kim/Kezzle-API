@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { HydratedDocument, Model } from 'mongoose';
+import { HydratedDocument, Model, PipelineStage } from 'mongoose';
+import { ObjectId } from 'mongodb';
 import { Cake } from './entities/cake.schema';
 import { CakeNotFoundException } from './exceptions/cake-not-found.exception';
 
@@ -10,6 +11,10 @@ export class CakeRepository {
     @InjectModel(Cake.name, 'kezzle')
     private readonly cakeModel: Model<Cake>,
   ) {}
+
+  async findById(id: string): Promise<HydratedDocument<Cake> | null> {
+    return this.cakeModel.findById(id);
+  }
 
   async findByIdOrThrow(id: string): Promise<HydratedDocument<Cake>> {
     let cake: HydratedDocument<Cake> | null;
@@ -22,6 +27,86 @@ export class CakeRepository {
       throw new CakeNotFoundException(id);
     }
     return cake;
+  }
+
+  async sampleOne(): Promise<any> {
+    const result = await this.cakeModel.aggregate([{ $sample: { size: 1 } }]);
+    return result[0];
+  }
+
+  /** findAll: 위치 내 store들의 cake를 cursor 오름차순으로. limit개까지. */
+  async findInStoresByCursor(
+    storeIds: string[],
+    after: string,
+    limit: number,
+  ): Promise<any[]> {
+    const match: PipelineStage.Match['$match'] = {
+      is_delete: false,
+      owner_store_id: { $in: storeIds },
+    };
+    if (after !== undefined && after.trim() !== '') {
+      match.cursor = { $gt: after };
+    }
+    return this.cakeModel
+      .aggregate([{ $sort: { cursor: 1 } }, { $match: match }])
+      .limit(limit);
+  }
+
+  /** findAllByLocation: 위치 내 store들의 cake를 _id(ObjectId) 기준 페이지네이션. limit개까지. */
+  async findInStoresAfterId(
+    storeIds: string[],
+    after: string,
+    limit: number,
+  ): Promise<any[]> {
+    const match: PipelineStage.Match['$match'] = {
+      is_delete: false,
+      owner_store_id: { $in: storeIds },
+    };
+    if (after !== undefined && after.trim() !== '') {
+      match._id = { $gt: new ObjectId(after) };
+    }
+    return this.cakeModel.aggregate([{ $match: match }]).limit(limit);
+  }
+
+  /** findAllByNewest: 최신순(_id desc), after 있으면 _id(ObjectId) 미만. limit개까지. */
+  async findNewest(after: string, limit: number): Promise<any[]> {
+    const pipelines: PipelineStage[] = [{ $sort: { _id: -1 } }];
+    if (after !== undefined) {
+      pipelines.push({
+        $match: {
+          is_delete: false,
+          _id: { $lt: new ObjectId(after) },
+        },
+      });
+    }
+    return this.cakeModel.aggregate(pipelines).limit(limit);
+  }
+
+  /** findCake: 특정 store의 cake, after 있으면 _id(raw) 초과. limit개까지. */
+  async findByStoreIdAfter(
+    storeId: string,
+    after: any,
+    limit: number,
+  ): Promise<HydratedDocument<Cake>[]> {
+    const filter: Record<string, any> = {
+      is_delete: false,
+      owner_store_id: storeId,
+    };
+    if (after !== undefined) {
+      filter._id = { $gt: after };
+    }
+    return this.cakeModel.find(filter).limit(limit);
+  }
+
+  /** findStoreCake: 특정 store의 최근 cake(createdAt desc) limit개. */
+  async findRecentByStoreId(
+    storeId: string,
+    limit: number,
+  ): Promise<HydratedDocument<Cake>[]> {
+    return this.cakeModel
+      .find({ is_delete: false, owner_store_id: storeId })
+      .sort({ createdAt: -1 })
+      .limit(limit);
   }
 
   async create(doc: Partial<Cake>): Promise<Cake> {

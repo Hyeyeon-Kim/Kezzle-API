@@ -215,4 +215,40 @@ describe('StoreRepository', () => {
       expect(pipeline[0].$geoNear.maxDistance).toBeUndefined();
     });
   });
+
+  describe('findByGeoNear', () => {
+    it('builds geoNear + dist match pipeline and limits when after is a number', async () => {
+      const limit = jest.fn().mockResolvedValue([{ _id: 's1', dist: 10 }]);
+      const storeModel = { aggregate: jest.fn().mockReturnValue({ limit }) };
+      const repo = new StoreRepository(storeModel as any);
+
+      const result = await repo.findByGeoNear(127.01, 37.01, 3000, 5, 11);
+
+      expect(storeModel.aggregate).toHaveBeenCalledWith([
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [127.01, 37.01] },
+            distanceField: 'dist',
+            spherical: true,
+            maxDistance: 3000,
+          },
+        },
+        { $match: { dist: { $gt: 5 } } },
+      ]);
+      expect(limit).toHaveBeenCalledWith(11);
+      expect(result).toEqual([{ _id: 's1', dist: 10 }]);
+    });
+
+    it('drops the dist match stage when after is NaN', async () => {
+      const limit = jest.fn().mockResolvedValue([]);
+      const storeModel = { aggregate: jest.fn().mockReturnValue({ limit }) };
+      const repo = new StoreRepository(storeModel as any);
+
+      await repo.findByGeoNear(127.01, 37.01, NaN, NaN, 11);
+
+      const pipeline = storeModel.aggregate.mock.calls[0][0];
+      expect(pipeline).toHaveLength(1);
+      expect(pipeline[0].$geoNear.maxDistance).toBeUndefined();
+    });
+  });
 });

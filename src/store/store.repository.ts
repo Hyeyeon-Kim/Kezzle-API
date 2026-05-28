@@ -89,4 +89,39 @@ export class StoreRepository {
 
     return stores.map((store) => store._id.toString());
   }
+
+  /**
+   * StoreService.findAll용: 위치 기반 store 전체 문서(+dist)를 limit개까지.
+   * after가 NaN이면 dist 필터 없이 전체에서 limit개.
+   */
+  async findByGeoNear(
+    longitude: number,
+    latitude: number,
+    distance: number,
+    after: number,
+    limit: number,
+  ): Promise<any[]> {
+    const geoNear: PipelineStage.GeoNear = {
+      $geoNear: {
+        near: { type: 'Point', coordinates: [longitude, latitude] },
+        distanceField: 'dist',
+        spherical: true,
+      },
+    };
+
+    if (!Number.isNaN(distance)) {
+      geoNear.$geoNear.maxDistance = distance;
+    }
+
+    const pipeline: PipelineStage[] = [
+      geoNear,
+      { $match: { dist: { $gt: after } } },
+    ];
+
+    if (Number.isNaN(after)) {
+      pipeline.pop();
+    }
+
+    return this.storeModel.aggregate(pipeline).limit(limit);
+  }
 }
