@@ -3,8 +3,8 @@ import { LikeService } from './like.service';
 describe('LikeService', () => {
   describe('findUserLikeStore', () => {
     it('loads recent cakes by store ids through CakeRepository once', async () => {
-      const userModel = {
-        findOne: jest.fn().mockResolvedValue({
+      const userRepository = {
+        findByFirebaseUidOrThrow: jest.fn().mockResolvedValue({
           firebaseUid: 'target-user',
           cake_like_ids: [],
         }),
@@ -41,7 +41,7 @@ describe('LikeService', () => {
       };
       const logService = {};
       const service = new LikeService(
-        userModel as any,
+        userRepository as any,
         cakeRepository as any,
         storeRepository as any,
         logService as any,
@@ -51,6 +51,9 @@ describe('LikeService', () => {
         firebaseUid: 'viewer-user',
       } as any);
 
+      expect(userRepository.findByFirebaseUidOrThrow).toHaveBeenCalledWith(
+        'target-user',
+      );
       expect(storeRepository.findByUserLike).toHaveBeenCalledWith(
         'target-user',
       );

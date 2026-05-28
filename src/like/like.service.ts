@@ -1,6 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { CakeRepository } from 'src/cake/cake.repository';
 import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
 import { CakeAlredyLikeException } from 'src/cake/exceptions/cake-already-like.exception';
@@ -8,27 +6,20 @@ import { LogService } from 'src/log/log.service';
 import { StoreLikeResponseDto } from 'src/store/dto/response-like-store.dto';
 import { StoreRepository } from 'src/store/store.repository';
 import { StoreAlredyLikeException } from 'src/store/exceptions/store-already-like.exception';
-import { User } from 'src/user/entities/user.schema';
-import { UserNotFoundException } from 'src/user/exceptions/user-not-found';
+import { UserRepository } from 'src/user/user.repository';
 import IUser from 'src/user/interfaces/user.interface';
 
 @Injectable()
 export class LikeService {
   constructor(
-    @InjectModel(User.name, 'kezzle') private userModel: Model<User>,
+    private readonly userRepository: UserRepository,
     private readonly cakeRepository: CakeRepository,
     private readonly storeRepository: StoreRepository,
     private readonly logService: LogService,
   ) {}
 
   async findUserLikeCake(userid: string): Promise<CakeResponseDto[]> {
-    const user = await this.userModel
-      .findOne({
-        firebaseUid: userid,
-      })
-      .catch(() => {
-        throw new UserNotFoundException(userid);
-      });
+    const user = await this.userRepository.findByFirebaseUidOrThrow(userid);
 
     const cakes = await this.cakeRepository.findByIds(user.cake_like_ids);
     return cakes.map((cake) => new CakeResponseDto(cake, user.firebaseUid));
@@ -37,13 +28,7 @@ export class LikeService {
     userid: string,
     Iuser: IUser,
   ): Promise<StoreLikeResponseDto[]> {
-    const user = await this.userModel
-      .findOne({
-        firebaseUid: userid,
-      })
-      .catch(() => {
-        throw new UserNotFoundException(userid);
-      });
+    const user = await this.userRepository.findByFirebaseUidOrThrow(userid);
 
     const stores = await this.storeRepository.findByUserLike(userid);
     const storeIds = stores.map((store) => store._id.toString());
@@ -67,14 +52,7 @@ export class LikeService {
       await this.cakeRepository.addUserLike(cakeid, userId);
     } else throw new CakeAlredyLikeException(cakeid);
 
-    await this.userModel.updateOne(
-      { firebaseUid: userId },
-      {
-        $addToSet: {
-          cake_like_ids: [cakeid],
-        },
-      },
-    );
+    await this.userRepository.addCakeLike(userId, cakeid);
     this.logService.cakeLikelog(userId, cakeid, true);
     return true;
   }
@@ -84,10 +62,7 @@ export class LikeService {
     const userId = user.firebaseUid;
 
     await this.cakeRepository.removeUserLike(cakeid, userId);
-    await this.userModel.updateOne(
-      { firebaseUid: userId },
-      { $pull: { cake_like_ids: cakeid } },
-    );
+    await this.userRepository.removeCakeLike(userId, cakeid);
     this.logService.cakeLikelog(userId, cakeid, false);
     return true;
   }
@@ -100,14 +75,7 @@ export class LikeService {
       await this.storeRepository.addUserLike(storeid, userId);
     } else throw new StoreAlredyLikeException(storeid);
 
-    await this.userModel.updateOne(
-      { firebaseUid: userId },
-      {
-        $addToSet: {
-          store_like_ids: [storeid],
-        },
-      },
-    );
+    await this.userRepository.addStoreLike(userId, storeid);
     return true;
   }
 
@@ -116,10 +84,7 @@ export class LikeService {
     const userId = user.firebaseUid;
 
     await this.storeRepository.removeUserLike(storeid, userId);
-    await this.userModel.updateOne(
-      { firebaseUid: userId },
-      { $pull: { store_like_ids: storeid } },
-    );
+    await this.userRepository.removeStoreLike(userId, storeid);
     return true;
   }
 }
