@@ -18,6 +18,7 @@ import { StoresResponseDto } from './dto/response-stores.dto';
 import { UpdateStoreImageDto } from './dto/update-store-image.dto';
 import { CakeRepository } from 'src/cake/cake.repository';
 import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
+import { StoreRepository } from './store.repository';
 
 @Injectable()
 export class StoreService {
@@ -27,6 +28,7 @@ export class StoreService {
     private readonly storeModel: Model<Store>,
     private readonly cakeRepository: CakeRepository,
     private readonly uploadService: UploadService,
+    private readonly storeRepository: StoreRepository,
   ) {}
 
   async findAll(
@@ -94,8 +96,7 @@ export class StoreService {
   }
 
   async create(createStoreDto: CreateStoreDto): Promise<Store> {
-    const createdStore = new this.storeModel(createStoreDto);
-    return await createdStore.save();
+    return this.storeRepository.create(createStoreDto);
   }
 
   async findOne(storeid: string, user: IUser): Promise<DetailStoreResponseDto> {
@@ -110,9 +111,7 @@ export class StoreService {
     updateData: UpdateStoreDto,
     user: IUser,
   ) {
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
 
     if (
       store.owner_user_id !== user.firebaseUid &&
@@ -120,33 +119,22 @@ export class StoreService {
     ) {
       throw new UserNotOwnerException(user.firebaseUid, store.owner_user_id);
     }
-    return await this.storeModel.updateOne(
-      {
-        _id: storeid,
-      },
-      {
-        $set: updateData,
-      },
-    );
+    return await this.storeRepository.updateOneById(storeid, updateData);
   }
 
   async removeContent(storeid: string, user: IUser) {
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
     if (
       store.owner_user_id !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
     ) {
       throw new UserNotOwnerException(user.firebaseUid, store.owner_user_id);
     }
-    return await this.storeModel.deleteOne({ _id: storeid });
+    return await this.storeRepository.deleteById(storeid);
   }
 
   async changeLogo(storeid: string, user: IUser, file) {
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
 
     if (
       store.owner_user_id !== user.firebaseUid &&
@@ -164,20 +152,11 @@ export class StoreService {
       await this.uploadService.create(path, file),
     );
 
-    return await this.storeModel.updateOne(
-      {
-        _id: storeid,
-      },
-      {
-        $set: updatedata,
-      },
-    );
+    return await this.storeRepository.updateOneById(storeid, updatedata);
   }
 
   async Imageupload(storeid: string, user: IUser, file) {
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
 
     if (
       store.owner_user_id !== user.firebaseUid &&
@@ -193,20 +172,11 @@ export class StoreService {
       store.detail_images,
     );
 
-    return await this.storeModel.updateOne(
-      {
-        _id: storeid,
-      },
-      {
-        $set: updatedata,
-      },
-    );
+    return await this.storeRepository.updateOneById(storeid, updatedata);
   }
 
   async Imageremove(storeid: string, user: IUser, fileIdx: number) {
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
 
     if (
       store.owner_user_id !== user.firebaseUid &&
@@ -220,13 +190,6 @@ export class StoreService {
     const deleteData = store.detail_images.splice(fileIdx, 1);
     await this.uploadService.remove(path, deleteData[0].s3Url);
 
-    return await this.storeModel.updateOne(
-      {
-        _id: storeid,
-      },
-      {
-        $set: store,
-      },
-    );
+    return await this.storeRepository.updateOneById(storeid, store);
   }
 }

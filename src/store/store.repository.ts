@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, PipelineStage } from 'mongoose';
+import { HydratedDocument, Model, PipelineStage } from 'mongoose';
 import { Store } from './entities/store.schema';
+import { StoreNotFoundException } from './exceptions/store-not-found.exception';
 
 @Injectable()
 export class StoreRepository {
@@ -14,11 +15,54 @@ export class StoreRepository {
     return this.storeModel.findById(id);
   }
 
+  async findByIdOrThrow(id: string): Promise<HydratedDocument<Store>> {
+    let store: HydratedDocument<Store> | null;
+    try {
+      store = await this.storeModel.findById(id);
+    } catch {
+      throw new StoreNotFoundException(id);
+    }
+    if (!store) {
+      throw new StoreNotFoundException(id);
+    }
+    return store;
+  }
+
   async findByIdsWithProjection<T = any>(
     ids: string[],
     projection: Record<string, 1>,
   ): Promise<T[]> {
     return this.storeModel.find({ _id: { $in: ids } }, projection).lean<T[]>();
+  }
+
+  async create(doc: Record<string, any>): Promise<Store> {
+    return this.storeModel.create(doc);
+  }
+
+  async updateOneById(id: string, set: Record<string, any>) {
+    return this.storeModel.updateOne({ _id: id }, { $set: set });
+  }
+
+  async deleteById(id: string) {
+    return this.storeModel.deleteOne({ _id: id });
+  }
+
+  async findByUserLike(userId: string): Promise<HydratedDocument<Store>[]> {
+    return this.storeModel.find({ user_like_ids: { $in: [userId] } });
+  }
+
+  async addUserLike(storeid: string, userId: string) {
+    return this.storeModel.updateOne(
+      { _id: storeid },
+      { $addToSet: { user_like_ids: [userId] } },
+    );
+  }
+
+  async removeUserLike(storeid: string, userId: string) {
+    return this.storeModel.updateOne(
+      { _id: storeid },
+      { $pull: { user_like_ids: userId } },
+    );
   }
 
   async findIdsByGeoNear(

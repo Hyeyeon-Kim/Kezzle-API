@@ -1,6 +1,113 @@
 import { CakeRepository } from './cake.repository';
+import { CakeNotFoundException } from './exceptions/cake-not-found.exception';
 
 describe('CakeRepository', () => {
+  describe('findByIdOrThrow', () => {
+    it('returns the document when found', async () => {
+      const doc = { _id: 'cake-1', owner_store_id: 'store-1' };
+      const cakeModel = { findById: jest.fn().mockResolvedValue(doc) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      const result = await repo.findByIdOrThrow('cake-1');
+
+      expect(cakeModel.findById).toHaveBeenCalledWith('cake-1');
+      expect(result).toBe(doc);
+    });
+
+    it('throws CakeNotFoundException when document is null', async () => {
+      const cakeModel = { findById: jest.fn().mockResolvedValue(null) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await expect(repo.findByIdOrThrow('missing')).rejects.toBeInstanceOf(
+        CakeNotFoundException,
+      );
+    });
+
+    it('throws CakeNotFoundException when the query errors (bad id)', async () => {
+      const cakeModel = {
+        findById: jest.fn().mockRejectedValue(new Error('CastError')),
+      };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await expect(repo.findByIdOrThrow('bad-id')).rejects.toBeInstanceOf(
+        CakeNotFoundException,
+      );
+    });
+  });
+
+  describe('create', () => {
+    it('delegates to cakeModel.create', async () => {
+      const created = { _id: 'new-cake' };
+      const cakeModel = { create: jest.fn().mockResolvedValue(created) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      const doc = { owner_store_id: 'store-1', cursor: 'c1' };
+      const result = await repo.create(doc as any);
+
+      expect(cakeModel.create).toHaveBeenCalledWith(doc);
+      expect(result).toBe(created);
+    });
+  });
+
+  describe('updateOneById', () => {
+    it('wraps set fields in $set and filters by _id', async () => {
+      const updateResult = { modifiedCount: 1 };
+      const cakeModel = {
+        updateOne: jest.fn().mockResolvedValue(updateResult),
+      };
+      const repo = new CakeRepository(cakeModel as any);
+
+      const result = await repo.updateOneById('cake-1', { is_delete: true });
+
+      expect(cakeModel.updateOne).toHaveBeenCalledWith(
+        { _id: 'cake-1' },
+        { $set: { is_delete: true } },
+      );
+      expect(result).toBe(updateResult);
+    });
+  });
+
+  describe('findByIds', () => {
+    it('queries with $in filter', async () => {
+      const expected = [{ _id: 'a' }, { _id: 'b' }];
+      const cakeModel = { find: jest.fn().mockResolvedValue(expected) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      const result = await repo.findByIds(['a', 'b']);
+
+      expect(cakeModel.find).toHaveBeenCalledWith({ _id: { $in: ['a', 'b'] } });
+      expect(result).toBe(expected);
+    });
+  });
+
+  describe('addUserLike', () => {
+    it('adds userId to user_like_ids via $addToSet', async () => {
+      const cakeModel = { updateOne: jest.fn().mockResolvedValue({}) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await repo.addUserLike('cake-1', 'user-1');
+
+      expect(cakeModel.updateOne).toHaveBeenCalledWith(
+        { _id: 'cake-1' },
+        { $addToSet: { user_like_ids: ['user-1'] } },
+      );
+    });
+  });
+
+  describe('removeUserLike', () => {
+    it('removes userId from user_like_ids via $pull', async () => {
+      const cakeModel = { updateOne: jest.fn().mockResolvedValue({}) };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await repo.removeUserLike('cake-1', 'user-1');
+
+      expect(cakeModel.updateOne).toHaveBeenCalledWith(
+        { _id: 'cake-1' },
+        { $pull: { user_like_ids: 'user-1' } },
+      );
+    });
+  });
+
   describe('findRecentByStoreIds', () => {
     it('returns empty Map without querying when storeIds is empty', async () => {
       const cakeModel = { aggregate: jest.fn() };

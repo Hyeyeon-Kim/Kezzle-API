@@ -1,4 +1,5 @@
 import { StoreRepository } from './store.repository';
+import { StoreNotFoundException } from './exceptions/store-not-found.exception';
 
 describe('StoreRepository', () => {
   describe('findById', () => {
@@ -13,6 +14,38 @@ describe('StoreRepository', () => {
 
       expect(storeModel.findById).toHaveBeenCalledWith('mock-store-1');
       expect(result).toBe(expected);
+    });
+  });
+
+  describe('findByIdOrThrow', () => {
+    it('returns the document when found', async () => {
+      const doc = { _id: 'store-1', name: 'Mock' };
+      const storeModel = { findById: jest.fn().mockResolvedValue(doc) };
+      const repo = new StoreRepository(storeModel as any);
+
+      const result = await repo.findByIdOrThrow('store-1');
+
+      expect(result).toBe(doc);
+    });
+
+    it('throws StoreNotFoundException when document is null', async () => {
+      const storeModel = { findById: jest.fn().mockResolvedValue(null) };
+      const repo = new StoreRepository(storeModel as any);
+
+      await expect(repo.findByIdOrThrow('missing')).rejects.toBeInstanceOf(
+        StoreNotFoundException,
+      );
+    });
+
+    it('throws StoreNotFoundException when the query errors', async () => {
+      const storeModel = {
+        findById: jest.fn().mockRejectedValue(new Error('CastError')),
+      };
+      const repo = new StoreRepository(storeModel as any);
+
+      await expect(repo.findByIdOrThrow('bad-id')).rejects.toBeInstanceOf(
+        StoreNotFoundException,
+      );
     });
   });
 
@@ -37,6 +70,96 @@ describe('StoreRepository', () => {
       );
       expect(lean).toHaveBeenCalledTimes(1);
       expect(result).toBe(expected);
+    });
+  });
+
+  describe('create', () => {
+    it('delegates to storeModel.create', async () => {
+      const created = { _id: 'new-store' };
+      const storeModel = { create: jest.fn().mockResolvedValue(created) };
+      const repo = new StoreRepository(storeModel as any);
+
+      const doc = { name: 'New Store' };
+      const result = await repo.create(doc);
+
+      expect(storeModel.create).toHaveBeenCalledWith(doc);
+      expect(result).toBe(created);
+    });
+  });
+
+  describe('updateOneById', () => {
+    it('wraps set fields in $set and filters by _id', async () => {
+      const updateResult = { modifiedCount: 1 };
+      const storeModel = {
+        updateOne: jest.fn().mockResolvedValue(updateResult),
+      };
+      const repo = new StoreRepository(storeModel as any);
+
+      const result = await repo.updateOneById('store-1', { name: 'Renamed' });
+
+      expect(storeModel.updateOne).toHaveBeenCalledWith(
+        { _id: 'store-1' },
+        { $set: { name: 'Renamed' } },
+      );
+      expect(result).toBe(updateResult);
+    });
+  });
+
+  describe('deleteById', () => {
+    it('deletes by _id filter', async () => {
+      const deleteResult = { deletedCount: 1 };
+      const storeModel = {
+        deleteOne: jest.fn().mockResolvedValue(deleteResult),
+      };
+      const repo = new StoreRepository(storeModel as any);
+
+      const result = await repo.deleteById('store-1');
+
+      expect(storeModel.deleteOne).toHaveBeenCalledWith({ _id: 'store-1' });
+      expect(result).toBe(deleteResult);
+    });
+  });
+
+  describe('findByUserLike', () => {
+    it('queries stores where user_like_ids contains userId', async () => {
+      const expected = [{ _id: 'store-1' }];
+      const storeModel = { find: jest.fn().mockResolvedValue(expected) };
+      const repo = new StoreRepository(storeModel as any);
+
+      const result = await repo.findByUserLike('user-1');
+
+      expect(storeModel.find).toHaveBeenCalledWith({
+        user_like_ids: { $in: ['user-1'] },
+      });
+      expect(result).toBe(expected);
+    });
+  });
+
+  describe('addUserLike', () => {
+    it('adds userId to user_like_ids via $addToSet', async () => {
+      const storeModel = { updateOne: jest.fn().mockResolvedValue({}) };
+      const repo = new StoreRepository(storeModel as any);
+
+      await repo.addUserLike('store-1', 'user-1');
+
+      expect(storeModel.updateOne).toHaveBeenCalledWith(
+        { _id: 'store-1' },
+        { $addToSet: { user_like_ids: ['user-1'] } },
+      );
+    });
+  });
+
+  describe('removeUserLike', () => {
+    it('removes userId from user_like_ids via $pull', async () => {
+      const storeModel = { updateOne: jest.fn().mockResolvedValue({}) };
+      const repo = new StoreRepository(storeModel as any);
+
+      await repo.removeUserLike('store-1', 'user-1');
+
+      expect(storeModel.updateOne).toHaveBeenCalledWith(
+        { _id: 'store-1' },
+        { $pull: { user_like_ids: 'user-1' } },
+      );
     });
   });
 

@@ -25,6 +25,7 @@ import { SimilarCakeService } from './similar-cake.service';
 import { VitClient } from 'src/ai-search/vit-client';
 import { ClipClient } from 'src/ai-search/clip-client';
 import { StoreRepository } from 'src/store/store.repository';
+import { CakeRepository } from './cake.repository';
 
 @Injectable()
 export class CakeService {
@@ -40,6 +41,7 @@ export class CakeService {
     private readonly vitClient: VitClient,
     private readonly clipClient: ClipClient,
     private readonly storeRepository: StoreRepository,
+    private readonly cakeRepository: CakeRepository,
   ) {}
 
   // async findAll(user: IUser, after, limit: number): Promise<CakesResponseDto> {
@@ -252,14 +254,10 @@ export class CakeService {
   }
 
   async changeContent(cakeid: string, user: IUser, file) {
-    const cake = await this.cakeModel.findOne({ _id: cakeid }).catch(() => {
-      throw new CakeNotFoundException(cakeid);
-    });
-    const store = await this.storeModel
-      .findById(cake.owner_store_id)
-      .catch(() => {
-        throw new StoreNotFoundException(cake.owner_store_id);
-      });
+    const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
+    const store = await this.storeRepository.findByIdOrThrow(
+      cake.owner_store_id,
+    );
 
     if (
       store.owner_user_id !== user.firebaseUid &&
@@ -275,25 +273,14 @@ export class CakeService {
     const updatedata = new UpdateCakeDto(
       await this.uploadService.create(path, file),
     );
-    return await this.cakeModel.updateOne(
-      {
-        _id: cakeid,
-      },
-      {
-        $set: updatedata,
-      },
-    );
+    return await this.cakeRepository.updateOneById(cakeid, updatedata);
   }
 
   async removeContent(cakeid: string, user: IUser) {
-    const cake = await this.cakeModel.findById(cakeid).catch(() => {
-      throw new CakeNotFoundException(cakeid);
-    });
-    const store = await this.storeModel
-      .findById(cake.owner_store_id)
-      .catch(() => {
-        throw new StoreNotFoundException(cake.owner_store_id);
-      });
+    const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
+    const store = await this.storeRepository.findByIdOrThrow(
+      cake.owner_store_id,
+    );
     if (
       // store.owner_user_id !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
@@ -305,17 +292,9 @@ export class CakeService {
 
     await this.uploadService.remove(path, cake.image.s3Url);
 
-    // return await this.cakeModel.deleteOne({ _id: cakeid });
-    return await this.cakeModel.updateOne(
-      {
-        _id: cakeid,
-      },
-      {
-        $set: {
-          is_delete: true,
-        },
-      },
-    );
+    return await this.cakeRepository.updateOneById(cakeid, {
+      is_delete: true,
+    });
   }
 
   async createCake(storeid, user: IUser, files) {
@@ -330,9 +309,7 @@ export class CakeService {
       defval: null,
     });
 
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
     if (
       store.owner_user_id !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
@@ -367,7 +344,7 @@ export class CakeService {
           .map((item) => item.trim())
           .filter((item) => item !== '');
 
-        await this.cakeModel.create({
+        await this.cakeRepository.create({
           image: image,
           owner_store_id: storeid,
           cursor: cursorValue,
@@ -377,7 +354,7 @@ export class CakeService {
           faiss_id: faissId,
         });
       } else {
-        await this.cakeModel.create({
+        await this.cakeRepository.create({
           image: image,
           owner_store_id: storeid,
           cursor: cursorValue,
