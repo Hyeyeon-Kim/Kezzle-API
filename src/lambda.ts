@@ -48,6 +48,37 @@ export const handler: Handler = async (
   context: Context,
   callback: Callback,
 ) => {
-  server = server ?? (await bootstrap());
-  return server(event, context, callback);
+  const startedAt = Date.now();
+  const route =
+    event?.resource ?? event?.requestContext?.resourcePath ?? event?.path;
+  const method = event?.httpMethod ?? event?.requestContext?.http?.method;
+
+  try {
+    server = server ?? (await bootstrap());
+    const response: any = await server(event, context, callback);
+    console.log(
+      JSON.stringify({
+        event: 'api_request',
+        route,
+        method,
+        statusCode: response?.statusCode ?? 200,
+        durationMs: Date.now() - startedAt,
+        requestId: context.awsRequestId,
+      }),
+    );
+    return response;
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        event: 'api_request',
+        route,
+        method,
+        statusCode: 500,
+        durationMs: Date.now() - startedAt,
+        requestId: context.awsRequestId,
+        errorName: error?.name,
+      }),
+    );
+    throw error;
+  }
 };
