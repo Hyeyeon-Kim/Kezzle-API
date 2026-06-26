@@ -7,19 +7,36 @@ import { RankResponseDto } from './dto/response-search-rank.dto';
 import { LatestResponseDto } from './dto/response-latest-search.dto';
 import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
 import { CakesSearchResponseDto } from 'src/cake/dto/response-search-cake.dto';
+import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 
 @Injectable()
 export class SearchService {
   constructor(
     private readonly httpService: HttpService,
     private readonly logService: LogService,
+    private readonly homeMetrics: HomeResilienceMetricsService,
   ) {}
+
+  private clipApiUrl(path: string): string {
+    const baseUrl =
+      process.env.CLIP_API_BASE_URL ?? 'https://api.kezzlecake.com/clip';
+    return `${baseUrl}${path}`;
+  }
 
   async search(keywords: string, page: number, user: IUser) {
     if (!keywords) return new CakesResponseDto([], false);
 
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search-page?keyword=${keywords}&size=18&page=${page}`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
+    const apiUrl = this.clipApiUrl(
+      `/cakes/ko-search-page?keyword=${keywords}&size=18&page=${page}`,
+    );
+    this.homeMetrics.countAi();
+    const response = await this.httpService
+      .get(apiUrl)
+      .toPromise()
+      .catch((error) => {
+        this.homeMetrics.countAiError();
+        throw error;
+      });
     const cakes = response.data.result;
 
     if (page === 0 || page === undefined) {

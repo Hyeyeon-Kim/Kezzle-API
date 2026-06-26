@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { KeywordLog } from './entities/keywordLog.shema';
 import mongoose, { Model, PipelineStage } from 'mongoose';
 import { CakeLikeLog } from './entities/cakeLikeLog.shema';
+import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 
 @Injectable()
 export class LogService {
@@ -11,6 +12,7 @@ export class LogService {
     private readonly keywordModel: Model<KeywordLog>,
     @InjectModel(CakeLikeLog.name, 'kezzle')
     private readonly CakeLikeModel: Model<KeywordLog>,
+    private readonly homeMetrics: HomeResilienceMetricsService,
   ) {}
 
   async searchlog(userId: string, searchWord: string, relatedWord: string[]) {
@@ -59,6 +61,7 @@ export class LogService {
     };
 
     const pipeline = [match, group, sort];
+    this.homeMetrics.countDb();
     return await this.keywordModel.aggregate(pipeline).limit(limit);
   }
 
@@ -122,6 +125,13 @@ export class LogService {
       $unwind: '$cakeInfo',
     };
 
+    // 사전 계산 read model 에 삭제된 cake 가 노출되지 않도록 제외한다.
+    const filterDeleted: PipelineStage.Match = {
+      $match: {
+        'cakeInfo.is_delete': { $ne: true },
+      },
+    };
+
     const project: PipelineStage.Project = {
       $project: {
         _id: 1,
@@ -165,6 +175,7 @@ export class LogService {
       add,
       lookup,
       unwind,
+      filterDeleted,
       project,
       popular_cal,
       sort,
@@ -177,12 +188,14 @@ export class LogService {
       add,
       lookup,
       unwind,
+      filterDeleted,
       project,
       popular_cal,
       sort,
     ];
 
     if (Number.isNaN(limit)) limit = 20;
+    this.homeMetrics.countDb();
     if (Number.isNaN(after))
       return await this.CakeLikeModel.aggregate(pipeline).limit(limit);
     return await this.CakeLikeModel.aggregate(likepipeline).limit(limit);

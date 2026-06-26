@@ -19,12 +19,13 @@ import * as XLSX from 'xlsx'; // TODO:나중에 이거 바꿔야함
 import ICake from './interface/cake.interface';
 import { StoreSimpleResponseDto } from 'src/store/dto/response-simple-store.dto';
 import { CakeSimilarResponseDto } from './dto/response-similar-cake.dto';
-import { LogService } from 'src/log/log.service';
+import { PopularRankService } from 'src/log/popular-rank.service';
 import { PopularCakesResponseDto } from './dto/response-popular-cakes.dto';
 import { AnniversaryService } from 'src/anniversary/anniversary.service';
 import { CakeSimpleResponseDto } from './dto/response-cake-simple.dto';
 import { CounterService } from 'src/counter/counter.service';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
+import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 
 @Injectable()
 export class CakeService {
@@ -36,10 +37,17 @@ export class CakeService {
     @Inject(forwardRef(() => StoreService))
     private readonly storeService: StoreService,
     private readonly httpService: HttpService,
-    private readonly logService: LogService,
+    private readonly popularRankService: PopularRankService,
     private readonly anniversaryService: AnniversaryService,
     private readonly counterService: CounterService,
+    private readonly homeMetrics: HomeResilienceMetricsService,
   ) {}
+
+  private vitApiUrl(path: string): string {
+    const baseUrl =
+      process.env.VIT_API_BASE_URL ?? 'https://api.kezzlecake.com/vit';
+    return `${baseUrl}${path}`;
+  }
 
   // async findAll(user: IUser, after, limit: number): Promise<CakesResponseDto> {
   //   let cakes;
@@ -175,6 +183,7 @@ export class CakeService {
       });
     }
 
+    this.homeMetrics.countDb();
     let cakes = await this.cakeModel.aggregate(pipelines).limit(limit + 1);
     let hasMore = false;
 
@@ -192,18 +201,32 @@ export class CakeService {
     const randomIndex = Math.floor(Math.random() * user.cake_like_ids.length);
 
     let userLikedCakeId: string = user.cake_like_ids[randomIndex];
+    let likedCakeExists = false;
 
-    if (
-      userLikedCakeId === undefined ||
-      (await this.cakeModel.findById(userLikedCakeId)) === null
-    ) {
+    if (userLikedCakeId !== undefined) {
+      this.homeMetrics.countDb();
+      likedCakeExists =
+        (await this.cakeModel.findById(userLikedCakeId)) !== null;
+    }
+
+    if (userLikedCakeId === undefined || !likedCakeExists) {
+      this.homeMetrics.countDb();
       userLikedCakeId = (
         await this.cakeModel.aggregate([{ $sample: { size: 1 } }])
       )[0]._id.toString();
     }
 
-    const apiUrl = `https://api.kezzlecake.com/vit/cakes/similar-search?id=${userLikedCakeId}&size=6`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
+    const apiUrl = this.vitApiUrl(
+      `/cakes/similar-search?id=${userLikedCakeId}&size=6`,
+    );
+    this.homeMetrics.countAi();
+    const response = await this.httpService
+      .get(apiUrl)
+      .toPromise()
+      .catch((error) => {
+        this.homeMetrics.countAiError();
+        throw error;
+      });
     const cakes = response.data.result;
 
     return cakes.map((cake) => new CakeSimpleResponseDto(cake));
@@ -493,11 +516,10 @@ export class CakeService {
   async popular(after, limit: number) {
     const sDate = '2023-01-01';
     const eDate = '2023-12-31';
-    const cakes = await this.logService.getRankCake(sDate, eDate, after, limit);
+    // 요청 path 에서 cakelikelogs 실시간 집계를 제거하고 사전 계산 read model 을 조회한다.
+    const cakes = await this.popularRankService.getRanked(after, limit);
 
-    const cakeResponse = await cakes.map(
-      (cake) => new CakeSimpleResponseDto(cake),
-    );
+    const cakeResponse = cakes.map((cake) => new CakeSimpleResponseDto(cake));
     return new PopularCakesResponseDto(cakeResponse, sDate, eDate);
   }
 
@@ -509,8 +531,17 @@ export class CakeService {
     size: number,
     user: IUser,
   ) {
-    const apiUrl = `https://api.kezzlecake.com/vit/cakes/similar-search?id=${cakeid}&lon=${lon}&lat=${lat}&dist=${dist}&size=${size}`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
+    const apiUrl = this.vitApiUrl(
+      `/cakes/similar-search?id=${cakeid}&lon=${lon}&lat=${lat}&dist=${dist}&size=${size}`,
+    );
+    this.homeMetrics.countAi();
+    const response = await this.httpService
+      .get(apiUrl)
+      .toPromise()
+      .catch((error) => {
+        this.homeMetrics.countAiError();
+        throw error;
+      });
     const cakes = response.data.result;
 
     // TODO: 케이크가 안 올수도 있다 return은 빈 배열

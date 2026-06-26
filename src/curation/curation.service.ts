@@ -19,6 +19,7 @@ import { RankResponseDto } from 'src/search/dto/response-search-rank.dto';
 import { HomeCurationDtoV2 } from './dto/response-home-curation.dto.v2';
 import { CakesSimpleResponseDto } from 'src/cake/dto/response-cakes-simple.dto';
 import IUser from 'src/user/interfaces/user.interface';
+import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 
 @Injectable()
 export class CurationService {
@@ -29,10 +30,27 @@ export class CurationService {
     private readonly cakeService: CakeService,
     private readonly anniversaryService: AnniversaryService,
     private readonly searchService: SearchService,
+    private readonly homeMetrics: HomeResilienceMetricsService,
   ) {}
+
+  private clipApiUrl(path: string): string {
+    const baseUrl =
+      process.env.CLIP_API_BASE_URL ?? 'https://api.kezzlecake.com/clip';
+    return `${baseUrl}${path}`;
+  }
+
   async createCuration(keyword: string, disc: string, note: string) {
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search?keyword=${keyword}&size=100`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
+    const apiUrl = this.clipApiUrl(
+      `/cakes/ko-search?keyword=${keyword}&size=100`,
+    );
+    this.homeMetrics.countAi();
+    const response = await this.httpService
+      .get(apiUrl)
+      .toPromise()
+      .catch((error) => {
+        this.homeMetrics.countAiError();
+        throw error;
+      });
     const cakes = response.data.result;
 
     return await this.curationModel.create({
@@ -44,12 +62,22 @@ export class CurationService {
   }
 
   async updateCuration(curationId: string) {
+    this.homeMetrics.countDb();
     const curation = await this.curationModel.findById(curationId).catch(() => {
       throw new CurationNotFoundException(curationId);
     });
 
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search?keyword=${curation.key}&size=100`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
+    const apiUrl = this.clipApiUrl(
+      `/cakes/ko-search?keyword=${curation.key}&size=100`,
+    );
+    this.homeMetrics.countAi();
+    const response = await this.httpService
+      .get(apiUrl)
+      .toPromise()
+      .catch((error) => {
+        this.homeMetrics.countAiError();
+        throw error;
+      });
     const cakes = response.data.result;
 
     curation.cakes = cakes;
@@ -62,6 +90,7 @@ export class CurationService {
     const result: CurationsDto[] = [];
 
     for (const ment of ments) {
+      this.homeMetrics.countDb();
       const tmps = await this.curationModel.find({ note: ment });
       const Response = await tmps.map((tmp) => new CurationDto(tmp));
       result.push(new CurationsDto(Response, ment));
@@ -72,32 +101,59 @@ export class CurationService {
   }
 
   async homeCurationV2(user: IUser | undefined): Promise<HomeCurationDtoV2> {
+    return this.homeMetrics.run(async () => {
+      try {
+        const response = await this.buildHomeCurationV2(user);
+        this.homeMetrics.flush('success');
+        return response;
+      } catch (error) {
+        this.homeMetrics.flush('error');
+        throw error;
+      }
+    });
+  }
+
+  private async buildHomeCurationV2(
+    user: IUser | undefined,
+  ): Promise<HomeCurationDtoV2> {
     const recommendCakes: CakeSimpleResponseDto[] =
-      await this.cakeService.findAllByRecommend(user);
-    const anniversary: AnniversaryDto =
-      await this.anniversaryService.getAnniversary();
+      await this.homeMetrics.timeSection('recommend', () =>
+        this.cakeService.findAllByRecommend(user),
+      );
+    const anniversary: AnniversaryDto = await this.homeMetrics.timeSection(
+      'anniversary',
+      () => this.anniversaryService.getAnniversary(),
+    );
     const popularCakes: PopularCakesResponseDto =
-      await this.cakeService.popular(NaN, 3);
-    const keywordRanks: RankResponseDto = await this.searchService.getRank(
-      undefined,
-      undefined,
-      4,
+      await this.homeMetrics.timeSection('popular', () =>
+        this.cakeService.popular(NaN, 3),
+      );
+    const keywordRanks: RankResponseDto = await this.homeMetrics.timeSection(
+      'keywordRanks',
+      () => this.searchService.getRank(undefined, undefined, 4),
     );
     const newestCakes: CakesSimpleResponseDto =
-      await this.cakeService.findAllByNewest(undefined, 4);
-    const curations: CurationDtoV2[] = (
-      await this.curationModel.find().limit(4)
-    ).map((curation) => {
-      const threeDaysLater = new Date(curation.updatedAt);
-      threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-      const currentDate = new Date();
+      await this.homeMetrics.timeSection('newestCakes', () =>
+        this.cakeService.findAllByNewest(undefined, 4),
+      );
+    const curations: CurationDtoV2[] = await this.homeMetrics.timeSection(
+      'curations',
+      async () => {
+        this.homeMetrics.countDb();
+        return (await this.curationModel.find().limit(4)).map((curation) => {
+          const threeDaysLater = new Date(curation.updatedAt);
+          threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+          const currentDate = new Date();
 
-      if (threeDaysLater < currentDate) {
-        this.updateCuration(curation._id.toString());
-      }
+          if (threeDaysLater < currentDate) {
+            this.homeMetrics.countBackgroundRefresh();
+            this.updateCuration(curation._id.toString());
+          }
 
-      return new CurationDtoV2(curation);
-    });
+          return new CurationDtoV2(curation);
+        });
+      },
+    );
 
     return new HomeCurationDtoV2(
       anniversary,
@@ -115,8 +171,17 @@ export class CurationService {
     });
 
     if (Number.isNaN(page)) page = 0;
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search-page?keyword=${curation.key}&size=20&page=${page}`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
+    const apiUrl = this.clipApiUrl(
+      `/cakes/ko-search-page?keyword=${curation.key}&size=20&page=${page}`,
+    );
+    this.homeMetrics.countAi();
+    const response = await this.httpService
+      .get(apiUrl)
+      .toPromise()
+      .catch((error) => {
+        this.homeMetrics.countAiError();
+        throw error;
+      });
     const cakes = response.data.result;
 
     const Response = await cakes.map((cake) => new CakeSimpleResponseDto(cake));

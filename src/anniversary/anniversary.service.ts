@@ -4,6 +4,7 @@ import { Anniversary } from './entities/anniversary.schema';
 import { Model } from 'mongoose';
 import { HttpService } from '@nestjs/axios';
 import { AnniversaryDto } from './dto/response-anniversary.dto';
+import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 
 @Injectable()
 export class AnniversaryService {
@@ -11,14 +12,23 @@ export class AnniversaryService {
     @InjectModel(Anniversary.name, 'kezzle')
     private readonly AnniversaryModel: Model<Anniversary>,
     private readonly httpService: HttpService,
+    private readonly homeMetrics: HomeResilienceMetricsService,
   ) {}
 
+  private clipApiUrl(path: string): string {
+    const baseUrl =
+      process.env.CLIP_API_BASE_URL ?? 'https://api.kezzlecake.com/clip';
+    return `${baseUrl}${path}`;
+  }
+
   async getAnniversaryWord(id: string) {
+    this.homeMetrics.countDb();
     return await this.AnniversaryModel.findById(id);
   }
 
   async getAnniversary() {
     const nowDate = new Date();
+    this.homeMetrics.countDb();
     const anniversary = await this.AnniversaryModel.find({
       date: { $gte: nowDate },
     })
@@ -27,8 +37,17 @@ export class AnniversaryService {
       })
       .limit(1);
     const keyword = anniversary[0].keyword.join(', ');
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search?keyword=${keyword}&size=6`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
+    const apiUrl = this.clipApiUrl(
+      `/cakes/ko-search?keyword=${keyword}&size=6`,
+    );
+    this.homeMetrics.countAi();
+    const response = await this.httpService
+      .get(apiUrl)
+      .toPromise()
+      .catch((error) => {
+        this.homeMetrics.countAiError();
+        throw error;
+      });
     const cakes = response.data.result;
 
     const images = [];
