@@ -36,6 +36,7 @@ export class LogService {
     startDateStr: string,
     endDateStr: string,
     limit: number = 10,
+    maxTimeMs?: number,
   ) {
     const startDate = new Date(startDateStr);
     const endDate = new Date(endDateStr);
@@ -62,7 +63,11 @@ export class LogService {
 
     const pipeline = [match, group, sort];
     this.homeMetrics.countDb();
-    return await this.keywordModel.aggregate(pipeline).limit(limit);
+    const aggregate = this.keywordModel.aggregate(pipeline).limit(limit);
+    if (maxTimeMs !== undefined) {
+      aggregate.option({ maxTimeMS: maxTimeMs });
+    }
+    return await aggregate;
   }
 
   async cakeLikelog(userId: string, cakeId: string, type: boolean) {

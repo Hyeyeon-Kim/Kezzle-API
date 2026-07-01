@@ -40,23 +40,29 @@ export class PopularRankService {
    * @param after standalone 페이지네이션 커서(total 점수). 홈에서는 NaN.
    * @param limit 가져올 개수. NaN 이면 기본 20.
    */
-  async getRanked(after: number, limit: number) {
+  async getRanked(after: number, limit: number, maxTimeMs?: number) {
     if (Number.isNaN(limit)) limit = 20;
 
     this.homeMetrics.countDb();
-    let latest = await this.rankModel
+    const latestQuery = this.rankModel
       .findOne()
-      .sort({ computedAt: -1, rank: 1 })
-      .lean();
+      .sort({ computedAt: -1, rank: 1 });
+    if (maxTimeMs !== undefined) {
+      latestQuery.maxTimeMS(maxTimeMs);
+    }
+    let latest = await latestQuery.lean();
 
     // 콜드 스타트: read model 이 비어 있으면 1회 동기 빌드 후 다시 조회한다.
     if (!latest) {
       await this.refresh();
       this.homeMetrics.countDb();
-      latest = await this.rankModel
+      const refreshedQuery = this.rankModel
         .findOne()
-        .sort({ computedAt: -1, rank: 1 })
-        .lean();
+        .sort({ computedAt: -1, rank: 1 });
+      if (maxTimeMs !== undefined) {
+        refreshedQuery.maxTimeMS(maxTimeMs);
+      }
+      latest = await refreshedQuery.lean();
       if (!latest) return [];
     }
 
@@ -68,11 +74,14 @@ export class PopularRankService {
     if (!Number.isNaN(after)) filter.total = { $lt: after };
 
     this.homeMetrics.countDb();
-    const docs = await this.rankModel
+    const rankedQuery = this.rankModel
       .find(filter)
       .sort({ rank: 1 })
-      .limit(limit)
-      .lean();
+      .limit(limit);
+    if (maxTimeMs !== undefined) {
+      rankedQuery.maxTimeMS(maxTimeMs);
+    }
+    const docs = await rankedQuery.lean();
 
     // CakeSimpleResponseDto 가 기대하는 형태로 매핑한다(_id, total, image, owner_store_id, tag_ins).
     return docs.map((d) => ({

@@ -62,8 +62,14 @@ export class SearchService {
     startDate: string = '2023-01-01',
     endDate: string = '2023-11-25',
     limit?: number,
+    maxTimeMs?: number,
   ) {
-    const result = await this.logService.getRankWord(startDate, endDate, limit);
+    const result = await this.logService.getRankWord(
+      startDate,
+      endDate,
+      limit,
+      maxTimeMs,
+    );
     return new RankResponseDto(result, startDate, endDate);
   }
 

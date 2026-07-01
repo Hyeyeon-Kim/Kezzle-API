@@ -6,9 +6,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as admin from 'firebase-admin';
 import * as AWS from 'aws-sdk';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const express = require('express');
-
 AWS.config.update({
   region: process.env.A_REGION,
   accessKeyId: process.env.A_ACCESS_KEY_ID,

@@ -26,6 +26,7 @@ import { CakeSimpleResponseDto } from './dto/response-cake-simple.dto';
 import { CounterService } from 'src/counter/counter.service';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class CakeService {
@@ -159,7 +160,7 @@ export class CakeService {
     return new CakesResponseDto(cakeResponse, hasMore);
   }
 
-  async findAllByNewest(after: string, limit: number) {
+  async findAllByNewest(after: string, limit: number, maxTimeMs?: number) {
     if (Number.isNaN(limit)) {
       limit = 20;
     }
@@ -184,7 +185,11 @@ export class CakeService {
     }
 
     this.homeMetrics.countDb();
-    let cakes = await this.cakeModel.aggregate(pipelines).limit(limit + 1);
+    const aggregate = this.cakeModel.aggregate(pipelines).limit(limit + 1);
+    if (maxTimeMs !== undefined) {
+      aggregate.option({ maxTimeMS: maxTimeMs });
+    }
+    let cakes = await aggregate;
     let hasMore = false;
 
     if (cakes.length > limit) {
@@ -197,7 +202,11 @@ export class CakeService {
     return new CakesSimpleResponseDto(cakeResponse, hasMore);
   }
 
-  async findAllByRecommend(user: IUser): Promise<CakeSimpleResponseDto[]> {
+  async findAllByRecommend(
+    user: IUser,
+    signal?: AbortSignal,
+    maxTimeMs?: number,
+  ): Promise<CakeSimpleResponseDto[]> {
     const randomIndex = Math.floor(Math.random() * user.cake_like_ids.length);
 
     let userLikedCakeId: string = user.cake_like_ids[randomIndex];
@@ -205,28 +214,32 @@ export class CakeService {
 
     if (userLikedCakeId !== undefined) {
       this.homeMetrics.countDb();
-      likedCakeExists =
-        (await this.cakeModel.findById(userLikedCakeId)) !== null;
+      const likedCakeQuery = this.cakeModel.findById(userLikedCakeId);
+      if (maxTimeMs !== undefined) {
+        likedCakeQuery.maxTimeMS(maxTimeMs);
+      }
+      likedCakeExists = (await likedCakeQuery) !== null;
     }
 
     if (userLikedCakeId === undefined || !likedCakeExists) {
       this.homeMetrics.countDb();
-      userLikedCakeId = (
-        await this.cakeModel.aggregate([{ $sample: { size: 1 } }])
-      )[0]._id.toString();
+      const aggregate = this.cakeModel.aggregate([{ $sample: { size: 1 } }]);
+      if (maxTimeMs !== undefined) {
+        aggregate.option({ maxTimeMS: maxTimeMs });
+      }
+      userLikedCakeId = (await aggregate)[0]._id.toString();
     }
 
     const apiUrl = this.vitApiUrl(
       `/cakes/similar-search?id=${userLikedCakeId}&size=6`,
     );
     this.homeMetrics.countAi();
-    const response = await this.httpService
-      .get(apiUrl)
-      .toPromise()
-      .catch((error) => {
-        this.homeMetrics.countAiError();
-        throw error;
-      });
+    const response = await firstValueFrom(
+      this.httpService.get(apiUrl, { signal }),
+    ).catch((error) => {
+      this.homeMetrics.countAiError();
+      throw error;
+    });
     const cakes = response.data.result;
 
     return cakes.map((cake) => new CakeSimpleResponseDto(cake));
@@ -513,11 +526,15 @@ export class CakeService {
     return cakes.map((cake) => new CakeResponseDto(cake, user.firebaseUid));
   }
 
-  async popular(after, limit: number) {
+  async popular(after, limit: number, maxTimeMs?: number) {
     const sDate = '2023-01-01';
     const eDate = '2023-12-31';
     // 요청 path 에서 cakelikelogs 실시간 집계를 제거하고 사전 계산 read model 을 조회한다.
-    const cakes = await this.popularRankService.getRanked(after, limit);
+    const cakes = await this.popularRankService.getRanked(
+      after,
+      limit,
+      maxTimeMs,
+    );
 
     const cakeResponse = cakes.map((cake) => new CakeSimpleResponseDto(cake));
     return new PopularCakesResponseDto(cakeResponse, sDate, eDate);

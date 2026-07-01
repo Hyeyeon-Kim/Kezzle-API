@@ -5,6 +5,7 @@ import { Model } from 'mongoose';
 import { HttpService } from '@nestjs/axios';
 import { AnniversaryDto } from './dto/response-anniversary.dto';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class AnniversaryService {
@@ -26,28 +27,31 @@ export class AnniversaryService {
     return await this.AnniversaryModel.findById(id);
   }
 
-  async getAnniversary() {
+  async getAnniversary(signal?: AbortSignal, maxTimeMs?: number) {
     const nowDate = new Date();
     this.homeMetrics.countDb();
-    const anniversary = await this.AnniversaryModel.find({
+    const query = this.AnniversaryModel.find({
       date: { $gte: nowDate },
     })
       .sort({
         date: 1,
       })
       .limit(1);
+    if (maxTimeMs !== undefined) {
+      query.maxTimeMS(maxTimeMs);
+    }
+    const anniversary = await query;
     const keyword = anniversary[0].keyword.join(', ');
     const apiUrl = this.clipApiUrl(
       `/cakes/ko-search?keyword=${keyword}&size=6`,
     );
     this.homeMetrics.countAi();
-    const response = await this.httpService
-      .get(apiUrl)
-      .toPromise()
-      .catch((error) => {
-        this.homeMetrics.countAiError();
-        throw error;
-      });
+    const response = await firstValueFrom(
+      this.httpService.get(apiUrl, { signal }),
+    ).catch((error) => {
+      this.homeMetrics.countAiError();
+      throw error;
+    });
     const cakes = response.data.result;
 
     const images = [];

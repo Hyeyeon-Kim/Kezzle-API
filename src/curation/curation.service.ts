@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Curation } from './entities/curation.schema';
 import { Model } from 'mongoose';
@@ -20,9 +24,44 @@ import { HomeCurationDtoV2 } from './dto/response-home-curation.dto.v2';
 import { CakesSimpleResponseDto } from 'src/cake/dto/response-cakes-simple.dto';
 import IUser from 'src/user/interfaces/user.interface';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
+import {
+  executeHomeSection,
+  HomeSectionFallbackReason,
+  HomeSectionResult,
+} from './home-section.executor';
+import { HomeSectionsMetadataDto } from './dto/home-section-metadata.dto';
+
+const HOME_SECTION_TIMEOUTS = {
+  recommendCakes: {
+    env: 'HOME_RECOMMEND_TIMEOUT_MS',
+    defaultMs: 250,
+  },
+  anniversary: {
+    env: 'HOME_ANNIVERSARY_TIMEOUT_MS',
+    defaultMs: 250,
+  },
+  popularCakes: {
+    env: 'HOME_POPULAR_TIMEOUT_MS',
+    defaultMs: 50,
+  },
+  keywordRanks: {
+    env: 'HOME_KEYWORD_RANKS_TIMEOUT_MS',
+    defaultMs: 400,
+  },
+  newestCakes: {
+    env: 'HOME_NEWEST_TIMEOUT_MS',
+    defaultMs: 100,
+  },
+  curations: {
+    env: 'HOME_CURATIONS_TIMEOUT_MS',
+    defaultMs: 100,
+  },
+} as const;
 
 @Injectable()
 export class CurationService {
+  private readonly logger = new Logger(CurationService.name);
+
   constructor(
     @InjectModel(Curation.name, 'kezzle')
     private readonly curationModel: Model<Curation>,
@@ -116,53 +155,187 @@ export class CurationService {
   private async buildHomeCurationV2(
     user: IUser | undefined,
   ): Promise<HomeCurationDtoV2> {
-    const recommendCakes: CakeSimpleResponseDto[] =
-      await this.homeMetrics.timeSection('recommend', () =>
-        this.cakeService.findAllByRecommend(user),
-      );
-    const anniversary: AnniversaryDto = await this.homeMetrics.timeSection(
+    const recommendTimeout = this.getSectionTimeout('recommendCakes');
+    const recommendResult = await this.homeMetrics.timeSection(
+      'recommend',
+      () =>
+        this.runSection<CakeSimpleResponseDto[]>(
+          'recommendCakes',
+          recommendTimeout,
+          [],
+          (signal) =>
+            this.cakeService.findAllByRecommend(user, signal, recommendTimeout),
+        ),
+    );
+
+    const anniversaryTimeout = this.getSectionTimeout('anniversary');
+    const anniversaryResult = await this.homeMetrics.timeSection(
       'anniversary',
-      () => this.anniversaryService.getAnniversary(),
+      () =>
+        this.runSection<AnniversaryDto>(
+          'anniversary',
+          anniversaryTimeout,
+          this.emptyAnniversary(),
+          (signal) =>
+            this.anniversaryService.getAnniversary(signal, anniversaryTimeout),
+        ),
     );
-    const popularCakes: PopularCakesResponseDto =
-      await this.homeMetrics.timeSection('popular', () =>
-        this.cakeService.popular(NaN, 3),
-      );
-    const keywordRanks: RankResponseDto = await this.homeMetrics.timeSection(
+
+    const popularTimeout = this.getSectionTimeout('popularCakes');
+    const popularResult = await this.homeMetrics.timeSection('popular', () =>
+      this.runSection<PopularCakesResponseDto>(
+        'popularCakes',
+        popularTimeout,
+        new PopularCakesResponseDto([], '2023-01-01', '2023-12-31'),
+        () => this.cakeService.popular(NaN, 3, popularTimeout),
+      ),
+    );
+
+    const keywordRanksTimeout = this.getSectionTimeout('keywordRanks');
+    const keywordRanksResult = await this.homeMetrics.timeSection(
       'keywordRanks',
-      () => this.searchService.getRank(undefined, undefined, 4),
+      () =>
+        this.runSection<RankResponseDto>(
+          'keywordRanks',
+          keywordRanksTimeout,
+          new RankResponseDto([], '2023-01-01', '2023-11-25'),
+          () =>
+            this.searchService.getRank(
+              undefined,
+              undefined,
+              4,
+              keywordRanksTimeout,
+            ),
+        ),
     );
-    const newestCakes: CakesSimpleResponseDto =
-      await this.homeMetrics.timeSection('newestCakes', () =>
-        this.cakeService.findAllByNewest(undefined, 4),
-      );
-    const curations: CurationDtoV2[] = await this.homeMetrics.timeSection(
+
+    const newestCakesTimeout = this.getSectionTimeout('newestCakes');
+    const newestCakesResult = await this.homeMetrics.timeSection(
+      'newestCakes',
+      () =>
+        this.runSection<CakesSimpleResponseDto>(
+          'newestCakes',
+          newestCakesTimeout,
+          new CakesSimpleResponseDto([], false),
+          () =>
+            this.cakeService.findAllByNewest(undefined, 4, newestCakesTimeout),
+        ),
+    );
+
+    const curationsTimeout = this.getSectionTimeout('curations');
+    const curationsResult = await this.homeMetrics.timeSection(
       'curations',
-      async () => {
-        this.homeMetrics.countDb();
-        return (await this.curationModel.find().limit(4)).map((curation) => {
-          const threeDaysLater = new Date(curation.updatedAt);
-          threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-          const currentDate = new Date();
+      () =>
+        this.runSection<CurationDtoV2[]>(
+          'curations',
+          curationsTimeout,
+          [],
+          async () => {
+            this.homeMetrics.countDb();
+            const query = this.curationModel.find().limit(4);
+            query.maxTimeMS(curationsTimeout);
+            return (await query).map((curation) => {
+              const threeDaysLater = new Date(curation.updatedAt);
+              threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+              const currentDate = new Date();
 
-          if (threeDaysLater < currentDate) {
-            this.homeMetrics.countBackgroundRefresh();
-            this.updateCuration(curation._id.toString());
-          }
+              if (threeDaysLater < currentDate) {
+                this.homeMetrics.countBackgroundRefresh();
+                void this.updateCuration(curation._id.toString()).catch(
+                  (error) => {
+                    this.logger.warn(
+                      `curation background refresh failed: ${this.errorName(
+                        error,
+                      )}`,
+                    );
+                  },
+                );
+              }
 
-          return new CurationDtoV2(curation);
-        });
-      },
+              return new CurationDtoV2(curation);
+            });
+          },
+        ),
+    );
+
+    const coreResults = [recommendResult, popularResult, newestCakesResult];
+    if (coreResults.every((result) => result.status === 'fallback')) {
+      throw new ServiceUnavailableException(
+        'All core home sections are unavailable',
+      );
+    }
+
+    const results = {
+      recommendCakes: recommendResult,
+      anniversary: anniversaryResult,
+      popularCakes: popularResult,
+      keywordRanks: keywordRanksResult,
+      newestCakes: newestCakesResult,
+      curations: curationsResult,
+    };
+    const degraded = Object.values(results).some(
+      (result) => result.status === 'fallback',
     );
 
     return new HomeCurationDtoV2(
-      anniversary,
-      recommendCakes,
-      popularCakes,
-      keywordRanks,
-      newestCakes,
-      curations,
+      anniversaryResult.data,
+      recommendResult.data,
+      popularResult.data,
+      keywordRanksResult.data,
+      newestCakesResult.data,
+      curationsResult.data,
+      degraded,
+      new HomeSectionsMetadataDto(results),
     );
+  }
+
+  private runSection<T>(
+    name: string,
+    timeoutMs: number,
+    fallback: T,
+    operation: (signal: AbortSignal) => Promise<T>,
+  ): Promise<HomeSectionResult<T>> {
+    return executeHomeSection({
+      name,
+      timeoutMs,
+      fallback,
+      operation,
+      onError: (error, reason) => this.logSectionFallback(name, error, reason),
+    });
+  }
+
+  private getSectionTimeout(name: keyof typeof HOME_SECTION_TIMEOUTS): number {
+    const config = HOME_SECTION_TIMEOUTS[name];
+    const configured = Number(process.env[config.env]);
+    return Number.isFinite(configured) && configured > 0
+      ? configured
+      : config.defaultMs;
+  }
+
+  private emptyAnniversary(): AnniversaryDto {
+    return {
+      _id: '',
+      name: '',
+      dday: '',
+      ment: '',
+      images: [],
+    };
+  }
+
+  private logSectionFallback(
+    name: string,
+    error: unknown,
+    reason: HomeSectionFallbackReason,
+  ): void {
+    this.logger.warn(
+      `home section fallback: section=${name} reason=${reason} error=${this.errorName(
+        error,
+      )}`,
+    );
+  }
+
+  private errorName(error: unknown): string {
+    return error instanceof Error ? error.name : 'UnknownError';
   }
 
   async showCuration(curationId: string, page: number) {
