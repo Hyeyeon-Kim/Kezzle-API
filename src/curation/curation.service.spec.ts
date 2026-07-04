@@ -2,6 +2,11 @@ import { ServiceUnavailableException } from '@nestjs/common';
 import { CurationService } from './curation.service';
 
 describe('CurationService homeCurationV2', () => {
+  afterEach(() => {
+    delete process.env.HOME_HARD_DEADLINE_MS;
+    delete process.env.HOME_RECOMMEND_TIMEOUT_MS;
+  });
+
   const anniversary = {
     _id: 'anniversary-id',
     name: '기념일',
@@ -160,6 +165,86 @@ describe('CurationService homeCurationV2', () => {
       ServiceUnavailableException,
     );
     expect(homeMetrics.flush).toHaveBeenCalledWith('error');
+  });
+
+  it('runs sections in parallel instead of sequentially', async () => {
+    const delay = <T>(ms: number, value: T): Promise<T> =>
+      new Promise((resolve) => setTimeout(() => resolve(value), ms));
+    const { service } = createService({
+      recommend: jest.fn(() => delay(150, [])),
+      keywordRanks: jest.fn(() => delay(150, keywordRanks)),
+    });
+
+    const started = Date.now();
+    const response = await service.homeCurationV2({} as never);
+    const elapsed = Date.now() - started;
+
+    expect(elapsed).toBeLessThan(280);
+    expect(response.sections.recommendCakes.status).toBe('success');
+    expect(response.sections.keywordRanks.status).toBe('success');
+    expect(response.degraded).toBe(false);
+  });
+
+  it('responds at the hard deadline and aborts unfinished sections', async () => {
+    process.env.HOME_HARD_DEADLINE_MS = '80';
+    process.env.HOME_RECOMMEND_TIMEOUT_MS = '5000';
+    let recommendSignal: AbortSignal | undefined;
+    const { service } = createService({
+      recommend: jest.fn((_user: unknown, signal: AbortSignal) => {
+        recommendSignal = signal;
+        return new Promise((_, reject) => {
+          signal.addEventListener('abort', () => {
+            reject(new Error('dependency aborted'));
+          });
+        });
+      }),
+    });
+
+    const started = Date.now();
+    const response = await service.homeCurationV2({} as never);
+    const elapsed = Date.now() - started;
+
+    expect(elapsed).toBeLessThan(300);
+    expect(response.degraded).toBe(true);
+    expect(response.recommendCakes).toEqual([]);
+    expect(response.sections.recommendCakes).toMatchObject({
+      status: 'fallback',
+      reason: 'timeout',
+    });
+    expect(response.anniversary).toEqual(anniversary);
+    expect(response.popularCakes).toEqual(popularCakes);
+    expect(response.newestCakes).toEqual(newestCakes);
+    expect(recommendSignal?.aborted).toBe(true);
+  });
+
+  it('keeps the response identical when sections finish within the deadline', async () => {
+    process.env.HOME_HARD_DEADLINE_MS = '600';
+    const { service } = createService();
+
+    const response = await service.homeCurationV2({} as never);
+
+    expect(response.degraded).toBe(false);
+    expect(response.anniversary).toEqual(anniversary);
+    expect(response.popularCakes).toEqual(popularCakes);
+    expect(response.keywordRanks).toEqual(keywordRanks);
+    expect(response.newestCakes).toEqual(newestCakes);
+  });
+
+  it('builds a home response even when a section promise rejects unexpectedly', async () => {
+    const { service, homeMetrics } = createService();
+    homeMetrics.timeSection.mockImplementationOnce(() =>
+      Promise.reject(new Error('unexpected metric failure')),
+    );
+
+    const response = await service.homeCurationV2({} as never);
+
+    expect(response.degraded).toBe(true);
+    expect(response.recommendCakes).toEqual([]);
+    expect(response.sections.recommendCakes).toMatchObject({
+      status: 'fallback',
+      reason: 'dependency_error',
+    });
+    expect(response.popularCakes).toEqual(popularCakes);
   });
 
   it('passes measured timeout budgets to section dependencies', async () => {

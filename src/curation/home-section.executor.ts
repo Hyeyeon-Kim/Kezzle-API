@@ -20,6 +20,7 @@ type ExecuteHomeSectionOptions<T> = {
   timeoutMs: number;
   fallback: T;
   operation: (signal: AbortSignal) => Promise<T>;
+  parentSignal?: AbortSignal;
   onError?: (error: unknown, reason: HomeSectionFallbackReason) => void;
 };
 
@@ -30,16 +31,52 @@ class HomeSectionTimeoutError extends Error {
   }
 }
 
+export type HomeDeadline = {
+  signal: AbortSignal;
+  expired: Promise<void>;
+  timeoutMs: number;
+  clear(): void;
+};
+
+export function startHomeDeadline(timeoutMs: number): HomeDeadline {
+  const controller = new AbortController();
+  let timer: NodeJS.Timeout | undefined;
+
+  const expired = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      resolve();
+    }, timeoutMs);
+  });
+
+  return {
+    signal: controller.signal,
+    expired,
+    timeoutMs,
+    clear() {
+      if (timer) clearTimeout(timer);
+    },
+  };
+}
+
 export async function executeHomeSection<T>({
   name,
   timeoutMs,
   fallback,
   operation,
+  parentSignal,
   onError,
 }: ExecuteHomeSectionOptions<T>): Promise<HomeSectionResult<T>> {
   const controller = new AbortController();
   const startedAt = process.hrtime.bigint();
   let timer: NodeJS.Timeout | undefined;
+
+  const abortFromParent = () => controller.abort();
+  if (parentSignal?.aborted) {
+    controller.abort();
+  } else {
+    parentSignal?.addEventListener('abort', abortFromParent, { once: true });
+  }
 
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
@@ -69,6 +106,7 @@ export async function executeHomeSection<T>({
     };
   } finally {
     if (timer) clearTimeout(timer);
+    parentSignal?.removeEventListener('abort', abortFromParent);
   }
 }
 
