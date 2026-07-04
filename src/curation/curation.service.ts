@@ -31,6 +31,11 @@ import {
   startHomeDeadline,
 } from './home-section.executor';
 import { HomeSectionsMetadataDto } from './dto/home-section-metadata.dto';
+import {
+  computeRankWindow,
+  KEYWORD_RANK_WINDOW_DAYS_ENV,
+  POPULAR_RANK_WINDOW_DAYS_ENV,
+} from 'src/log/rank-window';
 
 const HOME_SECTION_TIMEOUTS = {
   recommendCakes: {
@@ -167,15 +172,18 @@ export class CurationService {
     try {
       const recommendFallback: CakeSimpleResponseDto[] = [];
       const anniversaryFallback = this.emptyAnniversary();
+      // fallback 의 날짜도 실제 집계 정책과 같은 rolling window 에서 파생시킨다.
+      const popularWindow = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
       const popularFallback = new PopularCakesResponseDto(
         [],
-        '2023-01-01',
-        '2023-12-31',
+        popularWindow.startDate,
+        popularWindow.endDate,
       );
+      const keywordWindow = computeRankWindow(KEYWORD_RANK_WINDOW_DAYS_ENV);
       const keywordRanksFallback = new RankResponseDto(
         [],
-        '2023-01-01',
-        '2023-11-25',
+        keywordWindow.startDate,
+        keywordWindow.endDate,
       );
       const newestCakesFallback = new CakesSimpleResponseDto([], false);
       const curationsFallback: CurationDtoV2[] = [];

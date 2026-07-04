@@ -7,10 +7,12 @@ import {
 } from './entities/popularCakeRank.shema';
 import { LogService } from './log.service';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
+import {
+  computeRankWindow,
+  POPULAR_RANK_WINDOW_DAYS_ENV,
+  toDateString,
+} from './rank-window';
 
-// 기존 cake.service.popular 이 사용하던 집계 날짜 범위를 그대로 유지한다.
-const POPULAR_RANK_START_DATE = '2023-01-01';
-const POPULAR_RANK_END_DATE = '2023-12-31';
 // read model 에 미리 적재해 둘 상위 랭킹 수. standalone 페이지네이션 여유분을 포함한다.
 const POPULAR_RANK_TOP_N = 100;
 // staleness 임계. 이 시간이 지나면 다음 조회에서 백그라운드 갱신을 1회 트리거한다.
@@ -63,7 +65,15 @@ export class PopularRankService {
         refreshedQuery.maxTimeMS(maxTimeMs);
       }
       latest = await refreshedQuery.lean();
-      if (!latest) return [];
+      if (!latest) {
+        // window 내 로그가 없어 배치가 비었다. 빈 랭킹을 정상 응답한다.
+        const window = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
+        return {
+          cakes: [],
+          startDate: window.startDate,
+          endDate: window.endDate,
+        };
+      }
     }
 
     const computedAt = latest.computedAt;
@@ -84,13 +94,31 @@ export class PopularRankService {
     const docs = await rankedQuery.lean();
 
     // CakeSimpleResponseDto 가 기대하는 형태로 매핑한다(_id, total, image, owner_store_id, tag_ins).
-    return docs.map((d) => ({
-      _id: d.cakeId,
-      total: d.total,
-      image: d.image,
-      owner_store_id: d.owner_store_id,
-      tag_ins: d.tag_ins,
-    }));
+    return {
+      cakes: docs.map((d) => ({
+        _id: d.cakeId,
+        total: d.total,
+        image: d.image,
+        owner_store_id: d.owner_store_id,
+        tag_ins: d.tag_ins,
+      })),
+      ...this.windowStrings(latest),
+    };
+  }
+
+  // 이전 버전 배치에는 window 필드가 없을 수 있어 현재 window 로 대체한다.
+  private windowStrings(latest: { windowStart?: Date; windowEnd?: Date }): {
+    startDate: string;
+    endDate: string;
+  } {
+    if (latest.windowStart && latest.windowEnd) {
+      return {
+        startDate: toDateString(new Date(latest.windowStart)),
+        endDate: toDateString(new Date(latest.windowEnd)),
+      };
+    }
+    const window = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
+    return { startDate: window.startDate, endDate: window.endDate };
   }
 
   /**
@@ -105,9 +133,11 @@ export class PopularRankService {
     this.refreshing = true;
     try {
       // 기존 cakelikelogs 집계를 상위 N건만 1회 수행한다(삭제 cake 제외는 getRankCake 에서 처리).
+      // 집계 구간은 갱신 시점 기준 rolling window 다.
+      const window = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
       const ranked = await this.logService.getRankCake(
-        POPULAR_RANK_START_DATE,
-        POPULAR_RANK_END_DATE,
+        window.start.toISOString(),
+        window.end.toISOString(),
         NaN,
         POPULAR_RANK_TOP_N,
       );
@@ -120,6 +150,8 @@ export class PopularRankService {
         image: cake.image,
         owner_store_id: cake.owner_store_id,
         tag_ins: cake.tag_ins ?? [],
+        windowStart: window.start,
+        windowEnd: window.end,
         computedAt,
       }));
 

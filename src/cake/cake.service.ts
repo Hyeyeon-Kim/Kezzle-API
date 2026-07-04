@@ -527,17 +527,13 @@ export class CakeService {
   }
 
   async popular(after, limit: number, maxTimeMs?: number) {
-    const sDate = '2023-01-01';
-    const eDate = '2023-12-31';
     // 요청 path 에서 cakelikelogs 실시간 집계를 제거하고 사전 계산 read model 을 조회한다.
-    const cakes = await this.popularRankService.getRanked(
-      after,
-      limit,
-      maxTimeMs,
-    );
+    // 날짜는 read model 배치가 실제로 집계한 rolling window 구간이다.
+    const { cakes, startDate, endDate } =
+      await this.popularRankService.getRanked(after, limit, maxTimeMs);
 
     const cakeResponse = cakes.map((cake) => new CakeSimpleResponseDto(cake));
-    return new PopularCakesResponseDto(cakeResponse, sDate, eDate);
+    return new PopularCakesResponseDto(cakeResponse, startDate, endDate);
   }
 
   async similar(

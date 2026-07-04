@@ -146,11 +146,9 @@ describe('CurationService homeCurationV2', () => {
 
     expect(response.degraded).toBe(true);
     expect(response.recommendCakes).toEqual([]);
-    expect(response.popularCakes).toEqual({
-      startDate: '2023-01-01',
-      endDate: '2023-12-31',
-      cakes: [],
-    });
+    expect(response.popularCakes).toMatchObject({ cakes: [] });
+    expect(response.popularCakes.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(response.popularCakes.endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(response.newestCakes).toEqual(newestCakes);
   });
 
