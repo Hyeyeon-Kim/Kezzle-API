@@ -46,6 +46,14 @@ describe('CurationService homeCurationV2', () => {
     };
     const curationModel = {
       find: jest.fn(() => curationQuery),
+      findById: jest.fn().mockResolvedValue({ _id: 'cur-1', key: 'birthday' }),
+      updateOne: jest.fn().mockResolvedValue(undefined),
+    };
+    const httpService = {
+      get: jest.fn(() => ({
+        toPromise: () =>
+          Promise.resolve({ data: { result: [{ _id: 'clip-cake' }] } }),
+      })),
     };
     const cakeService = {
       findAllByRecommend:
@@ -68,13 +76,15 @@ describe('CurationService homeCurationV2', () => {
         callback(),
       ),
       countDb: jest.fn(),
+      countAi: jest.fn(),
+      countAiError: jest.fn(),
       countBackgroundRefresh: jest.fn(),
       flush: jest.fn(),
     };
 
     const service = new CurationService(
       curationModel as never,
-      {} as never,
+      httpService as never,
       cakeService as never,
       anniversaryService as never,
       searchService as never,
@@ -88,6 +98,8 @@ describe('CurationService homeCurationV2', () => {
       searchService,
       homeMetrics,
       curationQuery,
+      curationModel,
+      httpService,
     };
   }
 
@@ -243,6 +255,41 @@ describe('CurationService homeCurationV2', () => {
       reason: 'dependency_error',
     });
     expect(response.popularCakes).toEqual(popularCakes);
+  });
+
+  it('does not trigger curation refresh from the home path even when stale', async () => {
+    const { service, curationQuery, httpService } = createService();
+    const staleCuration = {
+      _id: 'curation-1',
+      key: 'fixture curation',
+      updatedAt: new Date('2020-01-01T00:00:00.000Z'),
+      cakes: [],
+    };
+    curationQuery.then = (
+      resolve: (value: unknown[]) => unknown,
+      reject?: (reason: unknown) => unknown,
+    ) => Promise.resolve([staleCuration]).then(resolve, reject);
+    const updateSpy = jest.spyOn(service, 'updateCuration');
+
+    const response = await service.homeCurationV2({} as never);
+
+    expect(updateSpy).not.toHaveBeenCalled();
+    expect(httpService.get).not.toHaveBeenCalled();
+    expect(response.curations).toEqual([
+      { _id: 'curation-1', cakes: [], description: 'fixture curation' },
+    ]);
+    expect(response.sections.curations.status).toBe('success');
+  });
+
+  it('updateCuration bumps the curation via updateOne even when content is unchanged', async () => {
+    const { service, curationModel } = createService();
+
+    await service.updateCuration('cur-1');
+
+    expect(curationModel.updateOne).toHaveBeenCalledWith(
+      { _id: 'cur-1' },
+      { $set: { cakes: [{ _id: 'clip-cake' }] } },
+    );
   });
 
   it('passes measured timeout budgets to section dependencies', async () => {

@@ -130,8 +130,13 @@ export class CurationService {
       });
     const cakes = response.data.result;
 
-    curation.cakes = cakes;
-    curation.save();
+    this.homeMetrics.countDb();
+    // document.save() 는 내용이 같으면 no-op 이라 updatedAt 이 갱신되지 않고
+    // stale 판정이 영원히 풀리지 않는다. updateOne 은 내용과 무관하게 updatedAt 을 갱신한다.
+    await this.curationModel.updateOne(
+      { _id: curation._id },
+      { $set: { cakes } },
+    );
   }
 
   async homeCuration() {
@@ -352,29 +357,13 @@ export class CurationService {
             curationsTimeout,
             curationsFallback,
             async () => {
+              // stale 갱신은 CurationRefreshService job 이 담당한다. 홈 경로는 조회만 한다.
               this.homeMetrics.countDb();
               const query = this.curationModel.find().limit(4);
               query.maxTimeMS(curationsTimeout);
-              return (await query).map((curation) => {
-                const threeDaysLater = new Date(curation.updatedAt);
-                threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-                const currentDate = new Date();
-
-                if (threeDaysLater < currentDate) {
-                  this.homeMetrics.countBackgroundRefresh();
-                  void this.updateCuration(curation._id.toString()).catch(
-                    (error) => {
-                      this.logger.warn(
-                        `curation background refresh failed: ${this.errorName(
-                          error,
-                        )}`,
-                      );
-                    },
-                  );
-                }
-
-                return new CurationDtoV2(curation);
-              });
+              return (await query).map(
+                (curation) => new CurationDtoV2(curation),
+              );
             },
             deadline.signal,
           ),

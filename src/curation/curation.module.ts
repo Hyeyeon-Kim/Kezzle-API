@@ -9,6 +9,7 @@ import { LogModule } from 'src/log/log.module';
 import { CakeModule } from 'src/cake/cake.module';
 import { SearchModule } from 'src/search/search.module';
 import { CurationControllerV2 } from './curation.controller.v2';
+import { CurationRefreshService } from './curation-refresh.service';
 
 @Module({
   imports: [
@@ -23,6 +24,6 @@ import { CurationControllerV2 } from './curation.controller.v2';
     SearchModule,
   ],
   controllers: [CurationController, CurationControllerV2],
-  providers: [CurationService],
+  providers: [CurationService, CurationRefreshService],
 })
 export class CurationModule {}

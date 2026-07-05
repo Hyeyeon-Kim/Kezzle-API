@@ -1,6 +1,7 @@
 import { Module, ValidationPipe } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { UserModule } from './user/user.module';
 import { APP_PIPE } from '@nestjs/core';
 import { CakeModule } from './cake/cake.module';
@@ -20,6 +21,7 @@ import { HomeResilienceMetricsModule } from './home-resilience/home-resilience-m
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     MongooseModule.forRoot(process.env.MONGODB_URL, {
       user: process.env.MONGODB_USERNAME,
       pass: process.env.MONGODB_PASSWORD,
