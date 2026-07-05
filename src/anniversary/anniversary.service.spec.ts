@@ -36,10 +36,14 @@ describe('AnniversaryService', () => {
       countAi: jest.fn(),
       countAiError: jest.fn(),
     };
+    const homeCache = {
+      getWithSwr: jest.fn(({ refresh }) => refresh()),
+    };
     const service = new AnniversaryService(
       anniversaryModel as never,
       httpService as never,
       homeMetrics as never,
+      homeCache as never,
     );
     const controller = new AbortController();
 
@@ -49,5 +53,8 @@ describe('AnniversaryService', () => {
     expect(httpService.get).toHaveBeenCalledWith(expect.any(String), {
       signal: controller.signal,
     });
+    expect(homeCache.getWithSwr).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'home:anniversary' }),
+    );
   });
 });

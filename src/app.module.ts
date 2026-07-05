@@ -15,6 +15,7 @@ import { LogModule } from './log/log.module';
 import { AnniversaryModule } from './anniversary/anniversary.module';
 import { CounterModule } from './counter/counter.module';
 import { HomeResilienceMetricsModule } from './home-resilience/home-resilience-metrics.module';
+import { HomeCacheModule } from './home-cache/home-cache.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { HomeResilienceMetricsModule } from './home-resilience/home-resilience-m
     AnniversaryModule,
     CounterModule,
     HomeResilienceMetricsModule,
+    HomeCacheModule,
   ],
   controllers: [],
   providers: [

@@ -61,6 +61,8 @@ describe('CurationService homeCurationV2', () => {
       popular: overrides?.popular ?? jest.fn().mockResolvedValue(popularCakes),
       findAllByNewest:
         overrides?.newest ?? jest.fn().mockResolvedValue(newestCakes),
+      findAllByNewestForHome:
+        overrides?.newest ?? jest.fn().mockResolvedValue(newestCakes),
     };
     const anniversaryService = {
       getAnniversary:
@@ -79,7 +81,11 @@ describe('CurationService homeCurationV2', () => {
       countAi: jest.fn(),
       countAiError: jest.fn(),
       countBackgroundRefresh: jest.fn(),
+      countCache: jest.fn(),
       flush: jest.fn(),
+    };
+    const homeCache = {
+      getWithSwr: jest.fn(({ refresh }) => refresh()),
     };
 
     const service = new CurationService(
@@ -89,6 +95,7 @@ describe('CurationService homeCurationV2', () => {
       anniversaryService as never,
       searchService as never,
       homeMetrics as never,
+      homeCache as never,
     );
 
     return {
@@ -97,6 +104,7 @@ describe('CurationService homeCurationV2', () => {
       anniversaryService,
       searchService,
       homeMetrics,
+      homeCache,
       curationQuery,
       curationModel,
       httpService,
@@ -319,7 +327,23 @@ describe('CurationService homeCurationV2', () => {
       4,
       400,
     );
-    expect(cakeService.findAllByNewest).toHaveBeenCalledWith(undefined, 4, 100);
+    expect(cakeService.findAllByNewestForHome).toHaveBeenCalledWith(4, 100);
     expect(curationQuery.maxTimeMS).toHaveBeenCalledWith(100);
+  });
+
+  it('uses the shared cache for the curations section', async () => {
+    const { service, homeCache } = createService();
+
+    await service.homeCurationV2({} as never);
+
+    expect(homeCache.getWithSwr).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'home:curations' }),
+    );
+    expect(homeCache.getWithSwr).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'home:popular' }),
+    );
+    expect(homeCache.getWithSwr).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'home:keyword-ranks' }),
+    );
   });
 });

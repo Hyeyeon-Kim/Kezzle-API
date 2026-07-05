@@ -6,6 +6,8 @@ import { HttpService } from '@nestjs/axios';
 import { AnniversaryDto } from './dto/response-anniversary.dto';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 import { firstValueFrom } from 'rxjs';
+import { HomeCacheService } from 'src/home-cache/home-cache.service';
+import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
 
 @Injectable()
 export class AnniversaryService {
@@ -14,6 +16,7 @@ export class AnniversaryService {
     private readonly AnniversaryModel: Model<Anniversary>,
     private readonly httpService: HttpService,
     private readonly homeMetrics: HomeResilienceMetricsService,
+    private readonly homeCache: HomeCacheService,
   ) {}
 
   private clipApiUrl(path: string): string {
@@ -28,6 +31,14 @@ export class AnniversaryService {
   }
 
   async getAnniversary(signal?: AbortSignal, maxTimeMs?: number) {
+    return this.homeCache.getWithSwr({
+      key: 'home:anniversary',
+      ...homeCachePolicy('anniversary'),
+      refresh: () => this.loadAnniversary(signal, maxTimeMs),
+    });
+  }
+
+  private async loadAnniversary(signal?: AbortSignal, maxTimeMs?: number) {
     const nowDate = new Date();
     this.homeMetrics.countDb();
     const query = this.AnniversaryModel.find({

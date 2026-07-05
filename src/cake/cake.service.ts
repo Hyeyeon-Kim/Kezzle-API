@@ -27,6 +27,8 @@ import { CounterService } from 'src/counter/counter.service';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 import { firstValueFrom } from 'rxjs';
+import { HomeCacheService } from 'src/home-cache/home-cache.service';
+import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
 
 @Injectable()
 export class CakeService {
@@ -42,6 +44,7 @@ export class CakeService {
     private readonly anniversaryService: AnniversaryService,
     private readonly counterService: CounterService,
     private readonly homeMetrics: HomeResilienceMetricsService,
+    private readonly homeCache: HomeCacheService,
   ) {}
 
   private vitApiUrl(path: string): string {
@@ -165,24 +168,26 @@ export class CakeService {
       limit = 20;
     }
 
+    const matchCondition: Record<string, unknown> = {
+      is_delete: false,
+    };
+
+    if (after !== undefined) {
+      matchCondition._id = {
+        $lt: new ObjectId(after),
+      };
+    }
+
     const pipelines: PipelineStage[] = [
+      {
+        $match: matchCondition,
+      },
       {
         $sort: {
           _id: -1,
         },
       },
     ];
-
-    if (after !== undefined) {
-      pipelines.push({
-        $match: {
-          is_delete: false,
-          _id: {
-            $lt: new ObjectId(after),
-          },
-        },
-      });
-    }
 
     this.homeMetrics.countDb();
     const aggregate = this.cakeModel.aggregate(pipelines).limit(limit + 1);
@@ -202,6 +207,17 @@ export class CakeService {
     return new CakesSimpleResponseDto(cakeResponse, hasMore);
   }
 
+  async findAllByNewestForHome(
+    limit: number,
+    maxTimeMs?: number,
+  ): Promise<CakesSimpleResponseDto> {
+    return this.homeCache.getWithSwr({
+      key: `home:newest:${limit}`,
+      ...homeCachePolicy('newest'),
+      refresh: () => this.findAllByNewest(undefined, limit, maxTimeMs),
+    });
+  }
+
   async findAllByRecommend(
     user: IUser,
     signal?: AbortSignal,
@@ -214,7 +230,10 @@ export class CakeService {
 
     if (userLikedCakeId !== undefined) {
       this.homeMetrics.countDb();
-      const likedCakeQuery = this.cakeModel.findById(userLikedCakeId);
+      const likedCakeQuery = this.cakeModel.findOne({
+        _id: userLikedCakeId,
+        is_delete: false,
+      });
       if (maxTimeMs !== undefined) {
         likedCakeQuery.maxTimeMS(maxTimeMs);
       }
@@ -230,19 +249,25 @@ export class CakeService {
       userLikedCakeId = (await aggregate)[0]._id.toString();
     }
 
-    const apiUrl = this.vitApiUrl(
-      `/cakes/similar-search?id=${userLikedCakeId}&size=6`,
-    );
-    this.homeMetrics.countAi();
-    const response = await firstValueFrom(
-      this.httpService.get(apiUrl, { signal }),
-    ).catch((error) => {
-      this.homeMetrics.countAiError();
-      throw error;
-    });
-    const cakes = response.data.result;
+    return this.homeCache.getWithSwr({
+      key: `home:similar:${userLikedCakeId}`,
+      ...homeCachePolicy('recommend'),
+      refresh: async () => {
+        const apiUrl = this.vitApiUrl(
+          `/cakes/similar-search?id=${userLikedCakeId}&size=6`,
+        );
+        this.homeMetrics.countAi();
+        const response = await firstValueFrom(
+          this.httpService.get(apiUrl, { signal }),
+        ).catch((error) => {
+          this.homeMetrics.countAiError();
+          throw error;
+        });
+        const cakes = response.data.result;
 
-    return cakes.map((cake) => new CakeSimpleResponseDto(cake));
+        return cakes.map((cake) => new CakeSimpleResponseDto(cake));
+      },
+    });
   }
 
   async findAllByLocation(

@@ -36,6 +36,8 @@ import {
   KEYWORD_RANK_WINDOW_DAYS_ENV,
   POPULAR_RANK_WINDOW_DAYS_ENV,
 } from 'src/log/rank-window';
+import { HomeCacheService } from 'src/home-cache/home-cache.service';
+import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
 
 const HOME_SECTION_TIMEOUTS = {
   recommendCakes: {
@@ -81,6 +83,7 @@ export class CurationService {
     private readonly anniversaryService: AnniversaryService,
     private readonly searchService: SearchService,
     private readonly homeMetrics: HomeResilienceMetricsService,
+    private readonly homeCache: HomeCacheService,
   ) {}
 
   private clipApiUrl(path: string): string {
@@ -270,7 +273,12 @@ export class CurationService {
             'popularCakes',
             popularTimeout,
             popularFallback,
-            () => this.cakeService.popular(NaN, 3, popularTimeout),
+            () =>
+              this.homeCache.getWithSwr({
+                key: 'home:popular',
+                ...homeCachePolicy('popular'),
+                refresh: () => this.cakeService.popular(NaN, 3, popularTimeout),
+              }),
             deadline.signal,
           ),
         )
@@ -296,12 +304,17 @@ export class CurationService {
             keywordRanksTimeout,
             keywordRanksFallback,
             () =>
-              this.searchService.getRank(
-                undefined,
-                undefined,
-                4,
-                keywordRanksTimeout,
-              ),
+              this.homeCache.getWithSwr({
+                key: 'home:keyword-ranks',
+                ...homeCachePolicy('keywordRanks'),
+                refresh: () =>
+                  this.searchService.getRank(
+                    undefined,
+                    undefined,
+                    4,
+                    keywordRanksTimeout,
+                  ),
+              }),
             deadline.signal,
           ),
         )
@@ -327,11 +340,7 @@ export class CurationService {
             newestCakesTimeout,
             newestCakesFallback,
             () =>
-              this.cakeService.findAllByNewest(
-                undefined,
-                4,
-                newestCakesTimeout,
-              ),
+              this.cakeService.findAllByNewestForHome(4, newestCakesTimeout),
             deadline.signal,
           ),
         )
@@ -356,15 +365,20 @@ export class CurationService {
             'curations',
             curationsTimeout,
             curationsFallback,
-            async () => {
-              // stale 갱신은 CurationRefreshService job 이 담당한다. 홈 경로는 조회만 한다.
-              this.homeMetrics.countDb();
-              const query = this.curationModel.find().limit(4);
-              query.maxTimeMS(curationsTimeout);
-              return (await query).map(
-                (curation) => new CurationDtoV2(curation),
-              );
-            },
+            () =>
+              this.homeCache.getWithSwr({
+                key: 'home:curations',
+                ...homeCachePolicy('curations'),
+                refresh: async () => {
+                  // 원본 갱신은 CurationRefreshService job 이 담당한다.
+                  this.homeMetrics.countDb();
+                  const query = this.curationModel.find().limit(4);
+                  query.maxTimeMS(curationsTimeout);
+                  return (await query).map(
+                    (curation) => new CurationDtoV2(curation),
+                  );
+                },
+              }),
             deadline.signal,
           ),
         )

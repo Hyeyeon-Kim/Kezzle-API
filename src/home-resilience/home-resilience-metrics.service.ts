@@ -15,13 +15,34 @@ type HomeMetricContext = {
   aiCalls: number;
   aiErrors: number;
   backgroundRefreshCalls: number;
+  cache: Record<HomeCacheMetric, number>;
   sections: Record<string, SectionMetric>;
 };
+
+export type HomeCacheMetric =
+  | 'fresh_hit'
+  | 'stale_hit'
+  | 'miss'
+  | 'refresh'
+  | 'error';
+
+type HomeCacheCounters = Record<HomeCacheMetric, number>;
+
+function emptyCacheCounters(): HomeCacheCounters {
+  return {
+    fresh_hit: 0,
+    stale_hit: 0,
+    miss: 0,
+    refresh: 0,
+    error: 0,
+  };
+}
 
 @Injectable()
 export class HomeResilienceMetricsService {
   private readonly storage = new AsyncLocalStorage<HomeMetricContext>();
   private readonly eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
+  private readonly cacheTotals = emptyCacheCounters();
 
   constructor() {
     this.eventLoopDelay.enable();
@@ -43,6 +64,7 @@ export class HomeResilienceMetricsService {
       aiCalls: 0,
       aiErrors: 0,
       backgroundRefreshCalls: 0,
+      cache: emptyCacheCounters(),
       sections: {},
     };
 
@@ -95,6 +117,14 @@ export class HomeResilienceMetricsService {
     }
   }
 
+  countCache(metric: HomeCacheMetric, calls = 1): void {
+    this.cacheTotals[metric] += calls;
+    const context = this.storage.getStore();
+    if (context) {
+      context.cache[metric] += calls;
+    }
+  }
+
   flush(status: 'success' | 'error'): void {
     const context = this.storage.getStore();
     if (!context) {
@@ -115,6 +145,8 @@ export class HomeResilienceMetricsService {
         aiCalls: context.aiCalls,
         aiErrors: context.aiErrors,
         backgroundRefreshCalls: context.backgroundRefreshCalls,
+        cache: context.cache,
+        cacheTotals: { ...this.cacheTotals },
         eventLoopLagMs: {
           mean: this.nanoToMs(this.eventLoopDelay.mean),
           p95: this.nanoToMs(this.eventLoopDelay.percentile(95)),
