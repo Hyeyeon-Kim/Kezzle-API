@@ -16,6 +16,7 @@ import { AnniversaryModule } from './anniversary/anniversary.module';
 import { CounterModule } from './counter/counter.module';
 import { HomeResilienceMetricsModule } from './home-resilience/home-resilience-metrics.module';
 import { HomeCacheModule } from './home-cache/home-cache.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { HomeCacheModule } from './home-cache/home-cache.module';
     LogModule,
     AnniversaryModule,
     CounterModule,
+    MonitoringModule,
     HomeResilienceMetricsModule,
     HomeCacheModule,
   ],

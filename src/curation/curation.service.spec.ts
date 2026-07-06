@@ -87,6 +87,14 @@ describe('CurationService homeCurationV2', () => {
     const homeCache = {
       getWithSwr: jest.fn(({ refresh }) => refresh()),
     };
+    const monitoring = {
+      observeHomeRequest: jest.fn(),
+      countHomeDegraded: jest.fn(),
+      observeHomeSection: jest.fn(),
+      countDbCall: jest.fn(),
+      countAiCall: jest.fn(),
+      countCacheEvent: jest.fn(),
+    };
 
     const service = new CurationService(
       curationModel as never,
@@ -96,6 +104,7 @@ describe('CurationService homeCurationV2', () => {
       searchService as never,
       homeMetrics as never,
       homeCache as never,
+      monitoring as never,
     );
 
     return {

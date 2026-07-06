@@ -1,0 +1,15 @@
+# dashboard JSON은 monitoring/grafana/dashboards 아래에서 버전 관리하고
+# 컨테이너의 /var/lib/grafana/dashboards 로 mount 한다.
+apiVersion: 1
+
+providers:
+  - name: kezzle-home
+    orgId: 1
+    folder: Kezzle
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

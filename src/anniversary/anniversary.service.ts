@@ -56,11 +56,11 @@ export class AnniversaryService {
     const apiUrl = this.clipApiUrl(
       `/cakes/ko-search?keyword=${keyword}&size=6`,
     );
-    this.homeMetrics.countAi();
+    this.homeMetrics.countAi('clip');
     const response = await firstValueFrom(
       this.httpService.get(apiUrl, { signal }),
     ).catch((error) => {
-      this.homeMetrics.countAiError();
+      this.homeMetrics.countAiError('clip');
       throw error;
     });
     const cakes = response.data.result;

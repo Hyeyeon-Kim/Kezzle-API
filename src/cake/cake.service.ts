@@ -256,11 +256,11 @@ export class CakeService {
         const apiUrl = this.vitApiUrl(
           `/cakes/similar-search?id=${userLikedCakeId}&size=6`,
         );
-        this.homeMetrics.countAi();
+        this.homeMetrics.countAi('vit');
         const response = await firstValueFrom(
           this.httpService.get(apiUrl, { signal }),
         ).catch((error) => {
-          this.homeMetrics.countAiError();
+          this.homeMetrics.countAiError('vit');
           throw error;
         });
         const cakes = response.data.result;
@@ -572,12 +572,12 @@ export class CakeService {
     const apiUrl = this.vitApiUrl(
       `/cakes/similar-search?id=${cakeid}&lon=${lon}&lat=${lat}&dist=${dist}&size=${size}`,
     );
-    this.homeMetrics.countAi();
+    this.homeMetrics.countAi('vit');
     const response = await this.httpService
       .get(apiUrl)
       .toPromise()
       .catch((error) => {
-        this.homeMetrics.countAiError();
+        this.homeMetrics.countAiError('vit');
         throw error;
       });
     const cakes = response.data.result;

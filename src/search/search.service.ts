@@ -35,12 +35,12 @@ export class SearchService {
     const apiUrl = this.clipApiUrl(
       `/cakes/ko-search-page?keyword=${keywords}&size=18&page=${page}`,
     );
-    this.homeMetrics.countAi();
+    this.homeMetrics.countAi('clip');
     const response = await this.httpService
       .get(apiUrl)
       .toPromise()
       .catch((error) => {
-        this.homeMetrics.countAiError();
+        this.homeMetrics.countAiError('clip');
         throw error;
       });
     const cakes = response.data.result;

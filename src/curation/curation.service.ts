@@ -38,6 +38,10 @@ import {
 } from 'src/log/rank-window';
 import { HomeCacheService } from 'src/home-cache/home-cache.service';
 import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
+import {
+  HomeSectionName,
+  MonitoringService,
+} from 'src/monitoring/monitoring.service';
 
 const HOME_SECTION_TIMEOUTS = {
   recommendCakes: {
@@ -84,6 +88,7 @@ export class CurationService {
     private readonly searchService: SearchService,
     private readonly homeMetrics: HomeResilienceMetricsService,
     private readonly homeCache: HomeCacheService,
+    private readonly monitoring: MonitoringService,
   ) {}
 
   private clipApiUrl(path: string): string {
@@ -96,12 +101,12 @@ export class CurationService {
     const apiUrl = this.clipApiUrl(
       `/cakes/ko-search?keyword=${keyword}&size=100`,
     );
-    this.homeMetrics.countAi();
+    this.homeMetrics.countAi('clip');
     const response = await this.httpService
       .get(apiUrl)
       .toPromise()
       .catch((error) => {
-        this.homeMetrics.countAiError();
+        this.homeMetrics.countAiError('clip');
         throw error;
       });
     const cakes = response.data.result;
@@ -123,12 +128,12 @@ export class CurationService {
     const apiUrl = this.clipApiUrl(
       `/cakes/ko-search?keyword=${curation.key}&size=100`,
     );
-    this.homeMetrics.countAi();
+    this.homeMetrics.countAi('clip');
     const response = await this.httpService
       .get(apiUrl)
       .toPromise()
       .catch((error) => {
-        this.homeMetrics.countAiError();
+        this.homeMetrics.countAiError('clip');
         throw error;
       });
     const cakes = response.data.result;
@@ -159,13 +164,22 @@ export class CurationService {
   }
 
   async homeCurationV2(user: IUser | undefined): Promise<HomeCurationDtoV2> {
+    const startedAt = process.hrtime.bigint();
     return this.homeMetrics.run(async () => {
       try {
         const response = await this.buildHomeCurationV2(user);
         this.homeMetrics.flush('success');
+        this.monitoring.observeHomeRequest(
+          'success',
+          this.elapsedSeconds(startedAt),
+        );
         return response;
       } catch (error) {
         this.homeMetrics.flush('error');
+        this.monitoring.observeHomeRequest(
+          'error',
+          this.elapsedSeconds(startedAt),
+        );
         throw error;
       }
     });
@@ -433,6 +447,15 @@ export class CurationService {
           this.deadlineFallback('curations', curationsFallback, startedAt),
       };
 
+      for (const [section, result] of Object.entries(results)) {
+        this.monitoring.observeHomeSection(
+          section as HomeSectionName,
+          result.status,
+          result.status === 'fallback' ? result.reason : 'none',
+          result.durationMs / 1000,
+        );
+      }
+
       const coreResults = [
         results.recommendCakes,
         results.popularCakes,
@@ -447,6 +470,9 @@ export class CurationService {
       const degraded = Object.values(results).some(
         (result) => result.status === 'fallback',
       );
+      if (degraded) {
+        this.monitoring.countHomeDegraded();
+      }
 
       return new HomeCurationDtoV2(
         results.anniversary.data,
@@ -516,6 +542,10 @@ export class CurationService {
     return Math.round(duration * 100) / 100;
   }
 
+  private elapsedSeconds(startedAt: bigint): number {
+    return Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
+  }
+
   private getHomeHardDeadlineMs(): number {
     const configured = Number(process.env[HOME_HARD_DEADLINE.env]);
     return Number.isFinite(configured) && configured > 0
@@ -566,12 +596,12 @@ export class CurationService {
     const apiUrl = this.clipApiUrl(
       `/cakes/ko-search-page?keyword=${curation.key}&size=20&page=${page}`,
     );
-    this.homeMetrics.countAi();
+    this.homeMetrics.countAi('clip');
     const response = await this.httpService
       .get(apiUrl)
       .toPromise()
       .catch((error) => {
-        this.homeMetrics.countAiError();
+        this.homeMetrics.countAiError('clip');
         throw error;
       });
     const cakes = response.data.result;

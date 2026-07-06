@@ -28,11 +28,17 @@ describe('CurationRefreshService', () => {
     const curationService = {
       updateCuration: jest.fn().mockResolvedValue(undefined),
     };
+    const monitoring = {
+      countCurationRun: jest.fn(),
+      countCurationItems: jest.fn(),
+      setCurationStaleBacklog: jest.fn(),
+    };
     const service = new CurationRefreshService(
       curationModel as never,
       curationService as never,
+      monitoring as never,
     );
-    return { service, curationModel, curationService, findQuery };
+    return { service, curationModel, curationService, findQuery, monitoring };
   }
 
   it('refreshes each claimed stale curation exactly once', async () => {

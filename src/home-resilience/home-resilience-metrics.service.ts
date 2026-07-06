@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { AsyncLocalStorage } from 'async_hooks';
 import { randomUUID } from 'crypto';
 import { monitorEventLoopDelay } from 'perf_hooks';
+import {
+  AiDependency,
+  MonitoringService,
+} from 'src/monitoring/monitoring.service';
 
 type SectionMetric = {
   count: number;
@@ -44,7 +48,7 @@ export class HomeResilienceMetricsService {
   private readonly eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
   private readonly cacheTotals = emptyCacheCounters();
 
-  constructor() {
+  constructor(private readonly monitoring: MonitoringService) {
     this.eventLoopDelay.enable();
   }
 
@@ -90,20 +94,23 @@ export class HomeResilienceMetricsService {
   }
 
   countDb(calls = 1): void {
+    this.monitoring.countDbCall('query', calls);
     const context = this.storage.getStore();
     if (context) {
       context.dbCalls += calls;
     }
   }
 
-  countAi(calls = 1): void {
+  countAi(dependency: AiDependency, calls = 1): void {
+    this.monitoring.countAiCall(dependency, 'requested', calls);
     const context = this.storage.getStore();
     if (context) {
       context.aiCalls += calls;
     }
   }
 
-  countAiError(calls = 1): void {
+  countAiError(dependency: AiDependency, calls = 1): void {
+    this.monitoring.countAiCall(dependency, 'error', calls);
     const context = this.storage.getStore();
     if (context) {
       context.aiErrors += calls;
@@ -118,6 +125,7 @@ export class HomeResilienceMetricsService {
   }
 
   countCache(metric: HomeCacheMetric, calls = 1): void {
+    this.monitoring.countCacheEvent(metric, calls);
     this.cacheTotals[metric] += calls;
     const context = this.storage.getStore();
     if (context) {

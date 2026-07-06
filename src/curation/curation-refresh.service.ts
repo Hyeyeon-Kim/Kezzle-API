@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Interval } from '@nestjs/schedule';
 import { Curation, CurationDocument } from './entities/curation.schema';
 import { CurationService } from './curation.service';
+import { MonitoringService } from 'src/monitoring/monitoring.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -50,6 +51,7 @@ export class CurationRefreshService {
     @InjectModel(Curation.name, 'kezzle')
     private readonly curationModel: Model<CurationDocument>,
     private readonly curationService: CurationService,
+    private readonly monitoring: MonitoringService,
   ) {}
 
   @Interval(REFRESH_INTERVAL_MS)
@@ -58,6 +60,7 @@ export class CurationRefreshService {
     try {
       await this.runOnce();
     } catch (error) {
+      this.monitoring.countCurationRun('failure');
       this.logger.warn(`curation refresh job failed: ${this.errorName(error)}`);
     }
   }
@@ -74,7 +77,10 @@ export class CurationRefreshService {
       skipped: 0,
       failed: 0,
     };
-    if (this.running) return result;
+    if (this.running) {
+      this.monitoring.countCurationRun('skipped');
+      return result;
+    }
     this.running = true;
     try {
       const staleBefore = new Date(Date.now() - STALE_MS);
@@ -110,6 +116,13 @@ export class CurationRefreshService {
           `curation refresh done: stale=${result.stale} refreshed=${result.refreshed} skipped=${result.skipped} failed=${result.failed}`,
         );
       }
+      this.monitoring.setCurationStaleBacklog(result.stale - result.refreshed);
+      this.monitoring.countCurationItems('refreshed', result.refreshed);
+      this.monitoring.countCurationItems('skipped', result.skipped);
+      this.monitoring.countCurationItems('failed', result.failed);
+      this.monitoring.countCurationRun(
+        result.failed > 0 ? 'failure' : 'success',
+      );
       return result;
     } finally {
       this.running = false;
