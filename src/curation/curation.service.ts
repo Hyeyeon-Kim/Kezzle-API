@@ -6,7 +6,6 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Curation } from './entities/curation.schema';
 import { Model } from 'mongoose';
-import { HttpService } from '@nestjs/axios';
 import { CurationDto } from './dto/response-curation.dto';
 import { CurationsDto } from './dto/response-curations.dto';
 import { HomeCurationDto } from './dto/response-home-curation.dto';
@@ -74,6 +73,7 @@ const HOME_HARD_DEADLINE = {
   env: 'HOME_HARD_DEADLINE_MS',
   defaultMs: 600,
 } as const;
+import { ClipClient } from 'src/ai-search/clip-client';
 
 @Injectable()
 export class CurationService {
@@ -82,7 +82,7 @@ export class CurationService {
   constructor(
     @InjectModel(Curation.name, 'kezzle')
     private readonly curationModel: Model<Curation>,
-    private readonly httpService: HttpService,
+    private readonly clipClient: ClipClient,
     private readonly cakeService: CakeService,
     private readonly anniversaryService: AnniversaryService,
     private readonly searchService: SearchService,
@@ -91,25 +91,14 @@ export class CurationService {
     private readonly monitoring: MonitoringService,
   ) {}
 
-  private clipApiUrl(path: string): string {
-    const baseUrl =
-      process.env.CLIP_API_BASE_URL ?? 'https://api.kezzlecake.com/clip';
-    return `${baseUrl}${path}`;
-  }
-
   async createCuration(keyword: string, disc: string, note: string) {
-    const apiUrl = this.clipApiUrl(
-      `/cakes/ko-search?keyword=${keyword}&size=100`,
-    );
     this.homeMetrics.countAi('clip');
-    const response = await this.httpService
-      .get(apiUrl)
-      .toPromise()
+    const cakes = await this.clipClient
+      .koSearch(keyword, 100)
       .catch((error) => {
         this.homeMetrics.countAiError('clip');
         throw error;
       });
-    const cakes = response.data.result;
 
     return await this.curationModel.create({
       cakes: cakes,
@@ -125,18 +114,13 @@ export class CurationService {
       throw new CurationNotFoundException(curationId);
     });
 
-    const apiUrl = this.clipApiUrl(
-      `/cakes/ko-search?keyword=${curation.key}&size=100`,
-    );
     this.homeMetrics.countAi('clip');
-    const response = await this.httpService
-      .get(apiUrl)
-      .toPromise()
+    const cakes = await this.clipClient
+      .koSearch(curation.key, 100)
       .catch((error) => {
         this.homeMetrics.countAiError('clip');
         throw error;
       });
-    const cakes = response.data.result;
 
     this.homeMetrics.countDb();
     // document.save() 는 내용이 같으면 no-op 이라 updatedAt 이 갱신되지 않고
@@ -593,20 +577,15 @@ export class CurationService {
     });
 
     if (Number.isNaN(page)) page = 0;
-    const apiUrl = this.clipApiUrl(
-      `/cakes/ko-search-page?keyword=${curation.key}&size=20&page=${page}`,
-    );
     this.homeMetrics.countAi('clip');
-    const response = await this.httpService
-      .get(apiUrl)
-      .toPromise()
+    const { result } = await this.clipClient
+      .koSearchPage(curation.key, 20, page)
       .catch((error) => {
         this.homeMetrics.countAiError('clip');
         throw error;
       });
-    const cakes = response.data.result;
 
-    const Response = await cakes.map((cake) => new CakeSimpleResponseDto(cake));
+    const Response = result.map((cake) => new CakeSimpleResponseDto(cake));
     return new CurationCakeResponsDto(curation.description, Response);
   }
 }

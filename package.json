@@ -17,7 +17,9 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "perf:similar-baseline": "MONGODB_URL=mongodb://127.0.0.1:27017 MONGODB_DBNAME_MAIN=kezzle_kan16_baseline ts-node test/perf/similar-baseline.ts",
+    "perf:similar-after": "MONGODB_URL=mongodb://127.0.0.1:27017 MONGODB_DBNAME_MAIN=kezzle_kan16_baseline BASELINE_MODE=batch ts-node test/perf/similar-baseline.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^3.0.0",
@@ -77,6 +79,9 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
+    },
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },

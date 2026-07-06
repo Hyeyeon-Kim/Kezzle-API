@@ -283,7 +283,6 @@ export class CakeController {
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
   @Get('cakes/:id/similar')
   cakeSimilar(
-    @GetUser() userDto: IUser,
     @Param('id') cakeId: string,
     @Query('latitude') lat,
     @Query('longitude') lon,
@@ -296,7 +295,6 @@ export class CakeController {
       parseFloat(lat),
       parseInt(dist),
       parseInt(size),
-      userDto,
     );
   }
 

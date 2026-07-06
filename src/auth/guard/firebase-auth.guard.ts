@@ -10,6 +10,18 @@ export class FirebaseAuthGuard extends AuthGuard('firebase-auth') {
   }
 
   canActivate(context: ExecutionContext) {
+    if (process.env.NODE_ENV === 'development') {
+      context.switchToHttp().getRequest().user = {
+        firebaseUid: 'dev-mock-user',
+        nickname: 'dev',
+        oauth_provider: 'dev',
+        roles: Roles.BUYER,
+        cake_like_ids: [],
+        store_like_ids: [],
+      };
+      return true;
+    }
+
     const isPublic = this.reflector.getAllAndOverride<boolean>('public', [
       context.getHandler(),
       context.getClass(),

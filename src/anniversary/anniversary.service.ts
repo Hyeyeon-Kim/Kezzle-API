@@ -2,28 +2,21 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Anniversary } from './entities/anniversary.schema';
 import { Model } from 'mongoose';
-import { HttpService } from '@nestjs/axios';
 import { AnniversaryDto } from './dto/response-anniversary.dto';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
-import { firstValueFrom } from 'rxjs';
 import { HomeCacheService } from 'src/home-cache/home-cache.service';
 import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
+import { ClipClient } from 'src/ai-search/clip-client';
 
 @Injectable()
 export class AnniversaryService {
   constructor(
     @InjectModel(Anniversary.name, 'kezzle')
     private readonly AnniversaryModel: Model<Anniversary>,
-    private readonly httpService: HttpService,
+    private readonly clipClient: ClipClient,
     private readonly homeMetrics: HomeResilienceMetricsService,
     private readonly homeCache: HomeCacheService,
   ) {}
-
-  private clipApiUrl(path: string): string {
-    const baseUrl =
-      process.env.CLIP_API_BASE_URL ?? 'https://api.kezzlecake.com/clip';
-    return `${baseUrl}${path}`;
-  }
 
   async getAnniversaryWord(id: string) {
     this.homeMetrics.countDb();
@@ -53,17 +46,13 @@ export class AnniversaryService {
     }
     const anniversary = await query;
     const keyword = anniversary[0].keyword.join(', ');
-    const apiUrl = this.clipApiUrl(
-      `/cakes/ko-search?keyword=${keyword}&size=6`,
-    );
     this.homeMetrics.countAi('clip');
-    const response = await firstValueFrom(
-      this.httpService.get(apiUrl, { signal }),
-    ).catch((error) => {
-      this.homeMetrics.countAiError('clip');
-      throw error;
-    });
-    const cakes = response.data.result;
+    const cakes = await this.clipClient
+      .koSearch(keyword, 6, signal)
+      .catch((error) => {
+        this.homeMetrics.countAiError('clip');
+        throw error;
+      });
 
     const images = [];
     for (const cake of cakes) {

@@ -49,11 +49,11 @@ describe('CurationService homeCurationV2', () => {
       findById: jest.fn().mockResolvedValue({ _id: 'cur-1', key: 'birthday' }),
       updateOne: jest.fn().mockResolvedValue(undefined),
     };
-    const httpService = {
-      get: jest.fn(() => ({
-        toPromise: () =>
-          Promise.resolve({ data: { result: [{ _id: 'clip-cake' }] } }),
-      })),
+    const clipClient = {
+      koSearch: jest.fn().mockResolvedValue([{ _id: 'clip-cake' }]),
+      koSearchPage: jest.fn().mockResolvedValue({
+        result: [{ _id: 'clip-cake' }],
+      }),
     };
     const cakeService = {
       findAllByRecommend:
@@ -98,7 +98,7 @@ describe('CurationService homeCurationV2', () => {
 
     const service = new CurationService(
       curationModel as never,
-      httpService as never,
+      clipClient as never,
       cakeService as never,
       anniversaryService as never,
       searchService as never,
@@ -116,7 +116,7 @@ describe('CurationService homeCurationV2', () => {
       homeCache,
       curationQuery,
       curationModel,
-      httpService,
+      clipClient,
     };
   }
 
@@ -275,7 +275,7 @@ describe('CurationService homeCurationV2', () => {
   });
 
   it('does not trigger curation refresh from the home path even when stale', async () => {
-    const { service, curationQuery, httpService } = createService();
+    const { service, curationQuery, clipClient } = createService();
     const staleCuration = {
       _id: 'curation-1',
       key: 'fixture curation',
@@ -291,7 +291,7 @@ describe('CurationService homeCurationV2', () => {
     const response = await service.homeCurationV2({} as never);
 
     expect(updateSpy).not.toHaveBeenCalled();
-    expect(httpService.get).not.toHaveBeenCalled();
+    expect(clipClient.koSearch).not.toHaveBeenCalled();
     expect(response.curations).toEqual([
       { _id: 'curation-1', cakes: [], description: 'fixture curation' },
     ]);

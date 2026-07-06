@@ -1,29 +1,14 @@
-import { of } from 'rxjs';
 import { CakeService } from './cake.service';
 
 describe('CakeService home cache', () => {
   function createService() {
-    const likedCakeQuery = {
-      maxTimeMS: jest.fn().mockReturnThis(),
-      then: (
-        resolve: (value: { _id: string }) => unknown,
-        reject?: (reason: unknown) => unknown,
-      ) => Promise.resolve({ _id: 'cake-1' }).then(resolve, reject),
+    const cakeRepository = {
+      findById: jest.fn().mockResolvedValue({ _id: 'cake-1' }),
+      sampleOne: jest.fn().mockResolvedValue({ _id: 'random-cake' }),
+      findNewest: jest.fn().mockResolvedValue([]),
     };
-    const aggregate = {
-      limit: jest.fn().mockReturnThis(),
-      option: jest.fn().mockReturnThis(),
-      then: (
-        resolve: (value: unknown[]) => unknown,
-        reject?: (reason: unknown) => unknown,
-      ) => Promise.resolve([]).then(resolve, reject),
-    };
-    const cakeModel = {
-      findOne: jest.fn(() => likedCakeQuery),
-      aggregate: jest.fn(() => aggregate),
-    };
-    const httpService = {
-      get: jest.fn(() => of({ data: { result: [] } })),
+    const vitClient = {
+      similarSearch: jest.fn().mockResolvedValue([]),
     };
     const homeMetrics = {
       countDb: jest.fn(),
@@ -34,23 +19,24 @@ describe('CakeService home cache', () => {
       getWithSwr: jest.fn(({ refresh }) => refresh()),
     };
     const service = new CakeService(
-      cakeModel as never,
       {} as never,
-      {} as never,
-      {} as never,
-      httpService as never,
       {} as never,
       {} as never,
       {} as never,
       homeMetrics as never,
       homeCache as never,
+      {} as never,
+      vitClient as never,
+      {} as never,
+      {} as never,
+      cakeRepository as never,
     );
 
-    return { service, homeCache, httpService, cakeModel };
+    return { service, homeCache, vitClient, cakeRepository };
   }
 
   it('caches recommendation AI results by liked cake id', async () => {
-    const { service, homeCache, httpService } = createService();
+    const { service, homeCache, vitClient } = createService();
 
     await service.findAllByRecommend({
       cake_like_ids: ['cake-1'],
@@ -59,33 +45,33 @@ describe('CakeService home cache', () => {
     expect(homeCache.getWithSwr).toHaveBeenCalledWith(
       expect.objectContaining({ key: 'home:similar:cake-1' }),
     );
-    expect(httpService.get).toHaveBeenCalledTimes(1);
+    expect(vitClient.similarSearch).toHaveBeenCalledWith(
+      'cake-1',
+      6,
+      undefined,
+    );
   });
 
   it('uses a fixed shared key only in the home newest wrapper', async () => {
-    const { service, homeCache, cakeModel } = createService();
+    const { service, homeCache, cakeRepository } = createService();
 
     await service.findAllByNewestForHome(4, 100);
 
-    expect(cakeModel.aggregate).toHaveBeenCalledWith([
-      { $match: { is_delete: false } },
-      { $sort: { _id: -1 } },
-    ]);
+    expect(cakeRepository.findNewest).toHaveBeenCalledWith(undefined, 5, 100);
     expect(homeCache.getWithSwr).toHaveBeenCalledWith(
       expect.objectContaining({ key: 'home:newest:4' }),
     );
   });
 
   it('does not use a deleted liked cake as a recommendation seed', async () => {
-    const { service, cakeModel } = createService();
+    const { service, cakeRepository } = createService();
+    cakeRepository.findById.mockResolvedValueOnce(null);
 
     await service.findAllByRecommend({
       cake_like_ids: ['cake-1'],
     } as never);
 
-    expect(cakeModel.findOne).toHaveBeenCalledWith({
-      _id: 'cake-1',
-      is_delete: false,
-    });
+    expect(cakeRepository.findById).toHaveBeenCalledWith('cake-1', undefined);
+    expect(cakeRepository.sampleOne).toHaveBeenCalledWith(undefined);
   });
 });

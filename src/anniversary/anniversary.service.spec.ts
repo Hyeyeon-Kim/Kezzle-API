@@ -1,8 +1,7 @@
-import { of } from 'rxjs';
 import { AnniversaryService } from './anniversary.service';
 
 describe('AnniversaryService', () => {
-  it('passes AbortSignal to Axios and maxTimeMS to MongoDB', async () => {
+  it('passes AbortSignal to ClipClient and maxTimeMS to MongoDB', async () => {
     const anniversary = {
       id: 'anniversary-id',
       name: '기념일',
@@ -22,14 +21,8 @@ describe('AnniversaryService', () => {
     const anniversaryModel = {
       find: jest.fn(() => query),
     };
-    const httpService = {
-      get: jest.fn(() =>
-        of({
-          data: {
-            result: [],
-          },
-        }),
-      ),
+    const clipClient = {
+      koSearch: jest.fn().mockResolvedValue([]),
     };
     const homeMetrics = {
       countDb: jest.fn(),
@@ -41,7 +34,7 @@ describe('AnniversaryService', () => {
     };
     const service = new AnniversaryService(
       anniversaryModel as never,
-      httpService as never,
+      clipClient as never,
       homeMetrics as never,
       homeCache as never,
     );
@@ -50,9 +43,11 @@ describe('AnniversaryService', () => {
     await service.getAnniversary(controller.signal, 250);
 
     expect(query.maxTimeMS).toHaveBeenCalledWith(250);
-    expect(httpService.get).toHaveBeenCalledWith(expect.any(String), {
-      signal: controller.signal,
-    });
+    expect(clipClient.koSearch).toHaveBeenCalledWith(
+      '기념일',
+      6,
+      controller.signal,
+    );
     expect(homeCache.getWithSwr).toHaveBeenCalledWith(
       expect.objectContaining({ key: 'home:anniversary' }),
     );

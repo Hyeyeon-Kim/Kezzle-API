@@ -1,24 +1,14 @@
-import { StoreService } from './../store/store.service';
 import { CakesResponseDto } from './dto/response-cakes.dto';
-import { Model, PipelineStage } from 'mongoose';
-import { Inject, Injectable, forwardRef } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { InjectModel } from '@nestjs/mongoose';
-import { Cake } from './entities/cake.schema';
+import { Injectable } from '@nestjs/common';
 import { UpdateCakeDto } from './dto/update-cake.dto';
 import { CakeResponseDto } from './dto/response-cake.dto';
 import IUser from 'src/user/interfaces/user.interface';
-import { Store } from 'src/store/entities/store.schema';
-import { CakeNotFoundException } from './exceptions/cake-not-found.exception';
-import { StoreNotFoundException } from 'src/store/exceptions/store-not-found.exception';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UploadService } from 'src/upload/upload.service';
 import { ObjectId } from 'mongodb';
 import * as XLSX from 'xlsx'; // TODO:나중에 이거 바꿔야함
 import ICake from './interface/cake.interface';
-import { StoreSimpleResponseDto } from 'src/store/dto/response-simple-store.dto';
-import { CakeSimilarResponseDto } from './dto/response-similar-cake.dto';
 import { PopularRankService } from 'src/log/popular-rank.service';
 import { PopularCakesResponseDto } from './dto/response-popular-cakes.dto';
 import { AnniversaryService } from 'src/anniversary/anniversary.service';
@@ -26,60 +16,29 @@ import { CakeSimpleResponseDto } from './dto/response-cake-simple.dto';
 import { CounterService } from 'src/counter/counter.service';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
-import { firstValueFrom } from 'rxjs';
 import { HomeCacheService } from 'src/home-cache/home-cache.service';
 import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
+import { SimilarCakeService } from './similar-cake.service';
+import { VitClient } from 'src/ai-search/vit-client';
+import { ClipClient } from 'src/ai-search/clip-client';
+import { StoreRepository } from 'src/store/store.repository';
+import { CakeRepository } from './cake.repository';
 
 @Injectable()
 export class CakeService {
   constructor(
-    @InjectModel(Cake.name, 'kezzle') private readonly cakeModel: Model<Cake>,
-    @InjectModel(Store.name, 'kezzle')
-    private readonly storeModel: Model<Store>,
     private readonly uploadService: UploadService,
-    @Inject(forwardRef(() => StoreService))
-    private readonly storeService: StoreService,
-    private readonly httpService: HttpService,
     private readonly popularRankService: PopularRankService,
     private readonly anniversaryService: AnniversaryService,
     private readonly counterService: CounterService,
     private readonly homeMetrics: HomeResilienceMetricsService,
     private readonly homeCache: HomeCacheService,
+    private readonly similarCakeService: SimilarCakeService,
+    private readonly vitClient: VitClient,
+    private readonly clipClient: ClipClient,
+    private readonly storeRepository: StoreRepository,
+    private readonly cakeRepository: CakeRepository,
   ) {}
-
-  private vitApiUrl(path: string): string {
-    const baseUrl =
-      process.env.VIT_API_BASE_URL ?? 'https://api.kezzlecake.com/vit';
-    return `${baseUrl}${path}`;
-  }
-
-  // async findAll(user: IUser, after, limit: number): Promise<CakesResponseDto> {
-  //   let cakes;
-  //   limit = 5;
-  //   if (after === undefined) {
-  //     cakes = await this.cakeModel
-  //       .find()
-  //       .sort({ cursor: 1 })
-  //       .limit(limit + 1);
-  //   } else {
-  //     cakes = await this.cakeModel
-  //       .find({
-  //         cursor: { $gt: after },
-  //       })
-  //       .sort({ cursor: 1 })
-  //       .limit(limit + 1)
-  //       .exec();
-  //   }
-  //   let hasMore = false;
-  //   if (cakes.length > limit) {
-  //     hasMore = true;
-  //     cakes = cakes.slice(0, cakes.length - 1);
-  //   }
-  //   const cakeResponse = await cakes.map(
-  //     (cake) => new CakeResponseDto(cake, user.firebaseUid),
-  //   );
-  //   return new CakesResponseDto(cakeResponse, hasMore);
-  // }
   async findAll(
     user: IUser,
     latitude: number,
@@ -88,67 +47,17 @@ export class CakeService {
     after: string,
     limit: number,
   ): Promise<CakesResponseDto> {
-    let cakes;
-
-    const geoNear: PipelineStage.GeoNear = {
-      $geoNear: {
-        near: { type: 'Point', coordinates: [longitude, latitude] },
-        distanceField: 'dist',
-        spherical: true,
-      },
-    };
-
-    if (!Number.isNaN(distance)) {
-      geoNear.$geoNear.maxDistance = distance;
-    }
-
-    let storeIdsInLocation = await this.storeModel.aggregate([
-      geoNear,
-      {
-        $project: {
-          _id: 1,
-        },
-      },
-    ]);
-
-    storeIdsInLocation = storeIdsInLocation.map((store) =>
-      store._id.toString(),
+    const storeIdsInLocation = await this.storeRepository.findIdsByGeoNear(
+      longitude,
+      latitude,
+      distance,
     );
 
-    let match: PipelineStage.Match;
-    if (after === undefined || after.trim() === '') {
-      match = {
-        $match: {
-          is_delete: false,
-          owner_store_id: {
-            $in: storeIdsInLocation,
-          },
-        },
-      };
-    } else {
-      match = {
-        $match: {
-          is_delete: false,
-          owner_store_id: {
-            $in: storeIdsInLocation,
-          },
-          cursor: {
-            $gt: after,
-          },
-        },
-      };
-    }
-
-    cakes = await this.cakeModel
-      .aggregate([
-        {
-          $sort: {
-            cursor: 1,
-          },
-        },
-        match,
-      ])
-      .limit(limit + 1);
+    let cakes = await this.cakeRepository.findInStoresByCursor(
+      storeIdsInLocation,
+      after,
+      limit + 1,
+    );
     let hasMore = false;
 
     if (cakes.length > limit) {
@@ -168,33 +77,12 @@ export class CakeService {
       limit = 20;
     }
 
-    const matchCondition: Record<string, unknown> = {
-      is_delete: false,
-    };
-
-    if (after !== undefined) {
-      matchCondition._id = {
-        $lt: new ObjectId(after),
-      };
-    }
-
-    const pipelines: PipelineStage[] = [
-      {
-        $match: matchCondition,
-      },
-      {
-        $sort: {
-          _id: -1,
-        },
-      },
-    ];
-
     this.homeMetrics.countDb();
-    const aggregate = this.cakeModel.aggregate(pipelines).limit(limit + 1);
-    if (maxTimeMs !== undefined) {
-      aggregate.option({ maxTimeMS: maxTimeMs });
-    }
-    let cakes = await aggregate;
+    let cakes = await this.cakeRepository.findNewest(
+      after,
+      limit + 1,
+      maxTimeMs,
+    );
     let hasMore = false;
 
     if (cakes.length > limit) {
@@ -226,44 +114,32 @@ export class CakeService {
     const randomIndex = Math.floor(Math.random() * user.cake_like_ids.length);
 
     let userLikedCakeId: string = user.cake_like_ids[randomIndex];
-    let likedCakeExists = false;
 
     if (userLikedCakeId !== undefined) {
       this.homeMetrics.countDb();
-      const likedCakeQuery = this.cakeModel.findOne({
-        _id: userLikedCakeId,
-        is_delete: false,
-      });
-      if (maxTimeMs !== undefined) {
-        likedCakeQuery.maxTimeMS(maxTimeMs);
-      }
-      likedCakeExists = (await likedCakeQuery) !== null;
     }
 
-    if (userLikedCakeId === undefined || !likedCakeExists) {
+    if (
+      userLikedCakeId === undefined ||
+      (await this.cakeRepository.findById(userLikedCakeId, maxTimeMs)) === null
+    ) {
       this.homeMetrics.countDb();
-      const aggregate = this.cakeModel.aggregate([{ $sample: { size: 1 } }]);
-      if (maxTimeMs !== undefined) {
-        aggregate.option({ maxTimeMS: maxTimeMs });
-      }
-      userLikedCakeId = (await aggregate)[0]._id.toString();
+      userLikedCakeId = (
+        await this.cakeRepository.sampleOne(maxTimeMs)
+      )._id.toString();
     }
 
     return this.homeCache.getWithSwr({
       key: `home:similar:${userLikedCakeId}`,
       ...homeCachePolicy('recommend'),
       refresh: async () => {
-        const apiUrl = this.vitApiUrl(
-          `/cakes/similar-search?id=${userLikedCakeId}&size=6`,
-        );
         this.homeMetrics.countAi('vit');
-        const response = await firstValueFrom(
-          this.httpService.get(apiUrl, { signal }),
-        ).catch((error) => {
-          this.homeMetrics.countAiError('vit');
-          throw error;
-        });
-        const cakes = response.data.result;
+        const cakes = await this.vitClient
+          .similarSearch(userLikedCakeId, 6, signal)
+          .catch((error) => {
+            this.homeMetrics.countAiError('vit');
+            throw error;
+          });
 
         return cakes.map((cake) => new CakeSimpleResponseDto(cake));
       },
@@ -278,58 +154,17 @@ export class CakeService {
     after: string,
     limit: number,
   ): Promise<CakesResponseDto> {
-    let cakes;
-
-    const geoNear: PipelineStage.GeoNear = {
-      $geoNear: {
-        near: { type: 'Point', coordinates: [longitude, latitude] },
-        distanceField: 'dist',
-        spherical: true,
-      },
-    };
-
-    if (!Number.isNaN(distance)) {
-      geoNear.$geoNear.maxDistance = distance;
-    }
-
-    let storeIdsInLocation = await this.storeModel.aggregate([
-      geoNear,
-      {
-        $project: {
-          _id: 1,
-        },
-      },
-    ]);
-
-    storeIdsInLocation = storeIdsInLocation.map((store) =>
-      store._id.toString(),
+    const storeIdsInLocation = await this.storeRepository.findIdsByGeoNear(
+      longitude,
+      latitude,
+      distance,
     );
 
-    let match: PipelineStage.Match;
-    if (after === undefined || after.trim() === '') {
-      match = {
-        $match: {
-          is_delete: false,
-          owner_store_id: {
-            $in: storeIdsInLocation,
-          },
-        },
-      };
-    } else {
-      match = {
-        $match: {
-          is_delete: false,
-          owner_store_id: {
-            $in: storeIdsInLocation,
-          },
-          _id: {
-            $gt: new ObjectId(after),
-          },
-        },
-      };
-    }
-
-    cakes = await this.cakeModel.aggregate([match]).limit(limit + 1);
+    let cakes = await this.cakeRepository.findInStoresAfterId(
+      storeIdsInLocation,
+      after,
+      limit + 1,
+    );
     let hasMore = false;
 
     if (cakes.length > limit) {
@@ -345,21 +180,15 @@ export class CakeService {
   }
 
   async findOne(cakeid: string, user: IUser): Promise<CakeResponseDto> {
-    const cake = await this.cakeModel.findById(cakeid).catch(() => {
-      throw new CakeNotFoundException(cakeid);
-    });
+    const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
     return new CakeResponseDto(cake, user.firebaseUid);
   }
 
   async changeContent(cakeid: string, user: IUser, file) {
-    const cake = await this.cakeModel.findOne({ _id: cakeid }).catch(() => {
-      throw new CakeNotFoundException(cakeid);
-    });
-    const store = await this.storeModel
-      .findById(cake.owner_store_id)
-      .catch(() => {
-        throw new StoreNotFoundException(cake.owner_store_id);
-      });
+    const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
+    const store = await this.storeRepository.findByIdOrThrow(
+      cake.owner_store_id,
+    );
 
     if (
       store.owner_user_id !== user.firebaseUid &&
@@ -375,25 +204,14 @@ export class CakeService {
     const updatedata = new UpdateCakeDto(
       await this.uploadService.create(path, file),
     );
-    return await this.cakeModel.updateOne(
-      {
-        _id: cakeid,
-      },
-      {
-        $set: updatedata,
-      },
-    );
+    return await this.cakeRepository.updateOneById(cakeid, updatedata);
   }
 
   async removeContent(cakeid: string, user: IUser) {
-    const cake = await this.cakeModel.findById(cakeid).catch(() => {
-      throw new CakeNotFoundException(cakeid);
-    });
-    const store = await this.storeModel
-      .findById(cake.owner_store_id)
-      .catch(() => {
-        throw new StoreNotFoundException(cake.owner_store_id);
-      });
+    const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
+    const store = await this.storeRepository.findByIdOrThrow(
+      cake.owner_store_id,
+    );
     if (
       // store.owner_user_id !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
@@ -405,17 +223,9 @@ export class CakeService {
 
     await this.uploadService.remove(path, cake.image.s3Url);
 
-    // return await this.cakeModel.deleteOne({ _id: cakeid });
-    return await this.cakeModel.updateOne(
-      {
-        _id: cakeid,
-      },
-      {
-        $set: {
-          is_delete: true,
-        },
-      },
-    );
+    return await this.cakeRepository.updateOneById(cakeid, {
+      is_delete: true,
+    });
   }
 
   async createCake(storeid, user: IUser, files) {
@@ -430,9 +240,7 @@ export class CakeService {
       defval: null,
     });
 
-    const store = await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    const store = await this.storeRepository.findByIdOrThrow(storeid);
     if (
       store.owner_user_id !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
@@ -467,7 +275,7 @@ export class CakeService {
           .map((item) => item.trim())
           .filter((item) => item !== '');
 
-        await this.cakeModel.create({
+        await this.cakeRepository.create({
           image: image,
           owner_store_id: storeid,
           cursor: cursorValue,
@@ -477,7 +285,7 @@ export class CakeService {
           faiss_id: faissId,
         });
       } else {
-        await this.cakeModel.create({
+        await this.cakeRepository.create({
           image: image,
           owner_store_id: storeid,
           cursor: cursorValue,
@@ -497,30 +305,16 @@ export class CakeService {
     after,
     limit: number,
   ): Promise<CakesResponseDto> {
-    await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    await this.storeRepository.findByIdOrThrow(storeid);
 
     if (Number.isNaN(limit)) {
       limit = 20;
     }
-    let cakes;
-    if (after === undefined) {
-      cakes = await this.cakeModel
-        .find({
-          is_delete: false,
-          owner_store_id: storeid,
-        })
-        .limit(limit + 1);
-    } else {
-      cakes = await this.cakeModel
-        .find({
-          is_delete: false,
-          _id: { $gt: after },
-          owner_store_id: storeid,
-        })
-        .limit(limit + 1);
-    }
+    let cakes = await this.cakeRepository.findByStoreIdAfter(
+      storeid,
+      after,
+      limit + 1,
+    );
 
     let hasMore = false;
 
@@ -529,24 +323,16 @@ export class CakeService {
       cakes = cakes.slice(0, cakes.length - 1);
     }
 
-    const cakeResponse = await cakes.map(
+    const cakeResponse = cakes.map(
       (cake) => new CakeResponseDto(cake, user.firebaseUid),
     );
     return new CakesResponseDto(cakeResponse, hasMore);
   }
 
   async findStoreCake(storeid, user: IUser) {
-    await this.storeModel.findById(storeid).catch(() => {
-      throw new StoreNotFoundException(storeid);
-    });
+    await this.storeRepository.findByIdOrThrow(storeid);
 
-    const cakes = await this.cakeModel
-      .find({
-        is_delete: false,
-        owner_store_id: storeid,
-      })
-      .sort({ createdAt: -1 })
-      .limit(20);
+    const cakes = await this.cakeRepository.findRecentByStoreId(storeid, 20);
 
     return cakes.map((cake) => new CakeResponseDto(cake, user.firebaseUid));
   }
@@ -567,35 +353,8 @@ export class CakeService {
     lat: number,
     dist: number,
     size: number,
-    user: IUser,
   ) {
-    const apiUrl = this.vitApiUrl(
-      `/cakes/similar-search?id=${cakeid}&lon=${lon}&lat=${lat}&dist=${dist}&size=${size}`,
-    );
-    this.homeMetrics.countAi('vit');
-    const response = await this.httpService
-      .get(apiUrl)
-      .toPromise()
-      .catch((error) => {
-        this.homeMetrics.countAiError('vit');
-        throw error;
-      });
-    const cakes = response.data.result;
-
-    // TODO: 케이크가 안 올수도 있다 return은 빈 배열
-    const cakeResponse = await Promise.all(
-      cakes.map(async (cake) => {
-        const store = await this.storeService.findOne(
-          cake.owner_store_id,
-          user,
-        );
-        return await new CakeSimilarResponseDto(
-          cake,
-          new StoreSimpleResponseDto(store),
-        );
-      }),
-    );
-    return new CakesResponseDto(cakeResponse, false);
+    return this.similarCakeService.execute(cakeid, lon, lat, dist, size);
   }
 
   async anniversary(anniId: string, user: IUser, page: number) {
@@ -603,10 +362,8 @@ export class CakeService {
     const anniversary =
       await this.anniversaryService.getAnniversaryWord(anniId);
     const keyword = anniversary.keyword.join(', ');
-    const apiUrl = `https://api.kezzlecake.com/clip/cakes/ko-search-page?keyword=${keyword}&size=20&page=${page}`; // 외부 API의 엔드포인트 URL
-    const response = await this.httpService.get(apiUrl).toPromise();
-    const cakes = response.data.result;
-    const cakeResponse = await cakes.map(
+    const { result } = await this.clipClient.koSearchPage(keyword, 20, page);
+    const cakeResponse = result.map(
       (cake) => new CakeResponseDto(cake, user.firebaseUid),
     );
     return new CakesResponseDto(cakeResponse, false);
