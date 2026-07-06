@@ -12,8 +12,15 @@ export class CakeRepository {
     private readonly cakeModel: Model<Cake>,
   ) {}
 
-  async findById(id: string): Promise<HydratedDocument<Cake> | null> {
-    return this.cakeModel.findById(id);
+  async findById(
+    id: string,
+    maxTimeMs?: number,
+  ): Promise<HydratedDocument<Cake> | null> {
+    const query = this.cakeModel.findOne({ _id: id, is_delete: false });
+    if (maxTimeMs !== undefined) {
+      query.maxTimeMS(maxTimeMs);
+    }
+    return query;
   }
 
   async findByIdOrThrow(id: string): Promise<HydratedDocument<Cake>> {
@@ -29,8 +36,15 @@ export class CakeRepository {
     return cake;
   }
 
-  async sampleOne(): Promise<any> {
-    const result = await this.cakeModel.aggregate([{ $sample: { size: 1 } }]);
+  async sampleOne(maxTimeMs?: number): Promise<any> {
+    const aggregate = this.cakeModel.aggregate([
+      { $match: { is_delete: false } },
+      { $sample: { size: 1 } },
+    ]);
+    if (maxTimeMs !== undefined) {
+      aggregate.option({ maxTimeMS: maxTimeMs });
+    }
+    const result = await aggregate;
     return result[0];
   }
 
@@ -69,17 +83,22 @@ export class CakeRepository {
   }
 
   /** findAllByNewest: 최신순(_id desc), after 있으면 _id(ObjectId) 미만. limit개까지. */
-  async findNewest(after: string, limit: number): Promise<any[]> {
-    const pipelines: PipelineStage[] = [{ $sort: { _id: -1 } }];
+  async findNewest(
+    after: string,
+    limit: number,
+    maxTimeMs?: number,
+  ): Promise<any[]> {
+    const match: PipelineStage.Match['$match'] = { is_delete: false };
     if (after !== undefined) {
-      pipelines.push({
-        $match: {
-          is_delete: false,
-          _id: { $lt: new ObjectId(after) },
-        },
-      });
+      match._id = { $lt: new ObjectId(after) };
     }
-    return this.cakeModel.aggregate(pipelines).limit(limit);
+    const aggregate = this.cakeModel
+      .aggregate([{ $match: match }, { $sort: { _id: -1 } }])
+      .limit(limit);
+    if (maxTimeMs !== undefined) {
+      aggregate.option({ maxTimeMS: maxTimeMs });
+    }
+    return aggregate;
   }
 
   /** findCake: 특정 store의 cake, after 있으면 _id(raw) 초과. limit개까지. */

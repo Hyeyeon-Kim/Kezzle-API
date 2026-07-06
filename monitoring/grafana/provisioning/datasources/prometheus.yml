@@ -1,9 +1,13 @@
+# 빈 Grafana volume에서도 datasource가 자동 생성되도록 provisioning 한다.
 apiVersion: 1
 
 datasources:
   - name: Prometheus
+    uid: kezzle-prometheus
     type: prometheus
     access: proxy
-    url: http://kezzle-prometheus:9090
+    url: http://prometheus:9090
     isDefault: true
     editable: false
+    jsonData:
+      timeInterval: 5s

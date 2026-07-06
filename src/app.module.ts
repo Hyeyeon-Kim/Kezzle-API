@@ -1,6 +1,7 @@
 import { Module, ValidationPipe } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { UserModule } from './user/user.module';
 import { APP_PIPE } from '@nestjs/core';
 import { CakeModule } from './cake/cake.module';
@@ -13,13 +14,16 @@ import { CurationModule } from './curation/curation.module';
 import { LogModule } from './log/log.module';
 import { AnniversaryModule } from './anniversary/anniversary.module';
 import { CounterModule } from './counter/counter.module';
-import { MetricsModule } from './metrics/metrics.module';
+import { HomeResilienceMetricsModule } from './home-resilience/home-resilience-metrics.module';
+import { HomeCacheModule } from './home-cache/home-cache.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     MongooseModule.forRoot(process.env.MONGODB_URL, {
       user: process.env.MONGODB_USERNAME,
       pass: process.env.MONGODB_PASSWORD,
@@ -37,7 +41,9 @@ import { MetricsModule } from './metrics/metrics.module';
     LogModule,
     AnniversaryModule,
     CounterModule,
-    MetricsModule,
+    MonitoringModule,
+    HomeResilienceMetricsModule,
+    HomeCacheModule,
   ],
   controllers: [],
   providers: [

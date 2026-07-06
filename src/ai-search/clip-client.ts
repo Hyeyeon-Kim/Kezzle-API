@@ -19,13 +19,20 @@ export class ClipClient {
     private readonly metricsService: MetricsService,
   ) {}
 
-  async koSearch(keyword: string, size: number): Promise<any[]> {
+  async koSearch(
+    keyword: string,
+    size: number,
+    signal?: AbortSignal,
+  ): Promise<any[]> {
     return this.measure(ENDPOINT_KO_SEARCH, async () => {
       const apiUrl = this.buildUrl('/cakes/ko-search', {
         keyword,
         size,
       });
-      const response = await this.httpService.get(apiUrl).toPromise();
+      const request = signal
+        ? this.httpService.get(apiUrl, { signal })
+        : this.httpService.get(apiUrl);
+      const response = await request.toPromise();
       return response.data.result;
     });
   }
@@ -34,6 +41,7 @@ export class ClipClient {
     keyword: string,
     size: number,
     page: number,
+    signal?: AbortSignal,
   ): Promise<ClipKoSearchPageResult> {
     return this.measure(ENDPOINT_KO_SEARCH_PAGE, async () => {
       const apiUrl = this.buildUrl('/cakes/ko-search-page', {
@@ -41,7 +49,10 @@ export class ClipClient {
         size,
         page,
       });
-      const response = await this.httpService.get(apiUrl).toPromise();
+      const request = signal
+        ? this.httpService.get(apiUrl, { signal })
+        : this.httpService.get(apiUrl);
+      const response = await request.toPromise();
       return {
         result: response.data.result,
         nextPage: response.data.nextPage,

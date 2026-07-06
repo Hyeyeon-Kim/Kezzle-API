@@ -9,12 +9,15 @@ import { UploadService } from 'src/upload/upload.service';
 import { ObjectId } from 'mongodb';
 import * as XLSX from 'xlsx'; // TODO:나중에 이거 바꿔야함
 import ICake from './interface/cake.interface';
-import { LogService } from 'src/log/log.service';
+import { PopularRankService } from 'src/log/popular-rank.service';
 import { PopularCakesResponseDto } from './dto/response-popular-cakes.dto';
 import { AnniversaryService } from 'src/anniversary/anniversary.service';
 import { CakeSimpleResponseDto } from './dto/response-cake-simple.dto';
 import { CounterService } from 'src/counter/counter.service';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
+import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
+import { HomeCacheService } from 'src/home-cache/home-cache.service';
+import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
 import { SimilarCakeService } from './similar-cake.service';
 import { VitClient } from 'src/ai-search/vit-client';
 import { ClipClient } from 'src/ai-search/clip-client';
@@ -25,16 +28,17 @@ import { CakeRepository } from './cake.repository';
 export class CakeService {
   constructor(
     private readonly uploadService: UploadService,
-    private readonly logService: LogService,
+    private readonly popularRankService: PopularRankService,
     private readonly anniversaryService: AnniversaryService,
     private readonly counterService: CounterService,
+    private readonly homeMetrics: HomeResilienceMetricsService,
+    private readonly homeCache: HomeCacheService,
     private readonly similarCakeService: SimilarCakeService,
     private readonly vitClient: VitClient,
     private readonly clipClient: ClipClient,
     private readonly storeRepository: StoreRepository,
     private readonly cakeRepository: CakeRepository,
   ) {}
-
   async findAll(
     user: IUser,
     latitude: number,
@@ -68,12 +72,17 @@ export class CakeService {
     return new CakesResponseDto(cakeResponse, hasMore);
   }
 
-  async findAllByNewest(after: string, limit: number) {
+  async findAllByNewest(after: string, limit: number, maxTimeMs?: number) {
     if (Number.isNaN(limit)) {
       limit = 20;
     }
 
-    let cakes = await this.cakeRepository.findNewest(after, limit + 1);
+    this.homeMetrics.countDb();
+    let cakes = await this.cakeRepository.findNewest(
+      after,
+      limit + 1,
+      maxTimeMs,
+    );
     let hasMore = false;
 
     if (cakes.length > limit) {
@@ -86,21 +95,55 @@ export class CakeService {
     return new CakesSimpleResponseDto(cakeResponse, hasMore);
   }
 
-  async findAllByRecommend(user: IUser): Promise<CakeSimpleResponseDto[]> {
+  async findAllByNewestForHome(
+    limit: number,
+    maxTimeMs?: number,
+  ): Promise<CakesSimpleResponseDto> {
+    return this.homeCache.getWithSwr({
+      key: `home:newest:${limit}`,
+      ...homeCachePolicy('newest'),
+      refresh: () => this.findAllByNewest(undefined, limit, maxTimeMs),
+    });
+  }
+
+  async findAllByRecommend(
+    user: IUser,
+    signal?: AbortSignal,
+    maxTimeMs?: number,
+  ): Promise<CakeSimpleResponseDto[]> {
     const randomIndex = Math.floor(Math.random() * user.cake_like_ids.length);
 
     let userLikedCakeId: string = user.cake_like_ids[randomIndex];
 
-    if (
-      userLikedCakeId === undefined ||
-      (await this.cakeRepository.findById(userLikedCakeId)) === null
-    ) {
-      userLikedCakeId = (await this.cakeRepository.sampleOne())._id.toString();
+    if (userLikedCakeId !== undefined) {
+      this.homeMetrics.countDb();
     }
 
-    const cakes = await this.vitClient.similarSearch(userLikedCakeId, 6);
+    if (
+      userLikedCakeId === undefined ||
+      (await this.cakeRepository.findById(userLikedCakeId, maxTimeMs)) === null
+    ) {
+      this.homeMetrics.countDb();
+      userLikedCakeId = (
+        await this.cakeRepository.sampleOne(maxTimeMs)
+      )._id.toString();
+    }
 
-    return cakes.map((cake) => new CakeSimpleResponseDto(cake));
+    return this.homeCache.getWithSwr({
+      key: `home:similar:${userLikedCakeId}`,
+      ...homeCachePolicy('recommend'),
+      refresh: async () => {
+        this.homeMetrics.countAi('vit');
+        const cakes = await this.vitClient
+          .similarSearch(userLikedCakeId, 6, signal)
+          .catch((error) => {
+            this.homeMetrics.countAiError('vit');
+            throw error;
+          });
+
+        return cakes.map((cake) => new CakeSimpleResponseDto(cake));
+      },
+    });
   }
 
   async findAllByLocation(
@@ -294,15 +337,14 @@ export class CakeService {
     return cakes.map((cake) => new CakeResponseDto(cake, user.firebaseUid));
   }
 
-  async popular(after, limit: number) {
-    const sDate = '2023-01-01';
-    const eDate = '2023-12-31';
-    const cakes = await this.logService.getRankCake(sDate, eDate, after, limit);
+  async popular(after, limit: number, maxTimeMs?: number) {
+    // 요청 path 에서 cakelikelogs 실시간 집계를 제거하고 사전 계산 read model 을 조회한다.
+    // 날짜는 read model 배치가 실제로 집계한 rolling window 구간이다.
+    const { cakes, startDate, endDate } =
+      await this.popularRankService.getRanked(after, limit, maxTimeMs);
 
-    const cakeResponse = await cakes.map(
-      (cake) => new CakeSimpleResponseDto(cake),
-    );
-    return new PopularCakesResponseDto(cakeResponse, sDate, eDate);
+    const cakeResponse = cakes.map((cake) => new CakeSimpleResponseDto(cake));
+    return new PopularCakesResponseDto(cakeResponse, startDate, endDate);
   }
 
   async similar(

@@ -1,0 +1,134 @@
+# KAN-28 홈 API alert rules.
+# threshold 근거는 docs/KAN/KAN-28/after_results.md 의 측정 결과와 함께 관리한다.
+# Alertmanager 수신 채널 연동은 KAN-28 범위 밖이며, rule 평가와 상태 전이까지 검증한다.
+groups:
+  - name: home-api-alerts
+    rules:
+      - alert: HomeP95LatencyHigh
+        expr: job:home_request_p95_seconds:rate1m > 0.5
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "홈 API p95가 500ms를 초과"
+          description: "1분 rate 기준 홈 p95가 5분 이상 500ms를 초과했다."
+
+      - alert: HomeHttpFailureRateHigh
+        expr: job:home_error_ratio:rate1m > 0.005
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "홈 API 실패율 0.5% 초과"
+          description: "홈 요청 error 비율이 5분 이상 0.5%를 초과했다."
+
+      - alert: HomeDegradedRateHigh
+        expr: job:home_degraded_ratio:rate1m > 0.01
+        for: 5m
+        labels:
+          severity: warn
+        annotations:
+          summary: "홈 degraded 응답 1% 초과"
+          description: "fallback 섹션이 포함된 응답 비율이 5분 이상 1%를 초과했다."
+
+      - alert: HomeCoreSectionSuccessLow
+        expr: >-
+          section:home_section_success_ratio:rate1m{section=~"recommendCakes|popularCakes|newestCakes"}
+          < 0.99
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "핵심 섹션 성공률 99% 미만"
+          description: "핵심 섹션 {{ $labels.section }} 성공률이 5분 이상 99% 미만이다."
+
+      - alert: HomeSectionTimeoutHigh
+        expr: section:home_section_timeout_ratio:rate1m > 0.01
+        for: 5m
+        labels:
+          severity: warn
+        annotations:
+          summary: "섹션 timeout 비율 1% 초과"
+          description: "섹션 {{ $labels.section }} timeout fallback 비율이 5분 이상 1%를 초과했다."
+
+      - alert: HomeCacheHitRatioLow
+        expr: job:home_cache_hit_ratio:rate5m < 0.9
+        for: 10m
+        labels:
+          severity: warn
+        annotations:
+          summary: "홈 cache hit ratio 90% 미만"
+          description: "fresh+stale hit 비율이 10분 이상 90% 미만이다. cold start/만료 폭주/Redis 장애를 확인한다."
+
+      - alert: HomeCacheErrors
+        expr: job:home_cache_error_rate:rate1m > 0
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "홈 cache error 발생"
+          description: "정상 구간의 cache error는 0이어야 한다. Redis 연결/timeout을 확인한다."
+
+      - alert: MongoQueryRateHigh
+        expr: job:mongodb_query_rate:rate1m > 300
+        for: 5m
+        labels:
+          severity: warn
+        annotations:
+          summary: "MongoDB query rate 300 QPS 초과"
+          description: "홈 cache가 정상일 때 도달할 수 없는 수치다. cache miss 폭주나 원본 fallback을 확인한다."
+
+      - alert: HomeAiTpsHigh
+        expr: dependency:home_ai_tps:rate1m > 60
+        for: 5m
+        labels:
+          severity: warn
+        annotations:
+          summary: "AI 호출 60 TPS 초과"
+          description: "{{ $labels.dependency }} 호출이 5분 이상 60 TPS를 초과했다. cache/refresh 경로를 확인한다."
+
+      - alert: HomeAiErrorRatioHigh
+        expr: dependency:home_ai_error_ratio:rate5m > 0.1
+        for: 5m
+        labels:
+          severity: warn
+        annotations:
+          summary: "AI 오류율 10% 초과"
+          description: "{{ $labels.dependency }} 오류 비율이 5분 이상 10%를 초과했다."
+
+      # prom-client 기본 계측은 p95를 제공하지 않아 p99로 대체한다(계획서 p95 초안 대비 보수적).
+      - alert: NodeEventLoopLagHigh
+        expr: kezzle_nodejs_eventloop_lag_p99_seconds > 0.1
+        for: 5m
+        labels:
+          severity: warn
+        annotations:
+          summary: "Node event loop lag p99 100ms 초과"
+          description: "event loop 지연이 5분 이상 100ms를 초과했다. CPU 포화나 동기 blocking을 확인한다."
+
+      - alert: CurationRefreshFailures
+        expr: increase(kezzle_curation_refresh_runs_total{result="failure"}[30m]) > 0
+        labels:
+          severity: warn
+        annotations:
+          summary: "큐레이션 갱신 job 실패"
+          description: "최근 30분 내 curation refresh 실패가 있었다. 다음 주기 자연 재시도와 CLIP 상태를 확인한다."
+
+      # 기본 interval 10분 기준 2 interval 이상 stale backlog가 남아 있는 경우.
+      - alert: CurationStaleBacklogStuck
+        expr: kezzle_curation_stale_backlog > 0
+        for: 20m
+        labels:
+          severity: warn
+        annotations:
+          summary: "큐레이션 stale backlog 정체"
+          description: "stale 큐레이션이 2 interval 이상 갱신되지 않고 남아 있다."
+
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "Prometheus target down"
+          description: "{{ $labels.job }} target({{ $labels.instance }}) scrape가 1분 이상 실패했다."

@@ -1,0 +1,93 @@
+# KAN-28 홈 API recording rules.
+# 대시보드/alert가 공유하는 파생 지표를 한 곳에서 계산한다.
+groups:
+  - name: home-api-recording
+    interval: 5s
+    rules:
+      - record: job:home_request_rate:rate1m
+        expr: sum(rate(kezzle_home_requests_total[1m]))
+
+      - record: job:home_request_p50_seconds:rate1m
+        expr: >-
+          histogram_quantile(
+            0.50,
+            sum(rate(kezzle_home_request_duration_seconds_bucket[1m])) by (le)
+          )
+
+      - record: job:home_request_p95_seconds:rate1m
+        expr: >-
+          histogram_quantile(
+            0.95,
+            sum(rate(kezzle_home_request_duration_seconds_bucket[1m])) by (le)
+          )
+
+      - record: job:home_request_p99_seconds:rate1m
+        expr: >-
+          histogram_quantile(
+            0.99,
+            sum(rate(kezzle_home_request_duration_seconds_bucket[1m])) by (le)
+          )
+
+      # error series는 첫 error 발생 전까지 존재하지 않으므로 or vector(0)으로
+      # 정상 구간에서도 0을 기록해 panel 공백과 no-data를 막는다.
+      - record: job:home_error_ratio:rate1m
+        expr: >-
+          (sum(rate(kezzle_home_requests_total{status="error"}[1m])) or vector(0))
+          /
+          clamp_min(sum(rate(kezzle_home_requests_total[1m])), 1e-9)
+
+      - record: job:home_degraded_ratio:rate1m
+        expr: >-
+          sum(rate(kezzle_home_degraded_total[1m]))
+          /
+          clamp_min(sum(rate(kezzle_home_requests_total[1m])), 1e-9)
+
+      - record: section:home_section_success_ratio:rate1m
+        expr: >-
+          sum(rate(kezzle_home_section_requests_total{status="success"}[1m])) by (section)
+          /
+          clamp_min(sum(rate(kezzle_home_section_requests_total[1m])) by (section), 1e-9)
+
+      - record: section:home_section_timeout_ratio:rate1m
+        expr: >-
+          sum(rate(kezzle_home_section_requests_total{reason="timeout"}[1m])) by (section)
+          /
+          clamp_min(sum(rate(kezzle_home_section_requests_total[1m])) by (section), 1e-9)
+
+      - record: job:home_cache_hit_ratio:rate5m
+        expr: >-
+          sum(rate(kezzle_home_cache_events_total{event=~"fresh_hit|stale_hit"}[5m]))
+          /
+          clamp_min(
+            sum(rate(kezzle_home_cache_events_total{event=~"fresh_hit|stale_hit|miss"}[5m])),
+            1e-9
+          )
+
+      - record: job:home_cache_error_rate:rate1m
+        expr: sum(rate(kezzle_home_cache_events_total{event="error"}[1m]))
+
+      - record: dependency:home_ai_tps:rate1m
+        expr: >-
+          sum(rate(kezzle_home_ai_calls_total{result="requested"}[1m])) by (dependency)
+
+      - record: dependency:home_ai_error_ratio:rate5m
+        expr: >-
+          sum(rate(kezzle_home_ai_calls_total{result="error"}[5m])) by (dependency)
+          /
+          clamp_min(
+            sum(rate(kezzle_home_ai_calls_total{result="requested"}[5m])) by (dependency),
+            1e-9
+          )
+
+      - record: job:home_db_call_rate:rate1m
+        expr: sum(rate(kezzle_home_db_calls_total[1m]))
+
+      # MongoDB exporter(compatible mode) 기준 서버 전체 operation rate.
+      - record: job:mongodb_op_rate:rate1m
+        expr: sum(rate(mongodb_op_counters_total{type!="command"}[1m]))
+
+      - record: job:mongodb_query_rate:rate1m
+        expr: sum(rate(mongodb_op_counters_total{type="query"}[1m]))
+
+      - record: job:redis_command_rate:rate1m
+        expr: sum(rate(redis_commands_processed_total[1m]))

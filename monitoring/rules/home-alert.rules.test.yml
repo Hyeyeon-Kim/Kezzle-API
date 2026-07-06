@@ -1,0 +1,208 @@
+# promtool test rules 로 실행하는 alert rule 단위 테스트.
+# 식, for duration, 상태 전이(pending -> firing -> inactive)를 결정적으로 검증한다.
+rule_files:
+  - home-recording.rules.yml
+  - home-alert.rules.yml
+
+evaluation_interval: 30s
+
+tests:
+  # 1. HTTP 실패율 0.5% 초과 -> firing, 실패 중단 -> inactive
+  - interval: 30s
+    input_series:
+      - series: 'kezzle_home_requests_total{status="success"}'
+        values: "0+99x60"
+      - series: 'kezzle_home_requests_total{status="error"}'
+        values: "0+1x20 20x40"
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: HomeHttpFailureRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: "홈 API 실패율 0.5% 초과"
+              description: "홈 요청 error 비율이 5분 이상 0.5%를 초과했다."
+      - eval_time: 15m
+        alertname: HomeHttpFailureRateHigh
+        exp_alerts: []
+
+  # 2. 홈 p95 500ms 초과 -> firing, 응답이 빨라지면 -> inactive
+  - interval: 30s
+    input_series:
+      - series: 'kezzle_home_request_duration_seconds_bucket{status="success",le="0.5"}'
+        values: "0x20 0+10x40"
+      - series: 'kezzle_home_request_duration_seconds_bucket{status="success",le="1"}'
+        values: "0+10x60"
+      - series: 'kezzle_home_request_duration_seconds_bucket{status="success",le="2"}'
+        values: "0+10x60"
+      - series: 'kezzle_home_request_duration_seconds_bucket{status="success",le="+Inf"}'
+        values: "0+10x60"
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: HomeP95LatencyHigh
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: "홈 API p95가 500ms를 초과"
+              description: "1분 rate 기준 홈 p95가 5분 이상 500ms를 초과했다."
+      - eval_time: 18m
+        alertname: HomeP95LatencyHigh
+        exp_alerts: []
+
+  # 3. cache error 발생 -> 1분 뒤 firing, error 중단 -> inactive
+  - interval: 30s
+    input_series:
+      - series: 'kezzle_home_cache_events_total{event="error"}'
+        values: "0+1x10 10x30"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: HomeCacheErrors
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: "홈 cache error 발생"
+              description: "정상 구간의 cache error는 0이어야 한다. Redis 연결/timeout을 확인한다."
+      - eval_time: 10m
+        alertname: HomeCacheErrors
+        exp_alerts: []
+
+  # 4. 핵심 섹션 성공률 99% 미만 -> section label 유지한 채 firing
+  - interval: 30s
+    input_series:
+      - series: 'kezzle_home_section_requests_total{section="recommendCakes",status="success",reason="none"}'
+        values: "0+9x40"
+      - series: 'kezzle_home_section_requests_total{section="recommendCakes",status="fallback",reason="timeout"}'
+        values: "0+1x40"
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: HomeCoreSectionSuccessLow
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              section: recommendCakes
+            exp_annotations:
+              summary: "핵심 섹션 성공률 99% 미만"
+              description: "핵심 섹션 recommendCakes 성공률이 5분 이상 99% 미만이다."
+      - eval_time: 8m
+        alertname: HomeSectionTimeoutHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warn
+              section: recommendCakes
+            exp_annotations:
+              summary: "섹션 timeout 비율 1% 초과"
+              description: "섹션 recommendCakes timeout fallback 비율이 5분 이상 1%를 초과했다."
+
+  # 5. MongoDB query rate 300 QPS 초과 -> firing, 부하 종료 -> inactive
+  - interval: 30s
+    input_series:
+      - series: 'mongodb_op_counters_total{type="query"}'
+        values: "0+12000x20 240000x40"
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: MongoQueryRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warn
+            exp_annotations:
+              summary: "MongoDB query rate 300 QPS 초과"
+              description: "홈 cache가 정상일 때 도달할 수 없는 수치다. cache miss 폭주나 원본 fallback을 확인한다."
+      - eval_time: 15m
+        alertname: MongoQueryRateHigh
+        exp_alerts: []
+
+  # 6. AI TPS 60 초과 -> dependency label 유지한 채 firing
+  - interval: 30s
+    input_series:
+      - series: 'kezzle_home_ai_calls_total{dependency="vit",result="requested"}'
+        values: "0+2400x20 48000x40"
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: HomeAiTpsHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warn
+              dependency: vit
+            exp_annotations:
+              summary: "AI 호출 60 TPS 초과"
+              description: "vit 호출이 5분 이상 60 TPS를 초과했다. cache/refresh 경로를 확인한다."
+      - eval_time: 15m
+        alertname: HomeAiTpsHigh
+        exp_alerts: []
+
+  # 7. cache hit ratio 90% 미만 -> 10분 뒤 firing
+  - interval: 30s
+    input_series:
+      - series: 'kezzle_home_cache_events_total{event="fresh_hit"}'
+        values: "0+50x60"
+      - series: 'kezzle_home_cache_events_total{event="miss"}'
+        values: "0+50x60"
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: HomeCacheHitRatioLow
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: HomeCacheHitRatioLow
+        exp_alerts:
+          - exp_labels:
+              severity: warn
+            exp_annotations:
+              summary: "홈 cache hit ratio 90% 미만"
+              description: "fresh+stale hit 비율이 10분 이상 90% 미만이다. cold start/만료 폭주/Redis 장애를 확인한다."
+
+  # 8. scrape target down -> firing
+  - interval: 30s
+    input_series:
+      - series: 'up{job="kezzle-api",instance="kezzle-api:3000"}'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: PrometheusTargetDown
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              job: kezzle-api
+              instance: kezzle-api:3000
+            exp_annotations:
+              summary: "Prometheus target down"
+              description: "kezzle-api target(kezzle-api:3000) scrape가 1분 이상 실패했다."
+
+  # 9. curation stale backlog 정체 -> 20분 뒤 firing, 소진되면 -> inactive
+  - interval: 30s
+    input_series:
+      - series: "kezzle_curation_stale_backlog"
+        values: "3x50 0x30"
+    alert_rule_test:
+      - eval_time: 21m
+        alertname: CurationStaleBacklogStuck
+        exp_alerts:
+          - exp_labels:
+              severity: warn
+            exp_annotations:
+              summary: "큐레이션 stale backlog 정체"
+              description: "stale 큐레이션이 2 interval 이상 갱신되지 않고 남아 있다."
+      - eval_time: 30m
+        alertname: CurationStaleBacklogStuck
+        exp_alerts: []
+
+  # 10. curation job 실패 -> 즉시 firing(30분 window), window 지나면 -> inactive
+  - interval: 30s
+    input_series:
+      - series: 'kezzle_curation_refresh_runs_total{result="failure"}'
+        values: "0 1x100"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: CurationRefreshFailures
+        exp_alerts:
+          - exp_labels:
+              severity: warn
+              result: failure
+            exp_annotations:
+              summary: "큐레이션 갱신 job 실패"
+              description: "최근 30분 내 curation refresh 실패가 있었다. 다음 주기 자연 재시도와 CLIP 상태를 확인한다."
+      - eval_time: 45m
+        alertname: CurationRefreshFailures
+        exp_alerts: []

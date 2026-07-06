@@ -12,13 +12,20 @@ export class VitClient {
     private readonly metricsService: MetricsService,
   ) {}
 
-  async similarSearch(id: string, size: number): Promise<any[]> {
+  async similarSearch(
+    id: string,
+    size: number,
+    signal?: AbortSignal,
+  ): Promise<any[]> {
     return this.measure(ENDPOINT_SIMILAR_SEARCH, async () => {
       const apiUrl = this.buildUrl('/cakes/similar-search', {
         id,
         size,
       });
-      const response = await this.httpService.get(apiUrl).toPromise();
+      const request = signal
+        ? this.httpService.get(apiUrl, { signal })
+        : this.httpService.get(apiUrl);
+      const response = await request.toPromise();
       return response.data.result;
     });
   }

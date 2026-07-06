@@ -36,13 +36,16 @@ describe('CakeRepository', () => {
   });
 
   describe('findById', () => {
-    it('delegates to cakeModel.findById (returns null when missing)', async () => {
-      const cakeModel = { findById: jest.fn().mockResolvedValue(null) };
+    it('filters deleted cakes and returns null when missing', async () => {
+      const cakeModel = { findOne: jest.fn().mockResolvedValue(null) };
       const repo = new CakeRepository(cakeModel as any);
 
       const result = await repo.findById('cake-1');
 
-      expect(cakeModel.findById).toHaveBeenCalledWith('cake-1');
+      expect(cakeModel.findOne).toHaveBeenCalledWith({
+        _id: 'cake-1',
+        is_delete: false,
+      });
       expect(result).toBeNull();
     });
   });
@@ -58,6 +61,7 @@ describe('CakeRepository', () => {
       const result = await repo.sampleOne();
 
       expect(cakeModel.aggregate).toHaveBeenCalledWith([
+        { $match: { is_delete: false } },
         { $sample: { size: 1 } },
       ]);
       expect(result).toBe(sampled);
@@ -123,14 +127,15 @@ describe('CakeRepository', () => {
       await repo.findNewest('507f1f77bcf86cd799439011', 21);
 
       const pipeline = cakeModel.aggregate.mock.calls[0][0];
-      expect(pipeline[0]).toEqual({ $sort: { _id: -1 } });
-      expect(pipeline[1].$match._id.$lt.toString()).toBe(
+      expect(pipeline[0].$match.is_delete).toBe(false);
+      expect(pipeline[0].$match._id.$lt.toString()).toBe(
         '507f1f77bcf86cd799439011',
       );
+      expect(pipeline[1]).toEqual({ $sort: { _id: -1 } });
       expect(limit).toHaveBeenCalledWith(21);
     });
 
-    it('omits match stage when after is undefined', async () => {
+    it('keeps the non-deleted filter when after is undefined', async () => {
       const limit = jest.fn().mockResolvedValue([]);
       const cakeModel = { aggregate: jest.fn().mockReturnValue({ limit }) };
       const repo = new CakeRepository(cakeModel as any);
@@ -138,7 +143,10 @@ describe('CakeRepository', () => {
       await repo.findNewest(undefined as any, 21);
 
       const pipeline = cakeModel.aggregate.mock.calls[0][0];
-      expect(pipeline).toHaveLength(1);
+      expect(pipeline).toEqual([
+        { $match: { is_delete: false } },
+        { $sort: { _id: -1 } },
+      ]);
     });
   });
 

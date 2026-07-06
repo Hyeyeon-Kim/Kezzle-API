@@ -8,6 +8,7 @@ import { LogModule } from 'src/log/log.module';
 import { CakeModule } from 'src/cake/cake.module';
 import { SearchModule } from 'src/search/search.module';
 import { CurationControllerV2 } from './curation.controller.v2';
+import { CurationRefreshService } from './curation-refresh.service';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
 
 @Module({
@@ -23,6 +24,6 @@ import { AiSearchModule } from 'src/ai-search/ai-search.module';
     AiSearchModule,
   ],
   controllers: [CurationController, CurationControllerV2],
-  providers: [CurationService],
+  providers: [CurationService, CurationRefreshService],
 })
 export class CurationModule {}
