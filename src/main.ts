@@ -2,6 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as admin from 'firebase-admin';
+import * as AWS from 'aws-sdk';
+
+// S3 클라이언트(new S3())가 전역 설정을 읽으므로 부팅 전에 지정한다.
+AWS.config.update({
+  region: process.env.A_REGION,
+  accessKeyId: process.env.A_ACCESS_KEY_ID,
+  secretAccessKey: process.env.A_SECRET_ACCESS_KEY,
+});
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
