@@ -1,32 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Interval } from '@nestjs/schedule';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { Curation, CurationDocument } from './entities/curation.schema';
 import { CurationService } from './curation.service';
 import { MonitoringService } from 'src/monitoring/monitoring.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-const configuredIntervalMs = Number(process.env.CURATION_REFRESH_INTERVAL_MS);
-// 0 이하로 설정하면 스케줄러를 비활성화한다(로컬/테스트용).
-const REFRESH_ENABLED = !(
-  Number.isFinite(configuredIntervalMs) && configuredIntervalMs <= 0
-);
-const REFRESH_INTERVAL_MS =
-  Number.isFinite(configuredIntervalMs) && configuredIntervalMs > 0
-    ? configuredIntervalMs
-    : 600000;
-
-const configuredStaleMs = Number(process.env.CURATION_STALE_MS);
-// 기존 홈 경로의 stale 기준(3일)을 그대로 유지한다.
-const STALE_MS =
-  Number.isFinite(configuredStaleMs) && configuredStaleMs > 0
-    ? configuredStaleMs
-    : 3 * DAY_MS;
-
-// claim 이 이 시간보다 오래되면 실패한 실행으로 보고 재획득을 허용한다(자연 재시도).
-const CLAIM_TTL_MS = REFRESH_INTERVAL_MS;
+const DEFAULT_REFRESH_INTERVAL_MS = 600000;
+const REFRESH_INTERVAL_NAME = 'curation-refresh';
 
 export type CurationRefreshResult = {
   stale: number;
@@ -43,20 +26,70 @@ export type CurationRefreshResult = {
  * - 실패는 즉시 재시도하지 않고 다음 주기에 자연 재시도한다 (홈은 기존 데이터로 응답).
  */
 @Injectable()
-export class CurationRefreshService {
+export class CurationRefreshService implements OnApplicationBootstrap {
   private readonly logger = new Logger(CurationRefreshService.name);
   private running = false;
+
+  // ConfigModule 이 .env 를 로드한 뒤 생성자에서 읽으므로 .env 값이 반영된다.
+  // (기존에는 module import 시점에 process.env 를 읽어 .env 설정이 무시됐다.)
+  private readonly refreshEnabled: boolean;
+  private readonly refreshIntervalMs: number;
+  private readonly staleMs: number;
+  // claim 이 이 시간보다 오래되면 실패한 실행으로 보고 재획득을 허용한다(자연 재시도).
+  private readonly claimTtlMs: number;
 
   constructor(
     @InjectModel(Curation.name, 'kezzle')
     private readonly curationModel: Model<CurationDocument>,
     private readonly curationService: CurationService,
     private readonly monitoring: MonitoringService,
-  ) {}
+    private readonly config: ConfigService,
+    private readonly schedulerRegistry: SchedulerRegistry,
+  ) {
+    const configuredIntervalMs = Number(
+      this.config.get<string>('CURATION_REFRESH_INTERVAL_MS'),
+    );
+    // 0 이하로 설정하면 스케줄러를 비활성화한다(로컬/테스트용).
+    this.refreshEnabled = !(
+      Number.isFinite(configuredIntervalMs) && configuredIntervalMs <= 0
+    );
+    this.refreshIntervalMs =
+      Number.isFinite(configuredIntervalMs) && configuredIntervalMs > 0
+        ? configuredIntervalMs
+        : DEFAULT_REFRESH_INTERVAL_MS;
 
-  @Interval(REFRESH_INTERVAL_MS)
+    const configuredStaleMs = Number(
+      this.config.get<string>('CURATION_STALE_MS'),
+    );
+    // 기존 홈 경로의 stale 기준(3일)을 그대로 유지한다.
+    this.staleMs =
+      Number.isFinite(configuredStaleMs) && configuredStaleMs > 0
+        ? configuredStaleMs
+        : 3 * DAY_MS;
+
+    this.claimTtlMs = this.refreshIntervalMs;
+  }
+
+  // @Interval 데코레이터는 import 시점에 주기가 고정되므로,
+  // 부팅 완료 후 설정값으로 interval 을 직접 등록한다.
+  onApplicationBootstrap(): void {
+    if (!this.refreshEnabled) {
+      this.logger.log(
+        'curation refresh disabled (CURATION_REFRESH_INTERVAL_MS <= 0)',
+      );
+      return;
+    }
+    const interval = setInterval(
+      () => void this.handleInterval(),
+      this.refreshIntervalMs,
+    );
+    this.schedulerRegistry.addInterval(REFRESH_INTERVAL_NAME, interval);
+    this.logger.log(
+      `curation refresh scheduled: intervalMs=${this.refreshIntervalMs} staleMs=${this.staleMs}`,
+    );
+  }
+
   async handleInterval(): Promise<void> {
-    if (!REFRESH_ENABLED) return;
     try {
       await this.runOnce();
     } catch (error) {
@@ -83,7 +116,7 @@ export class CurationRefreshService {
     }
     this.running = true;
     try {
-      const staleBefore = new Date(Date.now() - STALE_MS);
+      const staleBefore = new Date(Date.now() - this.staleMs);
       const staleCurations = await this.curationModel
         .find({ updatedAt: { $lt: staleBefore } })
         .select('_id updatedAt')
@@ -141,7 +174,9 @@ export class CurationRefreshService {
             { refreshClaimedAt: { $exists: false } },
             { refreshClaimedAt: null },
             {
-              refreshClaimedAt: { $lt: new Date(now.getTime() - CLAIM_TTL_MS) },
+              refreshClaimedAt: {
+                $lt: new Date(now.getTime() - this.claimTtlMs),
+              },
             },
           ],
         },
