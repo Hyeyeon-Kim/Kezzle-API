@@ -57,10 +57,6 @@ export class HomeResilienceMetricsService {
   }
 
   run<T>(callback: () => Promise<T>): Promise<T> {
-    if (!this.isEnabled()) {
-      return callback();
-    }
-
     const context: HomeMetricContext = {
       requestId: randomUUID(),
       startedAt: process.hrtime.bigint(),
@@ -102,17 +98,17 @@ export class HomeResilienceMetricsService {
   }
 
   countAi(dependency: AiDependency, calls = 1): void {
-    this.monitoring.countAiCall(dependency, 'requested', calls);
     const context = this.storage.getStore();
     if (context) {
+      this.monitoring.countAiCall(dependency, 'requested', calls);
       context.aiCalls += calls;
     }
   }
 
   countAiError(dependency: AiDependency, calls = 1): void {
-    this.monitoring.countAiCall(dependency, 'error', calls);
     const context = this.storage.getStore();
     if (context) {
+      this.monitoring.countAiCall(dependency, 'error', calls);
       context.aiErrors += calls;
     }
   }
@@ -135,7 +131,7 @@ export class HomeResilienceMetricsService {
 
   flush(status: 'success' | 'error'): void {
     const context = this.storage.getStore();
-    if (!context) {
+    if (!context || !this.isEnabled()) {
       return;
     }
 
