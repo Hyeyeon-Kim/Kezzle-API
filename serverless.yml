@@ -10,7 +10,7 @@ provider:
   name: aws
   region: ap-northeast-2
   stage: dev
-  runtime: nodejs16.x
+  runtime: nodejs20.x
   # ecr:
   #   images:
   #     appimage:
