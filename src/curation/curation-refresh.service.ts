@@ -67,8 +67,7 @@ export class CurationRefreshService {
 
   /**
    * stale 큐레이션을 찾아 갱신한다.
-   * 스케줄러 interval 이 호출하지만, serverless 배포처럼 상주 스케줄러가 없는 환경에서는
-   * 외부 트리거(EventBridge 등)가 이 메서드를 그대로 호출하면 된다.
+   * 스케줄러 interval 이 호출하며, 수동 갱신이 필요하면 이 메서드를 그대로 호출하면 된다.
    */
   async runOnce(): Promise<CurationRefreshResult> {
     const result: CurationRefreshResult = {
