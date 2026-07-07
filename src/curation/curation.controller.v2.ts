@@ -8,6 +8,7 @@ import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { Roles } from 'src/user/entities/roles.enum';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { HomeCurationDtoV2 } from './dto/response-home-curation.dto.v2';
+import { AllowHomeResilienceAuthBypass } from 'src/auth/decorators/home-resilience-auth-bypass.decorator';
 
 @ApiTags('v2/curation')
 @ApiBearerAuth()
@@ -22,6 +23,7 @@ export class CurationControllerV2 {
   })
   @Get()
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
+  @AllowHomeResilienceAuthBypass()
   homeCuration(@GetUser() user: IUser) {
     return this.curationService.homeCurationV2(user);
   }
