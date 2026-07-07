@@ -2,6 +2,7 @@ import { ExecutionContext, Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { Roles } from 'src/user/entities/roles.enum';
+import { HOME_RESILIENCE_AUTH_BYPASS_KEY } from '../decorators/home-resilience-auth-bypass.decorator';
 
 @Injectable()
 export class FirebaseAuthGuard extends AuthGuard('firebase-auth') {
@@ -31,7 +32,16 @@ export class FirebaseAuthGuard extends AuthGuard('firebase-auth') {
       return true;
     }
 
-    if (process.env.HOME_RESILIENCE_AUTH_BYPASS === 'true') {
+    const allowHomeResilienceAuthBypass =
+      this.reflector.getAllAndOverride<boolean>(
+        HOME_RESILIENCE_AUTH_BYPASS_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+
+    if (
+      process.env.HOME_RESILIENCE_AUTH_BYPASS === 'true' &&
+      allowHomeResilienceAuthBypass
+    ) {
       const request = context.switchToHttp().getRequest();
       request.user = {
         firebaseUid:
