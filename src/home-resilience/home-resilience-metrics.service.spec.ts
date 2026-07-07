@@ -34,4 +34,39 @@ describe('HomeResilienceMetricsService cache metrics', () => {
       refresh: 1,
     });
   });
+
+  it('does not record home AI counters outside a home request context', () => {
+    const monitoring = {
+      countAiCall: jest.fn(),
+      countDbCall: jest.fn(),
+      countCacheEvent: jest.fn(),
+    };
+    const service = new HomeResilienceMetricsService(monitoring as never);
+
+    service.countAi('clip');
+    service.countAiError('clip');
+
+    expect(monitoring.countAiCall).not.toHaveBeenCalled();
+  });
+
+  it('records home AI counters inside a home request context', async () => {
+    const monitoring = {
+      countAiCall: jest.fn(),
+      countDbCall: jest.fn(),
+      countCacheEvent: jest.fn(),
+    };
+    const service = new HomeResilienceMetricsService(monitoring as never);
+
+    await service.run(async () => {
+      service.countAi('clip');
+      service.countAiError('vit', 2);
+    });
+
+    expect(monitoring.countAiCall).toHaveBeenCalledWith(
+      'clip',
+      'requested',
+      1,
+    );
+    expect(monitoring.countAiCall).toHaveBeenCalledWith('vit', 'error', 2);
+  });
 });
