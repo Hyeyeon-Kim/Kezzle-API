@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Body,
-  UseGuards,
   Headers,
   Delete,
   Param,
@@ -20,14 +19,16 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserService } from './user.service';
-import { FirebaseAuthGuard } from 'src/auth/guard/firebase-auth.guard';
-import { RolesGuard } from '../auth/guard/roles.guard';
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { Roles } from './entities/roles.enum';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/response-user.dto';
 import { User } from './entities/user.schema';
+import { GetUser } from './decorators/get-user.decorator';
+import IUser from './interfaces/user.interface';
+import { Public } from 'src/auth/decorators/public.decorator';
+import { assertSelfOrAdmin } from 'src/auth/authorization/self-or-admin';
 
 const userIdParams = {
   name: 'id',
@@ -40,7 +41,6 @@ const userIdParams = {
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
-  @UseGuards(FirebaseAuthGuard, RolesGuard)
   @RolesAllowed(Roles.ADMIN)
   @Get()
   @ApiOperation({
@@ -54,6 +54,7 @@ export class UserController {
   }
 
   @Post()
+  @Public()
   @ApiOperation({
     summary: '유저 생성',
     description: '유저를 생성합니다.' + '\n\n' + '권한이 필요없습니다.',
@@ -71,7 +72,6 @@ export class UserController {
     return this.userService.create(authorization, createUserDto);
   }
 
-  @UseGuards(FirebaseAuthGuard)
   @Get(':id')
   @ApiOperation({
     summary: '유저 정보 요청',
@@ -86,11 +86,14 @@ export class UserController {
     type: UserResponseDto,
   })
   @ApiNotFoundResponse({ description: '유저를 찾을 수 없습니다.' })
-  getOne(@Param('id') userId: string): Promise<UserResponseDto> {
+  getOne(
+    @Param('id') userId: string,
+    @GetUser() userDto: IUser,
+  ): Promise<UserResponseDto> {
+    assertSelfOrAdmin(userDto, userId);
     return this.userService.findOneByFirebase(userId);
   }
 
-  @UseGuards(FirebaseAuthGuard)
   @Patch(':id')
   @ApiOperation({
     summary: '유저 정보 수정',
@@ -105,11 +108,15 @@ export class UserController {
     type: UpdateUserDto,
   })
   @ApiNotFoundResponse({ description: '유저를 찾을 수 없습니다.' })
-  modify(@Param('id') userId: string, @Body() updateData: UpdateUserDto) {
+  modify(
+    @Param('id') userId: string,
+    @Body() updateData: UpdateUserDto,
+    @GetUser() userDto: IUser,
+  ) {
+    assertSelfOrAdmin(userDto, userId);
     return this.userService.changeContent(userId, updateData);
   }
 
-  @UseGuards(FirebaseAuthGuard)
   @Delete(':id')
   @ApiOperation({
     summary: '유저 정보 삭제',
@@ -123,7 +130,8 @@ export class UserController {
     description: '유저 정보 삭제 성공',
   })
   @ApiNotFoundResponse({ description: '유저를 찾을 수 없습니다.' })
-  delete(@Param('id') userId: string) {
+  delete(@Param('id') userId: string, @GetUser() userDto: IUser) {
+    assertSelfOrAdmin(userDto, userId);
     return this.userService.removeContent(userId);
   }
 }

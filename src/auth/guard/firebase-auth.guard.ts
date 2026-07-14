@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { Roles } from 'src/user/entities/roles.enum';
 import { HOME_RESILIENCE_AUTH_BYPASS_KEY } from '../decorators/home-resilience-auth-bypass.decorator';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class FirebaseAuthGuard extends AuthGuard('firebase-auth') {
@@ -11,24 +12,24 @@ export class FirebaseAuthGuard extends AuthGuard('firebase-auth') {
   }
 
   canActivate(context: ExecutionContext) {
-    if (process.env.NODE_ENV === 'development') {
-      context.switchToHttp().getRequest().user = {
-        firebaseUid: 'dev-mock-user',
-        nickname: 'dev',
-        oauth_provider: 'dev',
-        roles: Roles.BUYER,
-        cake_like_ids: [],
-        store_like_ids: [],
-      };
-      return true;
-    }
-
-    const isPublic = this.reflector.getAllAndOverride<boolean>('public', [
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
     if (isPublic) {
+      return true;
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      context.switchToHttp().getRequest().user = {
+        firebaseUid: 'dev-mock-user',
+        nickname: 'dev',
+        oauth_provider: 'dev',
+        roles: [Roles.BUYER],
+        cake_like_ids: [],
+        store_like_ids: [],
+      };
       return true;
     }
 

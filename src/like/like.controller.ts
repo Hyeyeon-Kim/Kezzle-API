@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiCreatedResponse,
@@ -17,22 +10,20 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { LikeService } from './like.service';
-import { FirebaseAuthGuard } from 'src/auth/guard/firebase-auth.guard';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
 import IUser from 'src/user/interfaces/user.interface';
 import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
-import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { Roles } from 'src/user/entities/roles.enum';
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { StoreLikeResponseDto } from 'src/store/dto/response-like-store.dto';
+import { assertSelfOrAdmin } from 'src/auth/authorization/self-or-admin';
 
 @ApiTags('likes')
 @Controller()
-@UseGuards(FirebaseAuthGuard, RolesGuard)
 export class LikeController {
   constructor(private readonly likeService: LikeService) {}
 
-  @RolesAllowed(Roles.BUYER)
+  @RolesAllowed(Roles.BUYER, Roles.ADMIN)
   @Get('users/:id/liked-cakes')
   @ApiOperation({
     summary: '유저가 좋아요한 케이크 전체 목록 요청',
@@ -41,11 +32,15 @@ export class LikeController {
   })
   @ApiParam({ name: 'id', description: '유저 ID' })
   @ApiNoContentResponse({ description: '정보 없음.' })
-  getCake(@Param('id') userId: string): Promise<CakeResponseDto[]> {
+  getCake(
+    @Param('id') userId: string,
+    @GetUser() userDto: IUser,
+  ): Promise<CakeResponseDto[]> {
+    assertSelfOrAdmin(userDto, userId);
     return this.likeService.findUserLikeCake(userId);
   }
 
-  @RolesAllowed(Roles.BUYER)
+  @RolesAllowed(Roles.BUYER, Roles.ADMIN)
   @Get('users/:id/liked-stores')
   @ApiOperation({
     summary: '유저가 좋아요한 매장 전체 목록 요청',
@@ -60,6 +55,7 @@ export class LikeController {
     @Param('id') userId: string,
     @GetUser() userDto: IUser,
   ): Promise<StoreLikeResponseDto[]> {
+    assertSelfOrAdmin(userDto, userId);
     return this.likeService.findUserLikeStore(userId, userDto);
   }
 

@@ -5,7 +5,7 @@ export interface IUser {
   firebaseUid: string;
   nickname: string;
   oauth_provider: string;
-  roles: Roles;
+  roles: Roles[];
   cake_like_ids: string[];
   store_like_ids: string[];
 }

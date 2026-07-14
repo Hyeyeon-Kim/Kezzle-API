@@ -14,6 +14,15 @@ AWS.config.update({
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.HOME_RESILIENCE_AUTH_BYPASS === 'true'
+  ) {
+    throw new Error(
+      'HOME_RESILIENCE_AUTH_BYPASS must be disabled in production.',
+    );
+  }
+
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Kezzle API')
     .setDescription('The Kezzle API description')

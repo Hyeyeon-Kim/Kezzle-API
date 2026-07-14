@@ -3,6 +3,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { Response } from 'express';
 import { MonitoringService } from './monitoring.service';
 import { MetricsService } from 'src/metrics/metrics.service';
+import { Public } from 'src/auth/decorators/public.decorator';
 
 // Prometheus scrape 전용 endpoint.
 // Docker 내부 network에서 인증 없이 접근해야 하므로 Firebase/role guard를 적용하지 않는다.
@@ -16,6 +17,7 @@ export class MonitoringController {
   ) {}
 
   @Get()
+  @Public()
   @Header('Cache-Control', 'no-store')
   async metrics(@Res() response: Response): Promise<void> {
     response.setHeader('Content-Type', this.monitoring.contentType());
