@@ -26,6 +26,10 @@ export class KeywordRank {
   // 같은 갱신 배치는 동일 computedAt 을 공유한다. SWR staleness 판단과 배치 식별에 사용한다.
   @Prop({ type: Date, index: true })
   computedAt: Date;
+
+  // 집계 결과가 없었던 최신 window를 기록하는 배치 마커다.
+  @Prop({ type: Boolean, default: false })
+  isEmptyBatch?: boolean;
 }
 
 export const KeywordRankSchema = SchemaFactory.createForClass(KeywordRank);

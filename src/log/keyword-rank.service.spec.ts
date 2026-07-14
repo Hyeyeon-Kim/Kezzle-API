@@ -73,6 +73,7 @@ describe('KeywordRankService', () => {
     expect(logService.getRankWord).not.toHaveBeenCalled();
     expect(rankModel.find).toHaveBeenCalledWith({
       computedAt: latest.computedAt,
+      isEmptyBatch: { $ne: true },
     });
     expect(findQuery.limit).toHaveBeenCalledWith(4);
     expect(findQuery.maxTimeMS).toHaveBeenCalledWith(400);
@@ -137,10 +138,45 @@ describe('KeywordRankService', () => {
 
     const result = await service.getRanked(4);
 
-    expect(rankModel.insertMany).not.toHaveBeenCalled();
+    expect(rankModel.insertMany).toHaveBeenCalledWith([
+      expect.objectContaining({
+        windowStart: expect.any(Date),
+        windowEnd: expect.any(Date),
+        computedAt: expect.any(Date),
+        isEmptyBatch: true,
+      }),
+    ]);
+    expect(rankModel.deleteMany).toHaveBeenCalledWith({
+      computedAt: { $lt: expect.any(Date) },
+    });
     expect(result.ranking).toEqual([]);
     expect(result.startDate).toMatch(DATE_STR);
     expect(result.endDate).toMatch(DATE_STR);
+  });
+
+  it('replaces an older batch with an empty batch marker', async () => {
+    const emptyBatch = freshBatch({ isEmptyBatch: true });
+    const { service, rankModel, logService, homeMetrics } = createMocks({
+      latestResults: [emptyBatch],
+      rankWords: [],
+    });
+
+    await service.refresh();
+    const result = await service.getRanked(4);
+
+    expect(rankModel.insertMany).toHaveBeenCalledWith([
+      expect.objectContaining({ isEmptyBatch: true }),
+    ]);
+    expect(rankModel.deleteMany).toHaveBeenCalledWith({
+      computedAt: { $lt: expect.any(Date) },
+    });
+    expect(rankModel.find).toHaveBeenCalledWith({
+      computedAt: emptyBatch.computedAt,
+      isEmptyBatch: { $ne: true },
+    });
+    expect(result.ranking).toEqual([]);
+    expect(logService.getRankWord).toHaveBeenCalledTimes(1);
+    expect(homeMetrics.countBackgroundRefresh).not.toHaveBeenCalled();
   });
 
   it('triggers a single background refresh for a stale batch', async () => {
