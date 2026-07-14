@@ -1,9 +1,9 @@
-import { Module, ValidationPipe } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { UserModule } from './user/user.module';
-import { APP_PIPE } from '@nestjs/core';
+import { APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { CakeModule } from './cake/cake.module';
 import { AuthModule } from './auth/auth.module';
 import { LikeModule } from './like/like.module';
@@ -17,6 +17,9 @@ import { CounterModule } from './counter/counter.module';
 import { HomeResilienceMetricsModule } from './home-resilience/home-resilience-metrics.module';
 import { HomeCacheModule } from './home-cache/home-cache.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
+import { FirebaseAuthGuard } from './auth/guard/firebase-auth.guard';
+import { RolesGuard } from './auth/guard/roles.guard';
+import { createValidationPipe } from './app.validation';
 
 @Module({
   imports: [
@@ -49,7 +52,15 @@ import { MonitoringModule } from './monitoring/monitoring.module';
   providers: [
     {
       provide: APP_PIPE,
-      useClass: ValidationPipe,
+      useValue: createValidationPipe(),
+    },
+    {
+      provide: APP_GUARD,
+      useClass: FirebaseAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })

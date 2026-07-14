@@ -4,7 +4,6 @@ import {
   Param,
   Patch,
   Delete,
-  UseGuards,
   Post,
   Query,
   UseInterceptors,
@@ -23,8 +22,6 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { CakeService } from './cake.service';
-import { FirebaseAuthGuard } from 'src/auth/guard/firebase-auth.guard';
-import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { Roles } from 'src/user/entities/roles.enum';
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
@@ -47,7 +44,6 @@ const cakeIdParams = {
 @ApiTags('cakes')
 @Controller()
 @ApiBearerAuth()
-@UseGuards(FirebaseAuthGuard, RolesGuard)
 export class CakeController {
   constructor(private readonly cakeService: CakeService) {}
 

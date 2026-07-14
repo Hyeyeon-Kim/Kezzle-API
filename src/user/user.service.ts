@@ -34,7 +34,7 @@ export class UserService {
     }
 
     const createdUser = await new this.userModel({
-      ...createUserDto,
+      nickname: createUserDto.nickname,
       firebaseUid: firebaseUser.uid,
       oauth_provider: firebaseUser.firebase.sign_in_provider,
     });
@@ -73,7 +73,7 @@ export class UserService {
     }
     return await this.userModel.updateOne(
       { firebaseUid: userid },
-      { $set: updateData },
+      { $set: { nickname: updateData.nickname } },
     );
   }
 
