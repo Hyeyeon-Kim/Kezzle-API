@@ -70,7 +70,7 @@ export class KeywordRankService {
     // 항상 최신 배치(computedAt)만 읽어 갱신 중간에 두 배치가 섞이지 않게 한다.
     this.homeMetrics.countDb();
     const rankedQuery = this.rankModel
-      .find({ computedAt: latest.computedAt })
+      .find({ computedAt: latest.computedAt, isEmptyBatch: { $ne: true } })
       .sort({ rank: 1 })
       .limit(limit);
     if (maxTimeMs !== undefined) {
@@ -111,11 +111,22 @@ export class KeywordRankService {
         }),
       );
 
-      if (docs.length > 0) {
-        // 새 배치를 먼저 적재한 뒤 이전 배치를 제거해 조회 빈 구간이 생기지 않게 한다.
-        await this.rankModel.insertMany(docs);
-        await this.rankModel.deleteMany({ computedAt: { $lt: computedAt } });
-      }
+      // 빈 집계도 최신 window로 기록해 과거 배치를 재노출하거나 refresh를 반복하지 않는다.
+      const batch =
+        docs.length > 0
+          ? docs
+          : [
+              {
+                windowStart: window.start,
+                windowEnd: window.end,
+                computedAt,
+                isEmptyBatch: true,
+              },
+            ];
+
+      // 새 배치를 먼저 적재한 뒤 이전 배치를 제거해 조회 빈 구간이 생기지 않게 한다.
+      await this.rankModel.insertMany(batch);
+      await this.rankModel.deleteMany({ computedAt: { $lt: computedAt } });
     } finally {
       this.refreshing = false;
     }
