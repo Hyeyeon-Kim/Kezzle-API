@@ -1,0 +1,38 @@
+# Version control and local metadata
+.git
+.github
+.gitignore
+.DS_Store
+.idea
+.vscode
+
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*firebase-adminsdk*.json
+*service-account*.json
+
+# Host dependencies and build/test artifacts
+node_modules
+dist
+coverage
+.nyc_output
+test
+**/*.spec.ts
+**/*.test.ts
+*.tsbuildinfo
+.build
+.serverless
+
+# Logs and local reports
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+reports
+performance-results
