@@ -1,6 +1,6 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { CurationControllerV2 } from 'src/curation/curation.controller.v2';
+import { HomeController } from 'src/home/home.controller';
 import {
   AllowHomeResilienceAuthBypass,
   HOME_RESILIENCE_AUTH_BYPASS_KEY,
@@ -96,11 +96,11 @@ describe('FirebaseAuthGuard home resilience auth bypass scope', () => {
     expect(reflector.getAllAndOverride).toHaveBeenCalledTimes(1);
   });
 
-  it('marks only the v2 home curation handler for home resilience auth bypass', () => {
+  it('marks only the Home handler for home resilience auth bypass', () => {
     expect(
       Reflect.getMetadata(
         HOME_RESILIENCE_AUTH_BYPASS_KEY,
-        CurationControllerV2.prototype.homeCuration,
+        HomeController.prototype.getHome,
       ),
     ).toBe(true);
   });

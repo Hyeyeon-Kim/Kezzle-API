@@ -6,10 +6,7 @@ import {
 } from '../home-section.executor';
 
 export class HomeSectionMetadataDto {
-  @ApiProperty({
-    enum: ['success', 'fallback'],
-    example: 'success',
-  })
+  @ApiProperty({ enum: ['success', 'fallback'], example: 'success' })
   readonly status: HomeSectionStatus;
 
   @ApiPropertyOptional({
@@ -18,10 +15,7 @@ export class HomeSectionMetadataDto {
   })
   readonly reason?: HomeSectionFallbackReason;
 
-  @ApiProperty({
-    description: '섹션 처리 시간(ms)',
-    example: 12.34,
-  })
+  @ApiProperty({ description: '섹션 처리 시간(ms)', example: 12.34 })
   readonly durationMs: number;
 
   constructor(result: HomeSectionResult<unknown>) {

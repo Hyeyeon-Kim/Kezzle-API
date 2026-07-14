@@ -6,7 +6,6 @@ import {
   PopularCakeRankDocument,
 } from './entities/popularCakeRank.shema';
 import { LogService } from './log.service';
-import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 import {
   computeRankWindow,
   POPULAR_RANK_WINDOW_DAYS_ENV,
@@ -34,7 +33,6 @@ export class PopularRankService {
     @InjectModel(PopularCakeRank.name, 'kezzle')
     private readonly rankModel: Model<PopularCakeRankDocument>,
     private readonly logService: LogService,
-    private readonly homeMetrics: HomeResilienceMetricsService,
   ) {}
 
   /**
@@ -45,7 +43,6 @@ export class PopularRankService {
   async getRanked(after: number, limit: number, maxTimeMs?: number) {
     if (Number.isNaN(limit)) limit = 20;
 
-    this.homeMetrics.countDb();
     const latestQuery = this.rankModel
       .findOne()
       .sort({ computedAt: -1, rank: 1 });
@@ -57,7 +54,6 @@ export class PopularRankService {
     // 콜드 스타트: read model 이 비어 있으면 1회 동기 빌드 후 다시 조회한다.
     if (!latest) {
       await this.refresh();
-      this.homeMetrics.countDb();
       const refreshedQuery = this.rankModel
         .findOne()
         .sort({ computedAt: -1, rank: 1 });
@@ -86,7 +82,6 @@ export class PopularRankService {
     };
     if (!Number.isNaN(after)) filter.total = { $lt: after };
 
-    this.homeMetrics.countDb();
     const rankedQuery = this.rankModel
       .find(filter)
       .sort({ rank: 1 })
@@ -186,7 +181,6 @@ export class PopularRankService {
     if (age <= POPULAR_RANK_TTL_MS) return;
     if (this.refreshing) return;
 
-    this.homeMetrics.countBackgroundRefresh();
     // fire-and-forget (curations 백그라운드 갱신 패턴과 동일). 실패해도 조회는 stale 데이터로 응답한다.
     this.refresh().catch(() => undefined);
   }

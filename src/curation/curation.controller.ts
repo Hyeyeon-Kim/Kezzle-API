@@ -18,12 +18,6 @@ export class CurationController {
     return this.curationService.createCuration(keywords, disc, note);
   }
 
-  @Get()
-  @Public()
-  homeCuration() {
-    return this.curationService.homeCuration();
-  }
-
   @Get(':id')
   @Public()
   showCuration(@Param('id') curationId: string, @Query('page') page: string) {

@@ -24,19 +24,9 @@ describe('AnniversaryService', () => {
     const clipClient = {
       koSearch: jest.fn().mockResolvedValue([]),
     };
-    const homeMetrics = {
-      countDb: jest.fn(),
-      countAi: jest.fn(),
-      countAiError: jest.fn(),
-    };
-    const homeCache = {
-      getWithSwr: jest.fn(({ refresh }) => refresh()),
-    };
     const service = new AnniversaryService(
       anniversaryModel as never,
       clipClient as never,
-      homeMetrics as never,
-      homeCache as never,
     );
     const controller = new AbortController();
 
@@ -47,9 +37,6 @@ describe('AnniversaryService', () => {
       '기념일',
       6,
       controller.signal,
-    );
-    expect(homeCache.getWithSwr).toHaveBeenCalledWith(
-      expect.objectContaining({ key: 'home:anniversary' }),
     );
   });
 });

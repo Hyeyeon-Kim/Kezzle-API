@@ -32,16 +32,11 @@ describe('PopularRankService', () => {
     const logService = {
       getRankCake: jest.fn().mockResolvedValue(options?.rankCakes ?? []),
     };
-    const homeMetrics = {
-      countDb: jest.fn(),
-      countBackgroundRefresh: jest.fn(),
-    };
     const service = new PopularRankService(
       rankModel as never,
       logService as never,
-      homeMetrics as never,
     );
-    return { service, rankModel, logService, homeMetrics, findQuery };
+    return { service, rankModel, logService, findQuery };
   }
 
   function freshBatch(overrides?: Record<string, unknown>) {
@@ -56,13 +51,13 @@ describe('PopularRankService', () => {
 
   it('serves an empty latest batch without aggregation or a refresh loop', async () => {
     const latest = freshBatch({ isEmptyBatch: true });
-    const { service, rankModel, logService, homeMetrics, findQuery } =
-      createMocks({ latestResults: [latest] });
+    const { service, rankModel, logService, findQuery } = createMocks({
+      latestResults: [latest],
+    });
 
     const result = await service.getRanked(NaN, 10, 400);
 
     expect(logService.getRankCake).not.toHaveBeenCalled();
-    expect(homeMetrics.countBackgroundRefresh).not.toHaveBeenCalled();
     expect(rankModel.find).toHaveBeenCalledWith({
       computedAt: latest.computedAt,
       isEmptyBatch: { $ne: true },

@@ -12,16 +12,10 @@ describe('SearchService getRank', () => {
         endDate: '2026-07-04',
       }),
     };
-    const homeMetrics = {
-      countDb: jest.fn(),
-      countAi: jest.fn(),
-      countAiError: jest.fn(),
-    };
     const service = new SearchService(
       {} as never,
       logService as never,
       keywordRankService as never,
-      homeMetrics as never,
     );
     return { service, logService, keywordRankService };
   }

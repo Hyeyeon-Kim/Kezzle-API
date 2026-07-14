@@ -3,13 +3,9 @@ import { CurationController } from './curation.controller';
 import { CurationService } from './curation.service';
 import { Curation, CurationSchema } from './entities/curation.schema';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AnniversaryModule } from 'src/anniversary/anniversary.module';
-import { LogModule } from 'src/log/log.module';
-import { CakeModule } from 'src/cake/cake.module';
-import { SearchModule } from 'src/search/search.module';
-import { CurationControllerV2 } from './curation.controller.v2';
 import { CurationRefreshService } from './curation-refresh.service';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
+import { CurationQueryService } from './curation-query.service';
 
 @Module({
   imports: [
@@ -17,13 +13,10 @@ import { AiSearchModule } from 'src/ai-search/ai-search.module';
       [{ name: Curation.name, schema: CurationSchema }],
       'kezzle',
     ),
-    AnniversaryModule,
-    LogModule,
-    CakeModule,
-    SearchModule,
     AiSearchModule,
   ],
-  controllers: [CurationController, CurationControllerV2],
-  providers: [CurationService, CurationRefreshService],
+  controllers: [CurationController],
+  providers: [CurationService, CurationQueryService, CurationRefreshService],
+  exports: [CurationQueryService],
 })
 export class CurationModule {}

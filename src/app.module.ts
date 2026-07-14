@@ -11,11 +11,10 @@ import { StoreModule } from './store/store.module';
 import { UploadModule } from './upload/upload.module';
 import { SearchModule } from './search/search.module';
 import { CurationModule } from './curation/curation.module';
+import { HomeModule } from './home/home.module';
 import { LogModule } from './log/log.module';
 import { AnniversaryModule } from './anniversary/anniversary.module';
 import { CounterModule } from './counter/counter.module';
-import { HomeResilienceMetricsModule } from './home-resilience/home-resilience-metrics.module';
-import { HomeCacheModule } from './home-cache/home-cache.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { FirebaseAuthGuard } from './auth/guard/firebase-auth.guard';
 import { RolesGuard } from './auth/guard/roles.guard';
@@ -41,12 +40,11 @@ import { createValidationPipe } from './app.validation';
     UploadModule,
     SearchModule,
     CurationModule,
+    HomeModule,
     LogModule,
     AnniversaryModule,
     CounterModule,
     MonitoringModule,
-    HomeResilienceMetricsModule,
-    HomeCacheModule,
   ],
   controllers: [],
   providers: [

@@ -11,7 +11,6 @@ import { RankResponseDto } from './dto/response-search-rank.dto';
 import { LatestResponseDto } from './dto/response-latest-search.dto';
 import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
 import { CakesSearchResponseDto } from 'src/cake/dto/response-search-cake.dto';
-import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 import { ClipClient } from 'src/ai-search/clip-client';
 
 @Injectable()
@@ -20,19 +19,16 @@ export class SearchService {
     private readonly clipClient: ClipClient,
     private readonly logService: LogService,
     private readonly keywordRankService: KeywordRankService,
-    private readonly homeMetrics: HomeResilienceMetricsService,
   ) {}
 
   async search(keywords: string, page: number, user: IUser) {
     if (!keywords) return new CakesResponseDto([], false);
 
-    this.homeMetrics.countAi('clip');
-    const { result, nextPage, isLastPage } = await this.clipClient
-      .koSearchPage(keywords, 18, page)
-      .catch((error) => {
-        this.homeMetrics.countAiError('clip');
-        throw error;
-      });
+    const { result, nextPage, isLastPage } = await this.clipClient.koSearchPage(
+      keywords,
+      18,
+      page,
+    );
 
     if (page === 0 || page === undefined) {
       const keywordArr = keywords.split(',').map((keyword) => keyword.trim());

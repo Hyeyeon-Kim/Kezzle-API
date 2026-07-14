@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import Redis from 'ioredis';
 import { HomeResilienceMetricsModule } from 'src/home-resilience/home-resilience-metrics.module';
 import { HOME_CACHE_REDIS } from './home-cache.constants';
@@ -6,7 +6,6 @@ import { HomeCacheService } from './home-cache.service';
 import { validateHomeCachePolicies } from './home-cache.policy';
 import { positiveEnvMs } from './swr';
 
-@Global()
 @Module({
   imports: [HomeResilienceMetricsModule],
   providers: [

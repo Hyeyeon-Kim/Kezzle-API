@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { KeywordLog } from './entities/keywordLog.shema';
 import mongoose, { Model, PipelineStage } from 'mongoose';
 import { CakeLikeLog } from './entities/cakeLikeLog.shema';
-import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 
 @Injectable()
 export class LogService {
@@ -12,7 +11,6 @@ export class LogService {
     private readonly keywordModel: Model<KeywordLog>,
     @InjectModel(CakeLikeLog.name, 'kezzle')
     private readonly CakeLikeModel: Model<KeywordLog>,
-    private readonly homeMetrics: HomeResilienceMetricsService,
   ) {}
 
   async searchlog(userId: string, searchWord: string, relatedWord: string[]) {
@@ -62,7 +60,6 @@ export class LogService {
     };
 
     const pipeline = [match, group, sort];
-    this.homeMetrics.countDb();
     const aggregate = this.keywordModel.aggregate(pipeline).limit(limit);
     if (maxTimeMs !== undefined) {
       aggregate.option({ maxTimeMS: maxTimeMs });
@@ -200,7 +197,6 @@ export class LogService {
     ];
 
     if (Number.isNaN(limit)) limit = 20;
-    this.homeMetrics.countDb();
     if (Number.isNaN(after))
       return await this.CakeLikeModel.aggregate(pipeline).limit(limit);
     return await this.CakeLikeModel.aggregate(likepipeline).limit(limit);
