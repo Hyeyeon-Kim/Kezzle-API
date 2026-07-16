@@ -1,0 +1,117 @@
+{
+  "cakesByCursor": {
+    "cakes": [
+      {
+        "_id": "cake-cursor-1",
+        "image": { "s3Url": "cakes/cursor-1.jpg" },
+        "owner_store_id": "store-1",
+        "isLiked": true,
+        "cursor": "cursor-001",
+        "hashtag": ["choco"]
+      }
+    ],
+    "hasMore": true
+  },
+  "cakesByLocation": {
+    "cakes": [
+      {
+        "_id": "cake-location-1",
+        "image": { "s3Url": "cakes/location-1.jpg" },
+        "owner_store_id": "store-2",
+        "isLiked": false,
+        "cursor": "cursor-002",
+        "hashtag": ["berry"]
+      }
+    ],
+    "hasMore": false
+  },
+  "stores": {
+    "stores": [
+      {
+        "_id": "store-1",
+        "name": "Contract Store",
+        "logo": { "s3Url": "stores/store-1-logo.jpg" },
+        "address": "Seoul",
+        "isLiked": true,
+        "distance": 120.5,
+        "cakes": [
+          {
+            "_id": "cake-store-1",
+            "image": { "s3Url": "cakes/store-1.jpg" },
+            "owner_store_id": "store-1",
+            "isLiked": false,
+            "cursor": "cursor-003",
+            "hashtag": []
+          }
+        ]
+      }
+    ],
+    "hasMore": true
+  },
+  "storeCakes": {
+    "cakes": [
+      {
+        "_id": "cake-store-page-1",
+        "image": { "s3Url": "cakes/store-page-1.jpg" },
+        "owner_store_id": "store-1",
+        "isLiked": false,
+        "cursor": "cursor-004",
+        "hashtag": ["vanilla"]
+      }
+    ],
+    "hasMore": false
+  },
+  "similarCakes": {
+    "cakes": [
+      {
+        "_id": "cake-similar-1",
+        "image": { "s3Url": "cakes/similar-1.jpg" },
+        "owner_store_id": "store-1",
+        "owner_store_name": "Contract Store",
+        "owner_store_address": "Seoul",
+        "owner_store_taste": ["vanilla"],
+        "owner_store_latitude": 37.5,
+        "owner_store_longitude": 127.1
+      }
+    ],
+    "hasMore": false
+  },
+  "likedCakes": [
+    {
+      "_id": "cake-liked-1",
+      "image": { "s3Url": "cakes/liked-1.jpg" },
+      "owner_store_id": "store-1",
+      "isLiked": true,
+      "cursor": "cursor-005",
+      "hashtag": ["earl-grey"]
+    }
+  ],
+  "likedStores": [
+    {
+      "_id": "store-liked-1",
+      "name": "Liked Store",
+      "logo": { "s3Url": "stores/liked-logo.jpg" },
+      "address": "Busan",
+      "isLiked": true,
+      "cakes": [
+        {
+          "_id": "cake-liked-store-1",
+          "image": { "s3Url": "cakes/liked-store-1.jpg" },
+          "owner_store_id": "store-liked-1",
+          "isLiked": true,
+          "cursor": "cursor-006",
+          "hashtag": []
+        }
+      ]
+    }
+  ],
+  "emptyPage": {
+    "cakes": [],
+    "hasMore": false
+  },
+  "emptyStoresPage": {
+    "stores": [],
+    "hasMore": false
+  },
+  "emptyList": []
+}

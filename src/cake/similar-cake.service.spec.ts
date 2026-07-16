@@ -124,6 +124,38 @@ describe('SimilarCakeService', () => {
       );
     });
 
+    it('keeps an empty response and one empty store batch boundary call', async () => {
+      const vitClient = {
+        similarSearchWithLocation: jest.fn().mockResolvedValue([]),
+        similarSearch: jest.fn(),
+      };
+      const storeRepository = {
+        findByIdsWithProjection: jest.fn().mockResolvedValue([]),
+      };
+      const metricsService = buildMetricsService();
+
+      const service = new SimilarCakeService(
+        storeRepository as any,
+        vitClient as any,
+        metricsService as any,
+      );
+
+      const response = await service.execute(
+        'mock-cake-origin',
+        127.01,
+        37.01,
+        3000,
+        6,
+      );
+
+      expect(storeRepository.findByIdsWithProjection).toHaveBeenCalledTimes(1);
+      expect(storeRepository.findByIdsWithProjection).toHaveBeenCalledWith(
+        [],
+        STORE_PROJECTION,
+      );
+      expect(response).toMatchObject({ cakes: [], hasMore: false });
+    });
+
     it('records outer similarSearchDuration success and does not double-record AI metrics', async () => {
       const endSimilar = jest.fn();
       const endStoreQuery = jest.fn();
