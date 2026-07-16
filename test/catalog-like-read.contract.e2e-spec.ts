@@ -10,6 +10,10 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { CakeController } from 'src/cake/cake.controller';
 import { CakeService } from 'src/cake/cake.service';
+import { CatalogCakeController } from 'src/catalog/catalog-cake.controller';
+import { CatalogQueryService } from 'src/catalog/catalog-query.service';
+import { CatalogStoreController } from 'src/catalog/catalog-store.controller';
+import { SimilarCakeCatalogQueryService } from 'src/catalog/similar-cake-catalog-query.service';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { LikeController } from 'src/like/like.controller';
 import { LikeService } from 'src/like/like.service';
@@ -57,14 +61,16 @@ class ContractAuthenticationGuard implements CanActivate {
 describe('Catalog/Like read HTTP contract', () => {
   let app: INestApplication;
 
-  const cakeService = {
-    findAll: jest.fn(),
-    findAllByLocation: jest.fn(),
-    findCake: jest.fn(),
-    similar: jest.fn(),
+  const catalogQuery = {
+    findAllCakes: jest.fn(),
+    findAllCakesByLocation: jest.fn(),
+    findStoreCakes: jest.fn(),
+    findAllStores: jest.fn(),
   };
+  const similarCakeQuery = { execute: jest.fn() };
+  const cakeService = {};
   const storeService = {
-    findAll: jest.fn(),
+    create: jest.fn(),
   };
   const likeService = {
     findUserLikeCake: jest.fn(),
@@ -73,8 +79,19 @@ describe('Catalog/Like read HTTP contract', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-      controllers: [CakeController, StoreController, LikeController],
+      controllers: [
+        CatalogCakeController,
+        CatalogStoreController,
+        CakeController,
+        StoreController,
+        LikeController,
+      ],
       providers: [
+        { provide: CatalogQueryService, useValue: catalogQuery },
+        {
+          provide: SimilarCakeCatalogQueryService,
+          useValue: similarCakeQuery,
+        },
         { provide: CakeService, useValue: cakeService },
         { provide: StoreService, useValue: storeService },
         { provide: LikeService, useValue: likeService },
@@ -95,11 +112,14 @@ describe('Catalog/Like read HTTP contract', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    cakeService.findAll.mockResolvedValue(fixtures.cakesByCursor);
-    cakeService.findAllByLocation.mockResolvedValue(fixtures.cakesByLocation);
-    cakeService.findCake.mockResolvedValue(fixtures.storeCakes);
-    cakeService.similar.mockResolvedValue(fixtures.similarCakes);
-    storeService.findAll.mockResolvedValue(fixtures.stores);
+    catalogQuery.findAllCakes.mockResolvedValue(fixtures.cakesByCursor);
+    catalogQuery.findAllCakesByLocation.mockResolvedValue(
+      fixtures.cakesByLocation,
+    );
+    catalogQuery.findStoreCakes.mockResolvedValue(fixtures.storeCakes);
+    catalogQuery.findAllStores.mockResolvedValue(fixtures.stores);
+    similarCakeQuery.execute.mockResolvedValue(fixtures.similarCakes);
+    storeService.create.mockResolvedValue(fixtures.createdStore);
     likeService.findUserLikeCake.mockResolvedValue(fixtures.likedCakes);
     likeService.findUserLikeStore.mockResolvedValue(fixtures.likedStores);
   });
@@ -131,7 +151,7 @@ describe('Catalog/Like read HTTP contract', () => {
       .expect(200);
 
     expect(response.body).toEqual(fixtures.cakesByCursor);
-    expect(cakeService.findAll).toHaveBeenCalledWith(
+    expect(catalogQuery.findAllCakes).toHaveBeenCalledWith(
       expect.objectContaining({
         firebaseUid: 'user-1',
         roles: [Roles.BUYER],
@@ -153,7 +173,7 @@ describe('Catalog/Like read HTTP contract', () => {
       .expect(200);
 
     expect(response.body).toEqual(fixtures.cakesByLocation);
-    expect(cakeService.findAllByLocation).toHaveBeenCalledWith(
+    expect(catalogQuery.findAllCakesByLocation).toHaveBeenCalledWith(
       expect.objectContaining({ firebaseUid: 'user-1' }),
       37.6,
       127.2,
@@ -170,7 +190,7 @@ describe('Catalog/Like read HTTP contract', () => {
       .expect(200);
 
     expect(response.body).toEqual(fixtures.stores);
-    expect(storeService.findAll).toHaveBeenCalledWith(
+    expect(catalogQuery.findAllStores).toHaveBeenCalledWith(
       expect.objectContaining({
         firebaseUid: 'seller-1',
         roles: [Roles.SELLER],
@@ -190,7 +210,7 @@ describe('Catalog/Like read HTTP contract', () => {
       .expect(200);
 
     expect(response.body).toEqual(fixtures.storeCakes);
-    expect(cakeService.findCake).toHaveBeenCalledWith(
+    expect(catalogQuery.findStoreCakes).toHaveBeenCalledWith(
       'store-1',
       expect.objectContaining({ firebaseUid: 'user-1' }),
       'after-cake-id',
@@ -207,7 +227,7 @@ describe('Catalog/Like read HTTP contract', () => {
       .expect(200);
 
     expect(response.body).toEqual(fixtures.similarCakes);
-    expect(cakeService.similar).toHaveBeenCalledWith(
+    expect(similarCakeQuery.execute).toHaveBeenCalledWith(
       'cake-1',
       127.4,
       37.8,
@@ -264,7 +284,7 @@ describe('Catalog/Like read HTTP contract', () => {
       .set('Authorization', 'Bearer buyer:user-1')
       .expect(200);
 
-    const call = cakeService.findAll.mock.calls[0];
+    const call = catalogQuery.findAllCakes.mock.calls[0];
     expect(Number.isNaN(call[1])).toBe(true);
     expect(Number.isNaN(call[2])).toBe(true);
     expect(Number.isNaN(call[3])).toBe(true);
@@ -273,8 +293,8 @@ describe('Catalog/Like read HTTP contract', () => {
   });
 
   it('keeps empty catalog and like response shapes', async () => {
-    storeService.findAll.mockResolvedValueOnce(fixtures.emptyStoresPage);
-    cakeService.similar.mockResolvedValueOnce(fixtures.emptyPage);
+    catalogQuery.findAllStores.mockResolvedValueOnce(fixtures.emptyStoresPage);
+    similarCakeQuery.execute.mockResolvedValueOnce(fixtures.emptyPage);
     likeService.findUserLikeStore.mockResolvedValueOnce(fixtures.emptyList);
 
     const stores = await request(app.getHttpServer())
@@ -293,5 +313,25 @@ describe('Catalog/Like read HTTP contract', () => {
     expect(stores.body).toEqual(fixtures.emptyStoresPage);
     expect(similar.body).toEqual(fixtures.emptyPage);
     expect(likedStores.body).toEqual(fixtures.emptyList);
+  });
+
+  it('freezes POST /stores created Store response shape', async () => {
+    const requestBody = {
+      name: 'Created Store',
+      location: { type: 'Point', coordinates: [127.1, 37.5] },
+      address: 'Seoul',
+      owner_user_id: 'seller-1',
+      operating_time: ['10:00-18:00'],
+      taste: ['vanilla'],
+    };
+
+    const response = await request(app.getHttpServer())
+      .post('/stores')
+      .set('Authorization', 'Bearer admin:admin-1')
+      .send(requestBody)
+      .expect(201);
+
+    expect(response.body).toEqual(fixtures.createdStore);
+    expect(storeService.create).toHaveBeenCalledWith(requestBody);
   });
 });

@@ -13,12 +13,10 @@ import {
 import {
   ApiBadRequestResponse,
   ApiCreatedResponse,
-  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { StoreService } from './store.service';
@@ -28,10 +26,9 @@ import { Roles } from 'src/user/entities/roles.enum';
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
 import IUser from 'src/user/interfaces/user.interface';
-import { StoreResponseDto } from './dto/response-store.dto';
 import { DetailStoreResponseDto } from './dto/response-detail-store.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { StoresResponseDto } from './dto/response-stores.dto';
+import { CreateStoreResponseDto } from './dto/response-create-store.dto';
 
 const storeIdParams = {
   name: 'id',
@@ -45,69 +42,6 @@ const storeIdParams = {
 export class StoreController {
   constructor(private readonly storeService: StoreService) {}
 
-  @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
-  @Get()
-  @ApiOperation({
-    summary: '매장 전체 목록 요청',
-    description:
-      '페이지네이션된 매장 목록을 요청합니다.' +
-      '\n\n' +
-      '권한이 필요하지 않습니다.',
-  })
-  @ApiQuery({
-    name: 'latitude',
-    description: '위도',
-    required: true,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'longitude',
-    description: '경도',
-    required: true,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'dist',
-    description: '반경 제한(설정 안할 시 전체 검색, 미터 단위)',
-    required: false,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'after',
-    description:
-      '거리를 기준으로 커서 기반 페이지네이션을 합니다.(없으면 첫번째 페이지)',
-    required: false,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'count',
-    description: '요청할 매장 개수',
-    required: false,
-    type: Number,
-  })
-  @ApiNoContentResponse({ description: '정보 없음.' })
-  @ApiOkResponse({
-    description: '매장 목록 요청 성공',
-    type: StoresResponseDto,
-  })
-  getAll(
-    @GetUser() userDto: IUser,
-    @Query('latitude') latitude,
-    @Query('longitude') longitude,
-    @Query('dist') distance,
-    @Query('after') after,
-    @Query('count') limit,
-  ) {
-    return this.storeService.findAll(
-      userDto,
-      parseFloat(latitude),
-      parseFloat(longitude),
-      parseInt(distance),
-      parseFloat(after),
-      parseInt(limit),
-    );
-  }
-
   @RolesAllowed(Roles.ADMIN)
   @Post()
   @ApiOperation({
@@ -117,7 +51,7 @@ export class StoreController {
   })
   @ApiCreatedResponse({
     description: '매장 생성 성공',
-    type: StoreResponseDto,
+    type: CreateStoreResponseDto,
   })
   @ApiBadRequestResponse({
     description: 'request body의 조건이 잘못됨.',

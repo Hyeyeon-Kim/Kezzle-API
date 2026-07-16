@@ -18,11 +18,24 @@ rg -n "forwardRef" src
 
 Current result:
 
-| Boundary | Lines |
-| --- | ---: |
-| Concrete Cake/Store/User repository or repository-module imports outside their feature | 11 |
-| Cake/Store API DTO imports from Store/Cake/Like | 9 |
-| Feature-module repository-module re-exports | 3 |
-| `forwardRef` imports | 0 |
+| Boundary                                                                               | Lines |
+| -------------------------------------------------------------------------------------- | ----: |
+| Concrete Cake/Store/User repository or repository-module imports outside their feature |    11 |
+| Cake/Store API DTO imports from Store/Cake/Like                                        |     9 |
+| Feature-module repository-module re-exports                                            |     3 |
+| `forwardRef` imports                                                                   |     0 |
 
 Phase 4-D target is `0 / 0 / 0 / 0`. A lower count before Phase 4-D is expected only when the corresponding Phase 4-B or 4-C dependency has intentionally moved behind a public port.
+
+## Phase 4-B result
+
+Measured after moving the five Catalog read routes and their composition logic:
+
+| Boundary                                                                               | Phase 4-A | Phase 4-B |
+| -------------------------------------------------------------------------------------- | --------: | --------: |
+| Concrete Cake/Store/User repository or repository-module imports outside their feature |        11 |         8 |
+| Cake/Store API DTO imports from Store/Cake/Like                                        |         9 |         5 |
+| Feature-module repository-module re-exports                                            |         3 |         3 |
+| `forwardRef` imports                                                                   |         0 |         0 |
+
+The remaining concrete and DTO imports belong to Cake write context and Like read/write. They are Phase 4-C scope. Repository-module re-exports remain Phase 4-D scope.

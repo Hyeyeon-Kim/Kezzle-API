@@ -3,12 +3,17 @@ import { StoreController } from './store.controller';
 import { StoreService } from './store.service';
 import { UploadModule } from 'src/upload/upload.module';
 import { StoreRepositoryModule } from './store-repository.module';
-import { CakeRepositoryModule } from 'src/cake/cake-repository.module';
+import { StoreCatalogRepositoryAdapter } from './store-catalog.adapter';
+import { StoreCatalogReader } from './store-catalog.reader';
 
 @Module({
-  imports: [UploadModule, StoreRepositoryModule, CakeRepositoryModule],
+  imports: [UploadModule, StoreRepositoryModule],
   controllers: [StoreController],
-  providers: [StoreService],
-  exports: [StoreService, StoreRepositoryModule],
+  providers: [
+    StoreService,
+    StoreCatalogRepositoryAdapter,
+    { provide: StoreCatalogReader, useExisting: StoreCatalogRepositoryAdapter },
+  ],
+  exports: [StoreService, StoreRepositoryModule, StoreCatalogReader],
 })
 export class StoreModule {}

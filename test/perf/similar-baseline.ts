@@ -1,7 +1,5 @@
 import mongoose from 'mongoose';
 import { Store, StoreSchema } from '../../src/store/entities/store.schema';
-import { StoreSimpleResponseDto } from '../../src/store/dto/response-simple-store.dto';
-import { CakeSimilarResponseDto } from '../../src/cake/dto/response-similar-cake.dto';
 
 type ScenarioResult = {
   scenario: string;
@@ -31,6 +29,11 @@ type MockCake = {
   tag_ins: string[];
   user_like_ids: string[];
   score: number;
+};
+
+type SimilarResponse = {
+  _id: string;
+  owner_store_id: string;
 };
 
 type BaselineMode = 'current' | 'batch';
@@ -108,6 +111,13 @@ function generateMockCakes(size: number, storeIds: string[]): MockCake[] {
   });
 }
 
+function toSimilarResponse(cake: MockCake, store: any): SimilarResponse {
+  return {
+    _id: cake.id,
+    owner_store_id: store?._id?.toString() ?? cake.owner_store_id,
+  };
+}
+
 async function seedStores(
   storeModel: mongoose.Model<Store>,
   storeCount: number,
@@ -156,7 +166,7 @@ async function measureScenario(
     uniqueStoreIds = new Set(cakes.map((cake) => cake.owner_store_id)).size;
 
     const storeHydrationStart = process.hrtime.bigint();
-    let responses: CakeSimilarResponseDto[];
+    let responses: SimilarResponse[];
 
     if (mode === 'batch') {
       const targetStoreIds = [
@@ -181,10 +191,7 @@ async function measureScenario(
             return null;
           }
 
-          return new CakeSimilarResponseDto(
-            cake,
-            new StoreSimpleResponseDto(store),
-          );
+          return toSimilarResponse(cake, store);
         })
         .filter((cake) => cake !== null);
     } else {
@@ -193,10 +200,7 @@ async function measureScenario(
           storeCalls += 1;
           const store = await storeModel.findById(cake.owner_store_id);
 
-          return new CakeSimilarResponseDto(
-            cake,
-            new StoreSimpleResponseDto(store),
-          );
+          return toSimilarResponse(cake, store);
         }),
       );
     }
