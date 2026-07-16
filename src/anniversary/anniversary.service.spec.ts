@@ -1,7 +1,7 @@
 import { AnniversaryService } from './anniversary.service';
 
 describe('AnniversaryService', () => {
-  it('passes AbortSignal to ClipClient and maxTimeMS to MongoDB', async () => {
+  it('separates Mongo lookup from the CLIP recommendation call', async () => {
     const anniversary = {
       id: 'anniversary-id',
       name: '기념일',
@@ -30,7 +30,8 @@ describe('AnniversaryService', () => {
     );
     const controller = new AbortController();
 
-    await service.getAnniversary(controller.signal, 250);
+    const source = await service.findNextAnniversary(250);
+    await service.getAnniversaryRecommendations(source, controller.signal);
 
     expect(query.maxTimeMS).toHaveBeenCalledWith(250);
     expect(clipClient.koSearch).toHaveBeenCalledWith(

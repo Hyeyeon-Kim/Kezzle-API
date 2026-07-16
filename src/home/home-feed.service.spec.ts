@@ -31,7 +31,8 @@ describe('HomeFeedService', () => {
 
   function createService(overrides?: {
     recommend?: jest.Mock;
-    anniversary?: jest.Mock;
+    anniversaryQuery?: jest.Mock;
+    anniversaryRecommendations?: jest.Mock;
     popular?: jest.Mock;
     keywordRanks?: jest.Mock;
     newest?: jest.Mock;
@@ -44,9 +45,20 @@ describe('HomeFeedService', () => {
       findAllByNewest:
         overrides?.newest ?? jest.fn().mockResolvedValue(newestCakes),
     };
+    const anniversarySource = {
+      id: 'anniversary-id',
+      name: '기념일',
+      ment: '기념일 케이크',
+      keyword: ['기념일'],
+      date: new Date(),
+    };
     const anniversaryService = {
-      getAnniversary:
-        overrides?.anniversary ?? jest.fn().mockResolvedValue(anniversary),
+      findNextAnniversary:
+        overrides?.anniversaryQuery ??
+        jest.fn().mockResolvedValue(anniversarySource),
+      getAnniversaryRecommendations:
+        overrides?.anniversaryRecommendations ??
+        jest.fn().mockResolvedValue(anniversary),
     };
     const searchService = {
       getRank:
@@ -118,8 +130,10 @@ describe('HomeFeedService', () => {
   });
 
   it('returns a typed fallback when an optional section fails', async () => {
-    const { service } = createService({
-      anniversary: jest.fn().mockRejectedValue(new Error('CLIP unavailable')),
+    const { service, homeMetrics } = createService({
+      anniversaryRecommendations: jest
+        .fn()
+        .mockRejectedValue(new Error('CLIP unavailable')),
     });
 
     const response = await service.getHome({ cake_like_ids: [] } as never);
@@ -136,6 +150,28 @@ describe('HomeFeedService', () => {
       status: 'fallback',
       reason: 'dependency_error',
     });
+    expect(homeMetrics.countAi).toHaveBeenCalledWith('clip');
+    expect(homeMetrics.countAiError).toHaveBeenCalledWith('clip');
+  });
+
+  it('does not count Mongo or missing-data failures as CLIP errors', async () => {
+    const { service, homeMetrics, anniversaryService } = createService({
+      anniversaryQuery: jest
+        .fn()
+        .mockRejectedValue(new Error('Mongo unavailable')),
+    });
+
+    const response = await service.getHome({ cake_like_ids: [] } as never);
+
+    expect(response.sections.anniversary).toMatchObject({
+      status: 'fallback',
+      reason: 'dependency_error',
+    });
+    expect(
+      anniversaryService.getAnniversaryRecommendations,
+    ).not.toHaveBeenCalled();
+    expect(homeMetrics.countAi).not.toHaveBeenCalledWith('clip');
+    expect(homeMetrics.countAiError).not.toHaveBeenCalledWith('clip');
   });
 
   it('fails with 503 only when all core sections fail', async () => {
@@ -191,9 +227,12 @@ describe('HomeFeedService', () => {
       expect.anything(),
       250,
     );
-    expect(anniversaryService.getAnniversary).toHaveBeenCalledWith(
+    expect(anniversaryService.findNextAnniversary).toHaveBeenCalledWith(250);
+    expect(
+      anniversaryService.getAnniversaryRecommendations,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'anniversary-id' }),
       expect.any(AbortSignal),
-      250,
     );
     expect(cakeService.popular).toHaveBeenCalledWith(NaN, 3, 50);
     expect(searchService.getRank).toHaveBeenCalledWith(

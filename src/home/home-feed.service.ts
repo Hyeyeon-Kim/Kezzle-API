@@ -175,9 +175,13 @@ export class HomeFeedService {
                 ...homeCachePolicy('anniversary'),
                 refresh: async () => {
                   this.homeMetrics.countDb();
+                  const anniversary =
+                    await this.anniversaryService.findNextAnniversary(
+                      anniversaryTimeout,
+                    );
                   this.homeMetrics.countAi('clip');
                   return this.anniversaryService
-                    .getAnniversary(signal, anniversaryTimeout)
+                    .getAnniversaryRecommendations(anniversary, signal)
                     .catch((error) => {
                       this.homeMetrics.countAiError('clip');
                       throw error;

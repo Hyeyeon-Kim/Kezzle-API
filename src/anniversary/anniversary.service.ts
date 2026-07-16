@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Anniversary } from './entities/anniversary.schema';
 import { Model } from 'mongoose';
@@ -17,7 +17,7 @@ export class AnniversaryService {
     return await this.AnniversaryModel.findById(id);
   }
 
-  async getAnniversary(signal?: AbortSignal, maxTimeMs?: number) {
+  async findNextAnniversary(maxTimeMs?: number) {
     const nowDate = new Date();
     const query = this.AnniversaryModel.find({
       date: { $gte: nowDate },
@@ -29,8 +29,18 @@ export class AnniversaryService {
     if (maxTimeMs !== undefined) {
       query.maxTimeMS(maxTimeMs);
     }
-    const anniversary = await query;
-    const keyword = anniversary[0].keyword.join(', ');
+    const [anniversary] = await query;
+    if (!anniversary) {
+      throw new NotFoundException('Upcoming anniversary not found');
+    }
+    return anniversary;
+  }
+
+  async getAnniversaryRecommendations(
+    anniversary: Anniversary,
+    signal?: AbortSignal,
+  ) {
+    const keyword = anniversary.keyword.join(', ');
     const cakes = await this.clipClient.koSearch(keyword, 6, signal);
 
     const images = [];
@@ -39,8 +49,8 @@ export class AnniversaryService {
     }
     const now = new Date();
     const day =
-      Math.abs(now.getTime() - anniversary[0].date.getTime()) /
+      Math.abs(now.getTime() - anniversary.date.getTime()) /
       (1000 * 60 * 60 * 24);
-    return new AnniversaryDto(anniversary[0], images, Math.floor(day));
+    return new AnniversaryDto(anniversary, images, Math.floor(day));
   }
 }
