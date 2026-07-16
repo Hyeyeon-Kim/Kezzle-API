@@ -31,6 +31,6 @@ import { CakeLikePort } from './cake-like.port';
     CakeLikeRepositoryAdapter,
     { provide: CakeLikePort, useExisting: CakeLikeRepositoryAdapter },
   ],
-  exports: [CakeService, CakeRepositoryModule, CakeCatalogReader, CakeLikePort],
+  exports: [CakeService, CakeCatalogReader, CakeLikePort],
 })
 export class CakeModule {}

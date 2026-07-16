@@ -21,6 +21,6 @@ import { UserLikePort } from './user-like.port';
     UserLikeRepositoryAdapter,
     { provide: UserLikePort, useExisting: UserLikeRepositoryAdapter },
   ],
-  exports: [UserService, UserRepositoryModule, UserLikePort],
+  exports: [UserService, UserLikePort],
 })
 export class UserModule {}

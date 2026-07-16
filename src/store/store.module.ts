@@ -27,7 +27,6 @@ import { StoreLikePort } from './store-like.port';
   ],
   exports: [
     StoreService,
-    StoreRepositoryModule,
     StoreCatalogReader,
     StoreCakeWriteContextReader,
     StoreLikePort,
