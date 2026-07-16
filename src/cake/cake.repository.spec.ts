@@ -180,25 +180,6 @@ describe('CakeRepository', () => {
     });
   });
 
-  describe('findRecentByStoreId', () => {
-    it('finds non-deleted cakes by store, sorted createdAt desc, limited', async () => {
-      const limit = jest.fn().mockResolvedValue([{ _id: 'c1' }]);
-      const sort = jest.fn().mockReturnValue({ limit });
-      const cakeModel = { find: jest.fn().mockReturnValue({ sort }) };
-      const repo = new CakeRepository(cakeModel as any);
-
-      const result = await repo.findRecentByStoreId('s1', 20);
-
-      expect(cakeModel.find).toHaveBeenCalledWith({
-        is_delete: false,
-        owner_store_id: 's1',
-      });
-      expect(sort).toHaveBeenCalledWith({ createdAt: -1 });
-      expect(limit).toHaveBeenCalledWith(20);
-      expect(result).toEqual([{ _id: 'c1' }]);
-    });
-  });
-
   describe('create', () => {
     it('delegates to cakeModel.create', async () => {
       const created = { _id: 'new-cake' };

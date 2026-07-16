@@ -19,6 +19,7 @@ import { MonitoringModule } from './monitoring/monitoring.module';
 import { FirebaseAuthGuard } from './auth/guard/firebase-auth.guard';
 import { RolesGuard } from './auth/guard/roles.guard';
 import { createValidationPipe } from './app.validation';
+import { CatalogQueryModule } from './catalog/catalog-query.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { createValidationPipe } from './app.validation';
       dbName: process.env.MONGODB_DBNAME_MAIN,
       connectionName: 'kezzle',
     }),
+    CatalogQueryModule,
     UserModule,
     CakeModule,
     AuthModule,

@@ -117,17 +117,6 @@ export class CakeRepository {
     return this.cakeModel.find(filter).limit(limit);
   }
 
-  /** findStoreCake: 특정 store의 최근 cake(createdAt desc) limit개. */
-  async findRecentByStoreId(
-    storeId: string,
-    limit: number,
-  ): Promise<HydratedDocument<Cake>[]> {
-    return this.cakeModel
-      .find({ is_delete: false, owner_store_id: storeId })
-      .sort({ createdAt: -1 })
-      .limit(limit);
-  }
-
   async create(doc: Partial<Cake>): Promise<Cake> {
     return this.cakeModel.create(doc);
   }

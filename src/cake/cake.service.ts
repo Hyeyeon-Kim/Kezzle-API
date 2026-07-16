@@ -15,10 +15,9 @@ import { AnniversaryService } from 'src/anniversary/anniversary.service';
 import { CakeSimpleResponseDto } from './dto/response-cake-simple.dto';
 import { CounterService } from 'src/counter/counter.service';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
-import { SimilarCakeService } from './similar-cake.service';
 import { VitClient } from 'src/ai-search/vit-client';
 import { ClipClient } from 'src/ai-search/clip-client';
-import { StoreRepository } from 'src/store/store.repository';
+import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.reader';
 import { CakeRepository } from './cake.repository';
 
 @Injectable()
@@ -28,45 +27,11 @@ export class CakeService {
     private readonly popularRankService: PopularRankService,
     private readonly anniversaryService: AnniversaryService,
     private readonly counterService: CounterService,
-    private readonly similarCakeService: SimilarCakeService,
     private readonly vitClient: VitClient,
     private readonly clipClient: ClipClient,
-    private readonly storeRepository: StoreRepository,
+    private readonly storeWriteContext: StoreCakeWriteContextReader,
     private readonly cakeRepository: CakeRepository,
   ) {}
-  async findAll(
-    user: IUser,
-    latitude: number,
-    longitude: number,
-    distance: number,
-    after: string,
-    limit: number,
-  ): Promise<CakesResponseDto> {
-    const storeIdsInLocation = await this.storeRepository.findIdsByGeoNear(
-      longitude,
-      latitude,
-      distance,
-    );
-
-    let cakes = await this.cakeRepository.findInStoresByCursor(
-      storeIdsInLocation,
-      after,
-      limit + 1,
-    );
-    let hasMore = false;
-
-    if (cakes.length > limit) {
-      hasMore = true;
-      cakes = cakes.slice(0, cakes.length - 1);
-    }
-
-    const cakeResponse = cakes.map(
-      (cake) => new CakeResponseDto(cake, user.firebaseUid),
-    );
-
-    return new CakesResponseDto(cakeResponse, hasMore);
-  }
-
   async findAllByNewest(after: string, limit: number, maxTimeMs?: number) {
     if (Number.isNaN(limit)) {
       limit = 20;
@@ -115,39 +80,6 @@ export class CakeService {
     return cakes.map((cake) => new CakeSimpleResponseDto(cake));
   }
 
-  async findAllByLocation(
-    user: IUser,
-    latitude: number,
-    longitude: number,
-    distance: number,
-    after: string,
-    limit: number,
-  ): Promise<CakesResponseDto> {
-    const storeIdsInLocation = await this.storeRepository.findIdsByGeoNear(
-      longitude,
-      latitude,
-      distance,
-    );
-
-    let cakes = await this.cakeRepository.findInStoresAfterId(
-      storeIdsInLocation,
-      after,
-      limit + 1,
-    );
-    let hasMore = false;
-
-    if (cakes.length > limit) {
-      hasMore = true;
-      cakes = cakes.slice(0, cakes.length - 1);
-    }
-
-    const cakeResponse = cakes.map(
-      (cake) => new CakeResponseDto(cake, user.firebaseUid),
-    );
-
-    return new CakesResponseDto(cakeResponse, hasMore);
-  }
-
   async findOne(cakeid: string, user: IUser): Promise<CakeResponseDto> {
     const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
     return new CakeResponseDto(cake, user.firebaseUid);
@@ -155,18 +87,18 @@ export class CakeService {
 
   async changeContent(cakeid: string, user: IUser, file) {
     const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
-    const store = await this.storeRepository.findByIdOrThrow(
+    const store = await this.storeWriteContext.findByIdOrThrow(
       cake.owner_store_id,
     );
 
     if (
-      store.owner_user_id !== user.firebaseUid &&
+      store.ownerUserId !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
     ) {
-      throw new UserNotOwnerException(user.firebaseUid, store.owner_user_id);
+      throw new UserNotOwnerException(user.firebaseUid, store.ownerUserId);
     }
 
-    const path = store.name + '/cakes';
+    const path = store.storeName + '/cakes';
 
     await this.uploadService.remove(path, cake.image.s3Url);
 
@@ -178,17 +110,17 @@ export class CakeService {
 
   async removeContent(cakeid: string, user: IUser) {
     const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
-    const store = await this.storeRepository.findByIdOrThrow(
+    const store = await this.storeWriteContext.findByIdOrThrow(
       cake.owner_store_id,
     );
     if (
       // store.owner_user_id !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
     ) {
-      throw new UserNotOwnerException(user.firebaseUid, store.owner_user_id);
+      throw new UserNotOwnerException(user.firebaseUid, store.ownerUserId);
     }
 
-    const path = store.name + '/cakes';
+    const path = store.storeName + '/cakes';
 
     await this.uploadService.remove(path, cake.image.s3Url);
 
@@ -209,14 +141,14 @@ export class CakeService {
       defval: null,
     });
 
-    const store = await this.storeRepository.findByIdOrThrow(storeid);
+    const store = await this.storeWriteContext.findByIdOrThrow(storeid);
     if (
-      store.owner_user_id !== user.firebaseUid &&
+      store.ownerUserId !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
     ) {
-      throw new UserNotOwnerException(user.firebaseUid, store.owner_user_id);
+      throw new UserNotOwnerException(user.firebaseUid, store.ownerUserId);
     }
-    const path = store.id + '/cakes';
+    const path = store.storeId + '/cakes';
     let cnt = 0;
     for (const img of files.image) {
       const image = await this.uploadService.create(path, img);
@@ -268,44 +200,6 @@ export class CakeService {
     return cnt + '개의 파일 업로드 성공';
   }
 
-  async findCake(
-    storeid,
-    user: IUser,
-    after,
-    limit: number,
-  ): Promise<CakesResponseDto> {
-    await this.storeRepository.findByIdOrThrow(storeid);
-
-    if (Number.isNaN(limit)) {
-      limit = 20;
-    }
-    let cakes = await this.cakeRepository.findByStoreIdAfter(
-      storeid,
-      after,
-      limit + 1,
-    );
-
-    let hasMore = false;
-
-    if (cakes.length > limit) {
-      hasMore = true;
-      cakes = cakes.slice(0, cakes.length - 1);
-    }
-
-    const cakeResponse = cakes.map(
-      (cake) => new CakeResponseDto(cake, user.firebaseUid),
-    );
-    return new CakesResponseDto(cakeResponse, hasMore);
-  }
-
-  async findStoreCake(storeid, user: IUser) {
-    await this.storeRepository.findByIdOrThrow(storeid);
-
-    const cakes = await this.cakeRepository.findRecentByStoreId(storeid, 20);
-
-    return cakes.map((cake) => new CakeResponseDto(cake, user.firebaseUid));
-  }
-
   async popular(after, limit: number, maxTimeMs?: number) {
     // 요청 path 에서 cakelikelogs 실시간 집계를 제거하고 사전 계산 read model 을 조회한다.
     // 날짜는 read model 배치가 실제로 집계한 rolling window 구간이다.
@@ -314,16 +208,6 @@ export class CakeService {
 
     const cakeResponse = cakes.map((cake) => new CakeSimpleResponseDto(cake));
     return new PopularCakesResponseDto(cakeResponse, startDate, endDate);
-  }
-
-  async similar(
-    cakeid: string,
-    lon: number,
-    lat: number,
-    dist: number,
-    size: number,
-  ) {
-    return this.similarCakeService.execute(cakeid, lon, lat, dist, size);
   }
 
   async anniversary(anniId: string, user: IUser, page: number) {
