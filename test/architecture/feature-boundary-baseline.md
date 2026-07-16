@@ -11,7 +11,7 @@ rg -n "src/store/.*repository" src --glob '!src/store/**'
 rg -n "src/user/.*repository" src --glob '!src/user/**'
 rg -n "src/cake/dto" src/store src/like src/catalog 2>/dev/null
 rg -n "src/store/dto" src/cake src/like src/catalog 2>/dev/null
-rg -n "exports:.*RepositoryModule" \
+rg -l -U "exports:\\s*\\[[^\\]]*RepositoryModule" \
   src/cake/cake.module.ts src/store/store.module.ts src/user/user.module.ts
 rg -n "forwardRef" src
 ```
@@ -39,3 +39,16 @@ Measured after moving the five Catalog read routes and their composition logic:
 | `forwardRef` imports                                                                   |         0 |         0 |
 
 The remaining concrete and DTO imports belong to Cake write context and Like read/write. They are Phase 4-C scope. Repository-module re-exports remain Phase 4-D scope.
+
+## Phase 4-C result
+
+Measured after moving Cake write context and Like read/write behind public ports:
+
+| Boundary                                                                               | Phase 4-B | Phase 4-C |
+| -------------------------------------------------------------------------------------- | --------: | --------: |
+| Concrete Cake/Store/User repository or repository-module imports outside their feature |         8 |         0 |
+| Cake/Store API DTO imports from Store/Cake/Like                                        |         5 |         0 |
+| Feature-module repository-module re-exports                                            |         3 |         3 |
+| `forwardRef` imports                                                                   |         0 |         0 |
+
+Only repository-module re-exports remain. They are intentionally deferred to Phase 4-D together with the forbidden-import gate.

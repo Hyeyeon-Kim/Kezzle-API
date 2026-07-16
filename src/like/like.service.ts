@@ -1,90 +1,83 @@
 import { Injectable } from '@nestjs/common';
-import { CakeRepository } from 'src/cake/cake.repository';
-import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
+import { CakeLikePort } from 'src/cake/cake-like.port';
 import { CakeAlredyLikeException } from 'src/cake/exceptions/cake-already-like.exception';
+import { LikedStoreCatalogReader } from 'src/catalog/liked-store-catalog.reader';
 import { LogService } from 'src/log/log.service';
-import { StoreLikeResponseDto } from 'src/store/dto/response-like-store.dto';
-import { StoreRepository } from 'src/store/store.repository';
 import { StoreAlredyLikeException } from 'src/store/exceptions/store-already-like.exception';
-import { UserRepository } from 'src/user/user.repository';
+import { StoreLikePort } from 'src/store/store-like.port';
+import { UserLikePort } from 'src/user/user-like.port';
 import IUser from 'src/user/interfaces/user.interface';
+import { LikedCakeResponseDto } from './dto/liked-cake-response.dto';
+import { LikedStoreResponseDto } from './dto/liked-store-response.dto';
+import { LikePresenter } from './like.presenter';
 
 @Injectable()
 export class LikeService {
   constructor(
-    private readonly userRepository: UserRepository,
-    private readonly cakeRepository: CakeRepository,
-    private readonly storeRepository: StoreRepository,
+    private readonly userLikePort: UserLikePort,
+    private readonly cakeLikePort: CakeLikePort,
+    private readonly storeLikePort: StoreLikePort,
+    private readonly likedStoreReader: LikedStoreCatalogReader,
     private readonly logService: LogService,
+    private readonly presenter: LikePresenter,
   ) {}
 
-  async findUserLikeCake(userid: string): Promise<CakeResponseDto[]> {
-    const user = await this.userRepository.findByFirebaseUidOrThrow(userid);
+  async findUserLikeCake(userid: string): Promise<LikedCakeResponseDto[]> {
+    const user = await this.userLikePort.findByFirebaseUidOrThrow(userid);
 
-    const cakes = await this.cakeRepository.findByIds(user.cake_like_ids);
-    return cakes.map((cake) => new CakeResponseDto(cake, user.firebaseUid));
+    const cakes = await this.cakeLikePort.findByIds([...user.cakeLikeIds]);
+    return cakes.map((cake) => this.presenter.cake(cake, user.firebaseUid));
   }
   async findUserLikeStore(
     userid: string,
-    Iuser: IUser,
-  ): Promise<StoreLikeResponseDto[]> {
-    const user = await this.userRepository.findByFirebaseUidOrThrow(userid);
-
-    const stores = await this.storeRepository.findByUserLike(userid);
-    const storeIds = stores.map((store) => store._id.toString());
-    const cakesByStoreId =
-      await this.cakeRepository.findRecentByStoreIds(storeIds);
-
-    return stores.map((store) => {
-      const storeId = store._id.toString();
-      const cakes = (cakesByStoreId.get(storeId) ?? []).map(
-        (cake) => new CakeResponseDto(cake, Iuser.firebaseUid),
-      );
-      return new StoreLikeResponseDto(store, user.firebaseUid, cakes);
-    });
+    viewer: IUser,
+  ): Promise<LikedStoreResponseDto[]> {
+    const user = await this.userLikePort.findByFirebaseUidOrThrow(userid);
+    const stores = await this.likedStoreReader.findByUserLike(userid);
+    return this.presenter.stores(stores, user.firebaseUid, viewer.firebaseUid);
   }
 
   async cakeAddLikeList(cakeid: string, user: IUser): Promise<boolean> {
-    const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
+    const cake = await this.cakeLikePort.findTargetOrThrow(cakeid);
 
     const userId = user.firebaseUid;
-    if (!cake.user_like_ids.includes(userId)) {
-      await this.cakeRepository.addUserLike(cakeid, userId);
+    if (!cake.likedUserIds.includes(userId)) {
+      await this.cakeLikePort.addUserLike(cakeid, userId);
     } else throw new CakeAlredyLikeException(cakeid);
 
-    await this.userRepository.addCakeLike(userId, cakeid);
+    await this.userLikePort.addCakeLike(userId, cakeid);
     this.logService.cakeLikelog(userId, cakeid, true);
     return true;
   }
 
   async cakeRemoveLikeList(cakeid: string, user: IUser): Promise<boolean> {
-    await this.cakeRepository.findByIdOrThrow(cakeid);
+    await this.cakeLikePort.findTargetOrThrow(cakeid);
     const userId = user.firebaseUid;
 
-    await this.cakeRepository.removeUserLike(cakeid, userId);
-    await this.userRepository.removeCakeLike(userId, cakeid);
+    await this.cakeLikePort.removeUserLike(cakeid, userId);
+    await this.userLikePort.removeCakeLike(userId, cakeid);
     this.logService.cakeLikelog(userId, cakeid, false);
     return true;
   }
 
   async storeAddLikeList(storeid: string, user: IUser): Promise<boolean> {
-    const store = await this.storeRepository.findByIdOrThrow(storeid);
+    const store = await this.storeLikePort.findTargetOrThrow(storeid);
 
     const userId = user.firebaseUid;
-    if (!store.user_like_ids.includes(userId)) {
-      await this.storeRepository.addUserLike(storeid, userId);
+    if (!store.likedUserIds.includes(userId)) {
+      await this.storeLikePort.addUserLike(storeid, userId);
     } else throw new StoreAlredyLikeException(storeid);
 
-    await this.userRepository.addStoreLike(userId, storeid);
+    await this.userLikePort.addStoreLike(userId, storeid);
     return true;
   }
 
   async storeRemoveLikeList(storeid: string, user: IUser): Promise<boolean> {
-    await this.storeRepository.findByIdOrThrow(storeid);
+    await this.storeLikePort.findTargetOrThrow(storeid);
     const userId = user.firebaseUid;
 
-    await this.storeRepository.removeUserLike(storeid, userId);
-    await this.userRepository.removeStoreLike(userId, storeid);
+    await this.storeLikePort.removeUserLike(storeid, userId);
+    await this.userLikePort.removeStoreLike(userId, storeid);
     return true;
   }
 }

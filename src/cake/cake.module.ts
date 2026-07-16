@@ -7,9 +7,11 @@ import { LogModule } from 'src/log/log.module';
 import { AnniversaryModule } from 'src/anniversary/anniversary.module';
 import { CounterModule } from 'src/counter/counter.module';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
-import { StoreRepositoryModule } from 'src/store/store-repository.module';
+import { StoreModule } from 'src/store/store.module';
 import { CakeCatalogRepositoryAdapter } from './cake-catalog.adapter';
 import { CakeCatalogReader } from './cake-catalog.reader';
+import { CakeLikeRepositoryAdapter } from './cake-like.adapter';
+import { CakeLikePort } from './cake-like.port';
 
 @Module({
   imports: [
@@ -19,14 +21,16 @@ import { CakeCatalogReader } from './cake-catalog.reader';
     CounterModule,
     AiSearchModule,
     CakeRepositoryModule,
-    StoreRepositoryModule,
+    StoreModule,
   ],
   controllers: [CakeController],
   providers: [
     CakeService,
     CakeCatalogRepositoryAdapter,
     { provide: CakeCatalogReader, useExisting: CakeCatalogRepositoryAdapter },
+    CakeLikeRepositoryAdapter,
+    { provide: CakeLikePort, useExisting: CakeLikeRepositoryAdapter },
   ],
-  exports: [CakeService, CakeRepositoryModule, CakeCatalogReader],
+  exports: [CakeService, CakeRepositoryModule, CakeCatalogReader, CakeLikePort],
 })
 export class CakeModule {}

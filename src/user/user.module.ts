@@ -4,6 +4,8 @@ import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { User, UserSchema } from './entities/user.schema';
 import { UserRepositoryModule } from './user-repository.module';
+import { UserLikeRepositoryAdapter } from './user-like.adapter';
+import { UserLikePort } from './user-like.port';
 
 @Module({
   imports: [
@@ -14,7 +16,11 @@ import { UserRepositoryModule } from './user-repository.module';
     UserRepositoryModule,
   ],
   controllers: [UserController],
-  providers: [UserService],
-  exports: [UserService, UserRepositoryModule],
+  providers: [
+    UserService,
+    UserLikeRepositoryAdapter,
+    { provide: UserLikePort, useExisting: UserLikeRepositoryAdapter },
+  ],
+  exports: [UserService, UserRepositoryModule, UserLikePort],
 })
 export class UserModule {}

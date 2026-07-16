@@ -12,11 +12,11 @@ import {
 import { LikeService } from './like.service';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
 import IUser from 'src/user/interfaces/user.interface';
-import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
 import { Roles } from 'src/user/entities/roles.enum';
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
-import { StoreLikeResponseDto } from 'src/store/dto/response-like-store.dto';
 import { assertSelfOrAdmin } from 'src/auth/authorization/self-or-admin';
+import { LikedCakeResponseDto } from './dto/liked-cake-response.dto';
+import { LikedStoreResponseDto } from './dto/liked-store-response.dto';
 
 @ApiTags('likes')
 @Controller()
@@ -35,7 +35,7 @@ export class LikeController {
   getCake(
     @Param('id') userId: string,
     @GetUser() userDto: IUser,
-  ): Promise<CakeResponseDto[]> {
+  ): Promise<LikedCakeResponseDto[]> {
     assertSelfOrAdmin(userDto, userId);
     return this.likeService.findUserLikeCake(userId);
   }
@@ -54,7 +54,7 @@ export class LikeController {
   getStore(
     @Param('id') userId: string,
     @GetUser() userDto: IUser,
-  ): Promise<StoreLikeResponseDto[]> {
+  ): Promise<LikedStoreResponseDto[]> {
     assertSelfOrAdmin(userDto, userId);
     return this.likeService.findUserLikeStore(userId, userDto);
   }
@@ -69,7 +69,7 @@ export class LikeController {
   @ApiParam({ name: 'id', description: '케이크 ID' })
   @ApiCreatedResponse({
     description: '케이크 좋아요 생성 성공',
-    type: CakeResponseDto,
+    type: Boolean,
   })
   @ApiBadRequestResponse({
     description: '이미 좋아요를 눌렀습니다',
@@ -110,7 +110,7 @@ export class LikeController {
   @ApiParam({ name: 'id', description: '매장 ID' })
   @ApiCreatedResponse({
     description: '매장 좋아요 생성 성공',
-    type: CakeResponseDto,
+    type: Boolean,
   })
   @ApiBadRequestResponse({
     description: '이미 좋아요를 눌렀습니다',

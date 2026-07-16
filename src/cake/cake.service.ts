@@ -17,7 +17,7 @@ import { CounterService } from 'src/counter/counter.service';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
 import { VitClient } from 'src/ai-search/vit-client';
 import { ClipClient } from 'src/ai-search/clip-client';
-import { StoreRepository } from 'src/store/store.repository';
+import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.reader';
 import { CakeRepository } from './cake.repository';
 
 @Injectable()
@@ -29,7 +29,7 @@ export class CakeService {
     private readonly counterService: CounterService,
     private readonly vitClient: VitClient,
     private readonly clipClient: ClipClient,
-    private readonly storeRepository: StoreRepository,
+    private readonly storeWriteContext: StoreCakeWriteContextReader,
     private readonly cakeRepository: CakeRepository,
   ) {}
   async findAllByNewest(after: string, limit: number, maxTimeMs?: number) {
@@ -87,18 +87,18 @@ export class CakeService {
 
   async changeContent(cakeid: string, user: IUser, file) {
     const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
-    const store = await this.storeRepository.findByIdOrThrow(
+    const store = await this.storeWriteContext.findByIdOrThrow(
       cake.owner_store_id,
     );
 
     if (
-      store.owner_user_id !== user.firebaseUid &&
+      store.ownerUserId !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
     ) {
-      throw new UserNotOwnerException(user.firebaseUid, store.owner_user_id);
+      throw new UserNotOwnerException(user.firebaseUid, store.ownerUserId);
     }
 
-    const path = store.name + '/cakes';
+    const path = store.storeName + '/cakes';
 
     await this.uploadService.remove(path, cake.image.s3Url);
 
@@ -110,17 +110,17 @@ export class CakeService {
 
   async removeContent(cakeid: string, user: IUser) {
     const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
-    const store = await this.storeRepository.findByIdOrThrow(
+    const store = await this.storeWriteContext.findByIdOrThrow(
       cake.owner_store_id,
     );
     if (
       // store.owner_user_id !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
     ) {
-      throw new UserNotOwnerException(user.firebaseUid, store.owner_user_id);
+      throw new UserNotOwnerException(user.firebaseUid, store.ownerUserId);
     }
 
-    const path = store.name + '/cakes';
+    const path = store.storeName + '/cakes';
 
     await this.uploadService.remove(path, cake.image.s3Url);
 
@@ -141,14 +141,14 @@ export class CakeService {
       defval: null,
     });
 
-    const store = await this.storeRepository.findByIdOrThrow(storeid);
+    const store = await this.storeWriteContext.findByIdOrThrow(storeid);
     if (
-      store.owner_user_id !== user.firebaseUid &&
+      store.ownerUserId !== user.firebaseUid &&
       !user.roles.includes(Roles.ADMIN)
     ) {
-      throw new UserNotOwnerException(user.firebaseUid, store.owner_user_id);
+      throw new UserNotOwnerException(user.firebaseUid, store.ownerUserId);
     }
-    const path = store.id + '/cakes';
+    const path = store.storeId + '/cakes';
     let cnt = 0;
     for (const img of files.image) {
       const image = await this.uploadService.create(path, img);
