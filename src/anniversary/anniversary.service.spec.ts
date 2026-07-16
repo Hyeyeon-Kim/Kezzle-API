@@ -1,7 +1,7 @@
 import { AnniversaryService } from './anniversary.service';
 
 describe('AnniversaryService', () => {
-  it('passes AbortSignal to ClipClient and maxTimeMS to MongoDB', async () => {
+  it('separates Mongo lookup from the CLIP recommendation call', async () => {
     const anniversary = {
       id: 'anniversary-id',
       name: '기념일',
@@ -24,32 +24,20 @@ describe('AnniversaryService', () => {
     const clipClient = {
       koSearch: jest.fn().mockResolvedValue([]),
     };
-    const homeMetrics = {
-      countDb: jest.fn(),
-      countAi: jest.fn(),
-      countAiError: jest.fn(),
-    };
-    const homeCache = {
-      getWithSwr: jest.fn(({ refresh }) => refresh()),
-    };
     const service = new AnniversaryService(
       anniversaryModel as never,
       clipClient as never,
-      homeMetrics as never,
-      homeCache as never,
     );
     const controller = new AbortController();
 
-    await service.getAnniversary(controller.signal, 250);
+    const source = await service.findNextAnniversary(250);
+    await service.getAnniversaryRecommendations(source, controller.signal);
 
     expect(query.maxTimeMS).toHaveBeenCalledWith(250);
     expect(clipClient.koSearch).toHaveBeenCalledWith(
       '기념일',
       6,
       controller.signal,
-    );
-    expect(homeCache.getWithSwr).toHaveBeenCalledWith(
-      expect.objectContaining({ key: 'home:anniversary' }),
     );
   });
 });

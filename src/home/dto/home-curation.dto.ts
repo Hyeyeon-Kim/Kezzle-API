@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { CakeSimpleResponseDto } from 'src/cake/dto/response-cake-simple.dto';
 
-export class CurationDtoV2 {
+export class HomeCurationItemDto {
   @ApiProperty({
     description: '큐레이션 id',
     example: '60f9b0b3e6b3f3b3b4b3b3b3',

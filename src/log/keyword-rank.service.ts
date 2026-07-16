@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { KeywordRank, KeywordRankDocument } from './entities/keywordRank.shema';
 import { LogService } from './log.service';
-import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 import {
   computeRankWindow,
   KEYWORD_RANK_WINDOW_DAYS_ENV,
@@ -37,7 +36,6 @@ export class KeywordRankService {
     @InjectModel(KeywordRank.name, 'kezzle')
     private readonly rankModel: Model<KeywordRankDocument>,
     private readonly logService: LogService,
-    private readonly homeMetrics: HomeResilienceMetricsService,
   ) {}
 
   /**
@@ -46,13 +44,11 @@ export class KeywordRankService {
   async getRanked(limit: number, maxTimeMs?: number): Promise<RankedKeywords> {
     if (!Number.isFinite(limit) || limit <= 0) limit = 10;
 
-    this.homeMetrics.countDb();
     let latest = await this.latestQuery(maxTimeMs).lean();
 
     // 콜드 스타트: read model 이 비어 있으면 1회 동기 빌드 후 다시 조회한다.
     if (!latest) {
       await this.refresh();
-      this.homeMetrics.countDb();
       latest = await this.latestQuery(maxTimeMs).lean();
       if (!latest) {
         // window 내 로그가 없어 배치가 비었다. 빈 랭킹을 정상 응답한다.
@@ -68,7 +64,6 @@ export class KeywordRankService {
     this.maybeRefreshInBackground(latest.computedAt);
 
     // 항상 최신 배치(computedAt)만 읽어 갱신 중간에 두 배치가 섞이지 않게 한다.
-    this.homeMetrics.countDb();
     const rankedQuery = this.rankModel
       .find({ computedAt: latest.computedAt, isEmptyBatch: { $ne: true } })
       .sort({ rank: 1 })
@@ -162,7 +157,6 @@ export class KeywordRankService {
     if (age <= KEYWORD_RANK_TTL_MS) return;
     if (this.refreshing) return;
 
-    this.homeMetrics.countBackgroundRefresh();
     // fire-and-forget. 실패해도 조회는 stale 데이터로 응답한다.
     this.refresh().catch(() => undefined);
   }

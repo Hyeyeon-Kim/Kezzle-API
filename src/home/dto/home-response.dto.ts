@@ -1,17 +1,14 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { AnniversaryDto } from 'src/anniversary/dto/response-anniversary.dto';
+import { CakeSimpleResponseDto } from 'src/cake/dto/response-cake-simple.dto';
+import { CakesSimpleResponseDto } from 'src/cake/dto/response-cakes-simple.dto';
 import { PopularCakesResponseDto } from 'src/cake/dto/response-popular-cakes.dto';
 import { RankResponseDto } from 'src/search/dto/response-search-rank.dto';
-import { CurationDtoV2 } from './response-curation.dto.v2';
-import { CakesSimpleResponseDto } from 'src/cake/dto/response-cakes-simple.dto';
-import { CakeSimpleResponseDto } from 'src/cake/dto/response-cake-simple.dto';
-import { ApiProperty } from '@nestjs/swagger';
+import { HomeCurationItemDto } from './home-curation.dto';
 import { HomeSectionsMetadataDto } from './home-section-metadata.dto';
 
-export class HomeCurationDtoV2 {
-  @ApiProperty({
-    description: '기념일 정보',
-    type: AnniversaryDto,
-  })
+export class HomeResponseDto {
+  @ApiProperty({ description: '기념일 정보', type: AnniversaryDto })
   readonly anniversary: AnniversaryDto;
 
   @ApiProperty({
@@ -40,9 +37,9 @@ export class HomeCurationDtoV2 {
 
   @ApiProperty({
     description: '큐레이션 4개를 반환합니다.',
-    type: [CurationDtoV2],
+    type: [HomeCurationItemDto],
   })
-  readonly curations: CurationDtoV2[];
+  readonly curations: HomeCurationItemDto[];
 
   @ApiProperty({
     description: '하나 이상의 홈 섹션이 fallback 응답인지 여부',
@@ -62,7 +59,7 @@ export class HomeCurationDtoV2 {
     popularCakes: PopularCakesResponseDto,
     keywordRanks: RankResponseDto,
     newestCakes: CakesSimpleResponseDto,
-    curations: CurationDtoV2[],
+    curations: HomeCurationItemDto[],
     degraded: boolean,
     sections: HomeSectionsMetadataDto,
   ) {

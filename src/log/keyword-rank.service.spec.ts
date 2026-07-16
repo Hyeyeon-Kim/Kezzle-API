@@ -36,16 +36,11 @@ describe('KeywordRankService', () => {
     const logService = {
       getRankWord: jest.fn().mockResolvedValue(options?.rankWords ?? []),
     };
-    const homeMetrics = {
-      countDb: jest.fn(),
-      countBackgroundRefresh: jest.fn(),
-    };
     const service = new KeywordRankService(
       rankModel as never,
       logService as never,
-      homeMetrics as never,
     );
-    return { service, rankModel, logService, homeMetrics, findQuery };
+    return { service, rankModel, logService, findQuery };
   }
 
   function freshBatch(overrides?: Record<string, unknown>) {
@@ -156,7 +151,7 @@ describe('KeywordRankService', () => {
 
   it('replaces an older batch with an empty batch marker', async () => {
     const emptyBatch = freshBatch({ isEmptyBatch: true });
-    const { service, rankModel, logService, homeMetrics } = createMocks({
+    const { service, rankModel, logService } = createMocks({
       latestResults: [emptyBatch],
       rankWords: [],
     });
@@ -176,14 +171,13 @@ describe('KeywordRankService', () => {
     });
     expect(result.ranking).toEqual([]);
     expect(logService.getRankWord).toHaveBeenCalledTimes(1);
-    expect(homeMetrics.countBackgroundRefresh).not.toHaveBeenCalled();
   });
 
   it('triggers a single background refresh for a stale batch', async () => {
     const stale = freshBatch({
       computedAt: new Date(Date.now() - 11 * 60 * 1000),
     });
-    const { service, logService, homeMetrics } = createMocks({
+    const { service, logService } = createMocks({
       latestResults: [stale],
       docs: [{ searchWord: 'birthday', count: 10 }],
       rankWords: [{ _id: 'birthday', count: 12 }],
@@ -192,7 +186,6 @@ describe('KeywordRankService', () => {
     const result = await service.getRanked(4);
     await new Promise(setImmediate);
 
-    expect(homeMetrics.countBackgroundRefresh).toHaveBeenCalledTimes(1);
     expect(logService.getRankWord).toHaveBeenCalledTimes(1);
     expect(result.ranking).toEqual([{ _id: 'birthday', count: 10 }]);
   });

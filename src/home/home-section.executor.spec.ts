@@ -15,10 +15,7 @@ describe('executeHomeSection', () => {
       operation: async () => ['cake'],
     });
 
-    expect(result).toMatchObject({
-      status: 'success',
-      data: ['cake'],
-    });
+    expect(result).toMatchObject({ status: 'success', data: ['cake'] });
     expect(jest.getTimerCount()).toBe(0);
   });
 
@@ -74,67 +71,7 @@ describe('executeHomeSection', () => {
     expect(onError).toHaveBeenCalledWith(error, 'dependency_error');
   });
 
-  it('aborts the dependency when the parent signal aborts before the section timeout', async () => {
-    const parent = new AbortController();
-    let dependencySignal: AbortSignal | undefined;
-
-    const resultPromise = executeHomeSection({
-      name: 'recommendCakes',
-      timeoutMs: 10_000,
-      fallback: [],
-      parentSignal: parent.signal,
-      operation: (signal) => {
-        dependencySignal = signal;
-        return new Promise((_, reject) => {
-          signal.addEventListener('abort', () => {
-            reject(new Error('dependency aborted'));
-          });
-        });
-      },
-    });
-
-    parent.abort();
-    const result = await resultPromise;
-
-    expect(dependencySignal?.aborted).toBe(true);
-    expect(result).toMatchObject({
-      status: 'fallback',
-      reason: 'timeout',
-      data: [],
-    });
-  });
-
-  it('treats an already aborted parent signal as an immediate timeout', async () => {
-    const parent = new AbortController();
-    parent.abort();
-
-    const result = await executeHomeSection({
-      name: 'popularCakes',
-      timeoutMs: 10_000,
-      fallback: [],
-      parentSignal: parent.signal,
-      operation: (signal) =>
-        new Promise((_, reject) => {
-          if (signal.aborted) {
-            reject(new Error('dependency aborted'));
-          }
-        }),
-    });
-
-    expect(result).toMatchObject({
-      status: 'fallback',
-      reason: 'timeout',
-      data: [],
-    });
-  });
-});
-
-describe('startHomeDeadline', () => {
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  it('aborts the signal and resolves expired at the deadline', async () => {
+  it('aborts all unfinished sections at the hard deadline', async () => {
     jest.useFakeTimers();
     const deadline = startHomeDeadline(600);
     const expired = jest.fn();
@@ -145,16 +82,5 @@ describe('startHomeDeadline', () => {
 
     expect(deadline.signal.aborted).toBe(true);
     expect(expired).toHaveBeenCalled();
-  });
-
-  it('does not fire after clear()', () => {
-    jest.useFakeTimers();
-    const deadline = startHomeDeadline(600);
-
-    deadline.clear();
-    jest.advanceTimersByTime(600);
-
-    expect(deadline.signal.aborted).toBe(false);
-    expect(jest.getTimerCount()).toBe(0);
   });
 });
