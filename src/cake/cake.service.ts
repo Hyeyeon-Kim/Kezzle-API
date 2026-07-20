@@ -1,14 +1,13 @@
 import { CakesResponseDto } from './dto/response-cakes.dto';
 import { Injectable } from '@nestjs/common';
-import { UpdateCakeDto } from './dto/update-cake.dto';
 import { CakeResponseDto } from './dto/response-cake.dto';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UploadService } from 'src/upload/upload.service';
 import { ObjectId } from 'mongodb';
 import * as XLSX from 'xlsx'; // TODO:나중에 이거 바꿔야함
-import ICake from './interface/cake.interface';
+import { CakeImportRow } from './application/cake-import-row';
 import { PopularRankService } from 'src/log/popular-rank.service';
 import { PopularCakesResponseDto } from './dto/response-popular-cakes.dto';
 import { AnniversaryService } from 'src/anniversary/anniversary.service';
@@ -19,7 +18,6 @@ import { VitClient } from 'src/ai-search/vit-client';
 import { ClipClient } from 'src/ai-search/clip-client';
 import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.reader';
 import { CakeRepository } from './cake.repository';
-import { ImageMapper } from 'src/common/image/image.mapper';
 
 @Injectable()
 export class CakeService {
@@ -55,8 +53,11 @@ export class CakeService {
     return new CakesSimpleResponseDto(cakeResponse, hasMore);
   }
 
-  async findRecommendationSeed(user: IUser | undefined, maxTimeMs?: number) {
-    const likedCakeIds = user?.cake_like_ids ?? [];
+  async findRecommendationSeed(
+    user: AuthenticatedUser | undefined,
+    maxTimeMs?: number,
+  ) {
+    const likedCakeIds = user?.cakeLikeIds ?? [];
     const randomIndex = Math.floor(Math.random() * likedCakeIds.length);
     let userLikedCakeId: string = likedCakeIds[randomIndex];
 
@@ -64,9 +65,7 @@ export class CakeService {
       userLikedCakeId === undefined ||
       (await this.cakeRepository.findById(userLikedCakeId, maxTimeMs)) === null
     ) {
-      userLikedCakeId = (
-        await this.cakeRepository.sampleOne(maxTimeMs)
-      )._id.toString();
+      userLikedCakeId = (await this.cakeRepository.sampleOne(maxTimeMs)).id;
     }
 
     return userLikedCakeId;
@@ -81,15 +80,18 @@ export class CakeService {
     return cakes.map((cake) => new CakeSimpleResponseDto(cake));
   }
 
-  async findOne(cakeid: string, user: IUser): Promise<CakeResponseDto> {
+  async findOne(
+    cakeid: string,
+    user: AuthenticatedUser,
+  ): Promise<CakeResponseDto> {
     const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
     return new CakeResponseDto(cake, user.firebaseUid);
   }
 
-  async changeContent(cakeid: string, user: IUser, file) {
+  async changeContent(cakeid: string, user: AuthenticatedUser, file) {
     const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
     const store = await this.storeWriteContext.findByIdOrThrow(
-      cake.owner_store_id,
+      cake.ownerStoreId,
     );
 
     if (
@@ -103,16 +105,14 @@ export class CakeService {
 
     await this.uploadService.remove(path, cake.image.s3Url);
 
-    const updatedata = new UpdateCakeDto(
-      await this.uploadService.create(path, file),
-    );
-    return await this.cakeRepository.updateOneById(cakeid, updatedata);
+    const image = await this.uploadService.create(path, file);
+    return this.cakeRepository.updateOneById(cakeid, { image });
   }
 
-  async removeContent(cakeid: string, user: IUser) {
+  async removeContent(cakeid: string, user: AuthenticatedUser) {
     const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
     const store = await this.storeWriteContext.findByIdOrThrow(
-      cake.owner_store_id,
+      cake.ownerStoreId,
     );
     if (
       // store.owner_user_id !== user.firebaseUid &&
@@ -126,18 +126,18 @@ export class CakeService {
     await this.uploadService.remove(path, cake.image.s3Url);
 
     return await this.cakeRepository.updateOneById(cakeid, {
-      is_delete: true,
+      isDeleted: true,
     });
   }
 
-  async createCake(storeid, user: IUser, files) {
+  async createCake(storeid, user: AuthenticatedUser, files) {
     const workbook = await XLSX.read(files.excel[0].buffer, { type: 'buffer' });
     // 첫번째 sheet 의 이름을 조회합니다.
     const sheetName = await workbook.SheetNames[0];
     // 첫번째 sheet 를 사용합니다.
     const sheet = await workbook.Sheets[sheetName];
     // sheet 의 정보를 json array 로 변환합니다.
-    const rows: ICake[] = await XLSX.utils.sheet_to_json(sheet, {
+    const rows: CakeImportRow[] = await XLSX.utils.sheet_to_json(sheet, {
       // cell 에 값이 비어있으면 '' 을 기본값으로 설정합니다.
       defval: null,
     });
@@ -178,20 +178,20 @@ export class CakeService {
           .filter((item) => item !== '');
 
         await this.cakeRepository.create({
-          image: ImageMapper.toPersistence(image),
-          owner_store_id: storeid,
+          image,
+          ownerStoreId: storeid,
           cursor: cursorValue,
-          like_ins: content.fav,
-          tag_ins: s,
-          content_ins: content.content,
-          faiss_id: faissId,
+          likeText: String(content.fav),
+          tags: s,
+          content: content.content,
+          faissId,
         });
       } else {
         await this.cakeRepository.create({
-          image: ImageMapper.toPersistence(image),
-          owner_store_id: storeid,
+          image,
+          ownerStoreId: storeid,
           cursor: cursorValue,
-          faiss_id: faissId,
+          faissId,
         });
       }
       cnt++;
@@ -211,7 +211,11 @@ export class CakeService {
     return new PopularCakesResponseDto(cakeResponse, startDate, endDate);
   }
 
-  async anniversary(anniId: string, user: IUser, page: number) {
+  async anniversary(
+    anniId: string,
+    user: AuthenticatedUser,
+    page: number,
+  ) {
     if (Number.isNaN(page)) page = 0;
     const anniversary =
       await this.anniversaryService.getAnniversaryWord(anniId);

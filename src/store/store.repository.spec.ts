@@ -13,7 +13,12 @@ describe('StoreRepository', () => {
       const result = await repo.findById('mock-store-1');
 
       expect(storeModel.findById).toHaveBeenCalledWith('mock-store-1');
-      expect(result).toBe(expected);
+      expect(result).toMatchObject({
+        id: 'mock-store-1',
+        name: 'Mock',
+        likedUserIds: [],
+        taste: [],
+      });
     });
   });
 
@@ -25,7 +30,12 @@ describe('StoreRepository', () => {
 
       const result = await repo.findByIdOrThrow('store-1');
 
-      expect(result).toBe(doc);
+      expect(result).toMatchObject({
+        id: 'store-1',
+        name: 'Mock',
+        likedUserIds: [],
+        taste: [],
+      });
     });
 
     it('throws StoreNotFoundException when document is null', async () => {
@@ -49,7 +59,7 @@ describe('StoreRepository', () => {
     });
   });
 
-  describe('findByIdsWithProjection', () => {
+  describe('findSummariesByIds', () => {
     it('queries with $in filter and projection, returning lean result', async () => {
       const expected = [{ _id: 'a' }, { _id: 'b' }];
       const lean = jest.fn().mockResolvedValue(expected);
@@ -58,18 +68,14 @@ describe('StoreRepository', () => {
       };
       const repo = new StoreRepository(storeModel as any);
 
-      const projection = { name: 1, address: 1 } as const;
-      const result = await repo.findByIdsWithProjection(
-        ['a', 'b'],
-        projection as any,
-      );
+      const result = await repo.findSummariesByIds(['a', 'b']);
 
       expect(storeModel.find).toHaveBeenCalledWith(
         { _id: { $in: ['a', 'b'] } },
-        projection,
+        { name: 1, address: 1, taste: 1, location: 1 },
       );
       expect(lean).toHaveBeenCalledTimes(1);
-      expect(result).toBe(expected);
+      expect(result.map((store) => store.id)).toEqual(['a', 'b']);
     });
   });
 
@@ -79,11 +85,27 @@ describe('StoreRepository', () => {
       const storeModel = { create: jest.fn().mockResolvedValue(created) };
       const repo = new StoreRepository(storeModel as any);
 
-      const doc = { name: 'New Store' };
-      const result = await repo.create(doc);
+      const data = {
+        name: 'New Store',
+        location: { longitude: 127.1, latitude: 37.5 },
+        address: 'Seoul',
+        ownerUserId: 'owner-1',
+        operatingTime: ['10:00-18:00'],
+        taste: ['vanilla'],
+      };
+      const result = await repo.create(data);
 
-      expect(storeModel.create).toHaveBeenCalledWith(doc);
-      expect(result).toBe(created);
+      expect(storeModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'New Store',
+          location: { type: 'Point', coordinates: [127.1, 37.5] },
+          address: 'Seoul',
+          owner_user_id: 'owner-1',
+          operating_time: ['10:00-18:00'],
+          taste: ['vanilla'],
+        }),
+      );
+      expect(result).toMatchObject({ id: 'new-store' });
     });
   });
 
@@ -95,11 +117,13 @@ describe('StoreRepository', () => {
       };
       const repo = new StoreRepository(storeModel as any);
 
-      const result = await repo.updateOneById('store-1', { name: 'Renamed' });
+      const result = await repo.updateOneById('store-1', {
+        feature: 'Renamed',
+      });
 
       expect(storeModel.updateOne).toHaveBeenCalledWith(
         { _id: 'store-1' },
-        { $set: { name: 'Renamed' } },
+        { $set: { store_feature: 'Renamed' } },
       );
       expect(result).toBe(updateResult);
     });
@@ -131,7 +155,7 @@ describe('StoreRepository', () => {
       expect(storeModel.find).toHaveBeenCalledWith({
         user_like_ids: { $in: ['user-1'] },
       });
-      expect(result).toBe(expected);
+      expect(result.map((store) => store.id)).toEqual(['store-1']);
     });
   });
 
@@ -236,7 +260,9 @@ describe('StoreRepository', () => {
         { $match: { dist: { $gt: 5 } } },
       ]);
       expect(limit).toHaveBeenCalledWith(11);
-      expect(result).toEqual([{ _id: 's1', dist: 10 }]);
+      expect(result).toEqual([
+        expect.objectContaining({ id: 's1', distance: 10 }),
+      ]);
     });
 
     it('drops the dist match stage when after is NaN', async () => {

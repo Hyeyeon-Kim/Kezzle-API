@@ -11,7 +11,7 @@ import {
 } from '@nestjs/swagger';
 import { LikeService } from './like.service';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { Roles } from 'src/user/entities/roles.enum';
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { assertSelfOrAdmin } from 'src/auth/authorization/self-or-admin';
@@ -34,7 +34,7 @@ export class LikeController {
   @ApiNoContentResponse({ description: '정보 없음.' })
   getCake(
     @Param('id') userId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<LikedCakeResponseDto[]> {
     assertSelfOrAdmin(userDto, userId);
     return this.likeService.findUserLikeCake(userId);
@@ -53,7 +53,7 @@ export class LikeController {
   @ApiNoContentResponse({ description: '정보 없음.' })
   getStore(
     @Param('id') userId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<LikedStoreResponseDto[]> {
     assertSelfOrAdmin(userDto, userId);
     return this.likeService.findUserLikeStore(userId, userDto);
@@ -76,7 +76,7 @@ export class LikeController {
   })
   likeCake(
     @Param('id') cakeId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<boolean> {
     return this.likeService.cakeAddLikeList(cakeId, userDto);
   }
@@ -95,7 +95,7 @@ export class LikeController {
   @ApiNotFoundResponse({ description: '케이크를 찾을 수 없습니다.' })
   notLikeCake(
     @Param('id') cakeId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<boolean> {
     return this.likeService.cakeRemoveLikeList(cakeId, userDto);
   }
@@ -117,7 +117,7 @@ export class LikeController {
   })
   likeStore(
     @Param('id') storeId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<boolean> {
     return this.likeService.storeAddLikeList(storeId, userDto);
   }
@@ -136,7 +136,7 @@ export class LikeController {
   @ApiNotFoundResponse({ description: '매장을 찾을 수 없습니다.' })
   notLikeStore(
     @Param('id') storeId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<boolean> {
     return this.likeService.storeRemoveLikeList(storeId, userDto);
   }

@@ -24,7 +24,7 @@ import {
 } from 'src/monitoring/monitoring.service';
 import { SearchService } from 'src/search/search.service';
 import { RankResponseDto } from 'src/search/dto/response-search-rank.dto';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { HomeCurationItemDto } from './dto/home-curation.dto';
 import { HomeResponseDto } from './dto/home-response.dto';
 import { HomeSectionsMetadataDto } from './dto/home-section-metadata.dto';
@@ -63,7 +63,9 @@ export class HomeFeedService {
     private readonly monitoring: MonitoringService,
   ) {}
 
-  async getHome(user: IUser | undefined): Promise<HomeResponseDto> {
+  async getHome(
+    user: AuthenticatedUser | undefined,
+  ): Promise<HomeResponseDto> {
     const startedAt = process.hrtime.bigint();
     return this.homeMetrics.run(async () => {
       try {
@@ -85,7 +87,9 @@ export class HomeFeedService {
     });
   }
 
-  private async buildHome(user: IUser | undefined): Promise<HomeResponseDto> {
+  private async buildHome(
+    user: AuthenticatedUser | undefined,
+  ): Promise<HomeResponseDto> {
     const deadline = startHomeDeadline(this.getHomeHardDeadlineMs());
     const startedAt = process.hrtime.bigint();
 

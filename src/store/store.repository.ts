@@ -1,8 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { HydratedDocument, Model, PipelineStage } from 'mongoose';
+import { Model, PipelineStage } from 'mongoose';
 import { Store } from './entities/store.schema';
 import { StoreNotFoundException } from './exceptions/store-not-found.exception';
+import { CreateStoreData, UpdateStoreData } from './application/store.command';
+import { StoreSummaryView, StoreView } from './application/store.view';
+import { StorePersistenceMapper } from './store.persistence-mapper';
+import { WriteResult } from 'src/common/application/write-result';
+
+const STORE_SUMMARY_PROJECTION = {
+  name: 1 as const,
+  address: 1 as const,
+  taste: 1 as const,
+  location: 1 as const,
+};
 
 @Injectable()
 export class StoreRepository {
@@ -11,12 +22,13 @@ export class StoreRepository {
     private readonly storeModel: Model<Store>,
   ) {}
 
-  async findById(id: string): Promise<Store | null> {
-    return this.storeModel.findById(id);
+  async findById(id: string): Promise<StoreView | null> {
+    const store = await this.storeModel.findById(id);
+    return store ? StorePersistenceMapper.toView(store) : null;
   }
 
-  async findByIdOrThrow(id: string): Promise<HydratedDocument<Store>> {
-    let store: HydratedDocument<Store> | null;
+  async findByIdOrThrow(id: string): Promise<StoreView> {
+    let store: Store | null;
     try {
       store = await this.storeModel.findById(id);
     } catch {
@@ -25,41 +37,50 @@ export class StoreRepository {
     if (!store) {
       throw new StoreNotFoundException(id);
     }
-    return store;
+    return StorePersistenceMapper.toView(store);
   }
 
-  async findByIdsWithProjection<T = any>(
-    ids: string[],
-    projection: Record<string, 1>,
-  ): Promise<T[]> {
-    return this.storeModel.find({ _id: { $in: ids } }, projection).lean<T[]>();
+  async findSummariesByIds(ids: string[]): Promise<StoreSummaryView[]> {
+    const stores = await this.storeModel
+      .find({ _id: { $in: ids } }, STORE_SUMMARY_PROJECTION)
+      .lean();
+    return stores.map((store) => StorePersistenceMapper.toSummaryView(store));
   }
 
-  async create(doc: Record<string, any>): Promise<Store> {
-    return this.storeModel.create(doc);
+  async create(data: CreateStoreData): Promise<StoreView> {
+    const store = await this.storeModel.create(
+      StorePersistenceMapper.toCreatePersistence(data),
+    );
+    return StorePersistenceMapper.toView(store);
   }
 
-  async updateOneById(id: string, set: Record<string, any>) {
-    return this.storeModel.updateOne({ _id: id }, { $set: set });
+  async updateOneById(id: string, data: UpdateStoreData): Promise<WriteResult> {
+    return this.storeModel.updateOne(
+      { _id: id },
+      { $set: StorePersistenceMapper.toUpdatePersistence(data) },
+    );
   }
 
-  async deleteById(id: string) {
+  async deleteById(id: string): Promise<WriteResult> {
     return this.storeModel.deleteOne({ _id: id });
   }
 
-  async findByUserLike(userId: string): Promise<HydratedDocument<Store>[]> {
-    return this.storeModel.find({ user_like_ids: { $in: [userId] } });
+  async findByUserLike(userId: string): Promise<StoreView[]> {
+    const stores = await this.storeModel.find({
+      user_like_ids: { $in: [userId] },
+    });
+    return stores.map((store) => StorePersistenceMapper.toView(store));
   }
 
-  async addUserLike(storeid: string, userId: string) {
-    return this.storeModel.updateOne(
+  async addUserLike(storeid: string, userId: string): Promise<void> {
+    await this.storeModel.updateOne(
       { _id: storeid },
       { $addToSet: { user_like_ids: [userId] } },
     );
   }
 
-  async removeUserLike(storeid: string, userId: string) {
-    return this.storeModel.updateOne(
+  async removeUserLike(storeid: string, userId: string): Promise<void> {
+    await this.storeModel.updateOne(
       { _id: storeid },
       { $pull: { user_like_ids: userId } },
     );
@@ -100,7 +121,7 @@ export class StoreRepository {
     distance: number,
     after: number,
     limit: number,
-  ): Promise<any[]> {
+  ): Promise<StoreView[]> {
     const geoNear: PipelineStage.GeoNear = {
       $geoNear: {
         near: { type: 'Point', coordinates: [longitude, latitude] },
@@ -122,6 +143,7 @@ export class StoreRepository {
       pipeline.pop();
     }
 
-    return this.storeModel.aggregate(pipeline).limit(limit);
+    const stores = await this.storeModel.aggregate(pipeline).limit(limit);
+    return stores.map((store) => StorePersistenceMapper.toView(store));
   }
 }

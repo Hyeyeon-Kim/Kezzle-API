@@ -9,12 +9,12 @@ describe('CakeCatalogRepositoryAdapter', () => {
             'store-1',
             [
               {
-                _id: { toString: () => 'cake-1' },
+                id: 'cake-1',
                 image: { s3Url: 'cake.jpg' },
-                owner_store_id: 'store-1',
-                user_like_ids: ['user-1'],
+                ownerStoreId: 'store-1',
+                likedUserIds: ['user-1'],
                 cursor: 'cursor-1',
-                tag_ins: ['vanilla'],
+                tags: ['vanilla'],
               },
             ],
           ],

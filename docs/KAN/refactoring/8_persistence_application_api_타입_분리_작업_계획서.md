@@ -1,7 +1,7 @@
 # Persistence/Application/API 타입 분리 작업 계획서
 
 > 작성일: 2026-07-20
-> 문서 상태: Type-B 구현 완료, Type-C 승인 대기
+> 문서 상태: Type-C 구현 완료, Type-D 승인 대기
 > 상위 로드맵: [`docs/refactoring.md`](../../refactoring.md) 4.5, Phase 3
 > 선행 작업: Catalog query와 feature 경계 캡슐화 Phase 4-A~D
 > 권장 라벨: `type: refactor`, `area: db`, `priority: p1`, `size: L`
@@ -266,6 +266,9 @@ CakeController
 ### Type-C. Cake/Store/User application model과 persistence mapper
 
 권장 type: `refactor`, area: `db`, size: L
+
+구현 상태: **완료 (2026-07-20)**
+결과: [`8_type_c_core_application_persistence_mapper_분리_결과.md`](./8_type_c_core_application_persistence_mapper_분리_결과.md)
 
 1. `AuthenticatedUser`를 pure application type으로 만들고 `GetUser`, auth/authorization, service signature를 전환한다.
 2. `IUser`의 Mongoose `Document` alias를 제거한다.

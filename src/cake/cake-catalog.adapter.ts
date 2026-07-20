@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CakeCatalogReader, CatalogCakeView } from './cake-catalog.reader';
 import { CakeRepository } from './cake.repository';
+import { CakeView } from './application/cake.view';
 
 @Injectable()
 export class CakeCatalogRepositoryAdapter implements CakeCatalogReader {
@@ -59,14 +60,14 @@ export class CakeCatalogRepositoryAdapter implements CakeCatalogReader {
     );
   }
 
-  private toView(cake: any): CatalogCakeView {
+  private toView(cake: CakeView): CatalogCakeView {
     return {
-      id: cake?._id?.toString() ?? cake?.id?.toString(),
-      image: cake?.image,
-      ownerStoreId: cake?.owner_store_id,
-      likedUserIds: [...(cake?.user_like_ids ?? [])],
-      cursor: cake?.cursor,
-      tags: [...(cake?.tag_ins ?? [])],
+      id: cake.id,
+      image: cake.image,
+      ownerStoreId: cake.ownerStoreId,
+      likedUserIds: [...cake.likedUserIds],
+      cursor: cake.cursor,
+      tags: [...cake.tags],
     };
   }
 }

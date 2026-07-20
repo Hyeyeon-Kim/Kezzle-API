@@ -1,6 +1,8 @@
+import { ImageValue } from 'src/common/image/application/image.value';
+
 export interface CakeLikeView {
   readonly id: string;
-  readonly image: unknown;
+  readonly image: ImageValue;
   readonly ownerStoreId: string;
   readonly likedUserIds: readonly string[];
   readonly cursor: string;

@@ -119,26 +119,31 @@ export class DetailStoreResponseDto {
   readonly kakao_map_url: string;
 
   constructor(data: any, userid: string) {
-    this._id = data?._id;
+    this._id = data?.id ?? data?._id;
     this.name = data?.name;
     this.logo =
-      data?.logo == null ? data?.logo : ImageDto.fromPersistence(data.logo);
-    this.store_feature = data?.store_feature;
-    this.store_description = data?.store_description;
-    this.insta_url = data?.insta_url;
-    this.kakako_url = data?.kakako_url;
+      data?.logo == null
+        ? data?.logo
+        : ImageDto.fromValueOrPersistence(data.logo);
+    this.store_feature = data?.feature ?? data?.store_feature;
+    this.store_description = data?.description ?? data?.store_description;
+    this.insta_url = data?.instagramUrl ?? data?.insta_url;
+    this.kakako_url = data?.kakaoChannelUrl ?? data?.kakako_url;
     this.address = data?.address;
-    this.phone_number = data?.phone_number;
-    this.detail_images = (data?.detail_images ?? []).map((image) =>
-      ImageDto.fromPersistence(image),
+    this.phone_number = data?.phoneNumber ?? data?.phone_number;
+    this.detail_images = (data?.detailImages ?? data?.detail_images ?? []).map(
+      (image) => ImageDto.fromValueOrPersistence(image),
     );
-    this.operating_time = data?.operating_time;
+    this.operating_time = data?.operatingTime ?? data?.operating_time;
     this.taste = data?.taste;
-    this.is_liked = data?.user_like_ids.includes(userid);
-    this.like_cnt = data?.user_like_ids.length;
-    this.longitude = data?.location.coordinates[0];
-    this.latitude = data?.location.coordinates[1];
-    this.kakao_map_url = data?.kakao_map_url;
+    const likedUserIds = data?.likedUserIds ?? data?.user_like_ids ?? [];
+    this.is_liked = likedUserIds.includes(userid);
+    this.like_cnt = likedUserIds.length;
+    this.longitude =
+      data?.location?.longitude ?? data?.location?.coordinates?.[0];
+    this.latitude =
+      data?.location?.latitude ?? data?.location?.coordinates?.[1];
+    this.kakao_map_url = data?.kakaoMapUrl ?? data?.kakao_map_url;
     this.distance = data?.distance;
   }
 }

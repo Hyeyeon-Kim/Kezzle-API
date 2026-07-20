@@ -5,7 +5,7 @@ import {
   KEYWORD_RANK_WINDOW_DAYS_ENV,
 } from './../log/rank-window';
 import { CakesResponseDto } from 'src/cake/dto/response-cakes.dto';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { Injectable } from '@nestjs/common';
 import { RankResponseDto } from './dto/response-search-rank.dto';
 import { LatestResponseDto } from './dto/response-latest-search.dto';
@@ -21,7 +21,7 @@ export class SearchService {
     private readonly keywordRankService: KeywordRankService,
   ) {}
 
-  async search(keywords: string, page: number, user: IUser) {
+  async search(keywords: string, page: number, user: AuthenticatedUser) {
     if (!keywords) return new CakesResponseDto([], false);
 
     const { result, nextPage, isLastPage } = await this.clipClient.koSearchPage(

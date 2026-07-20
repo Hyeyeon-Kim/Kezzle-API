@@ -6,7 +6,7 @@ import { LogService } from 'src/log/log.service';
 import { StoreAlredyLikeException } from 'src/store/exceptions/store-already-like.exception';
 import { StoreLikePort } from 'src/store/store-like.port';
 import { UserLikePort } from 'src/user/user-like.port';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { LikedCakeResponseDto } from './dto/liked-cake-response.dto';
 import { LikedStoreResponseDto } from './dto/liked-store-response.dto';
 import { LikePresenter } from './like.presenter';
@@ -30,14 +30,17 @@ export class LikeService {
   }
   async findUserLikeStore(
     userid: string,
-    viewer: IUser,
+    viewer: AuthenticatedUser,
   ): Promise<LikedStoreResponseDto[]> {
     const user = await this.userLikePort.findByFirebaseUidOrThrow(userid);
     const stores = await this.likedStoreReader.findByUserLike(userid);
     return this.presenter.stores(stores, user.firebaseUid, viewer.firebaseUid);
   }
 
-  async cakeAddLikeList(cakeid: string, user: IUser): Promise<boolean> {
+  async cakeAddLikeList(
+    cakeid: string,
+    user: AuthenticatedUser,
+  ): Promise<boolean> {
     const cake = await this.cakeLikePort.findTargetOrThrow(cakeid);
 
     const userId = user.firebaseUid;
@@ -50,7 +53,10 @@ export class LikeService {
     return true;
   }
 
-  async cakeRemoveLikeList(cakeid: string, user: IUser): Promise<boolean> {
+  async cakeRemoveLikeList(
+    cakeid: string,
+    user: AuthenticatedUser,
+  ): Promise<boolean> {
     await this.cakeLikePort.findTargetOrThrow(cakeid);
     const userId = user.firebaseUid;
 
@@ -60,7 +66,10 @@ export class LikeService {
     return true;
   }
 
-  async storeAddLikeList(storeid: string, user: IUser): Promise<boolean> {
+  async storeAddLikeList(
+    storeid: string,
+    user: AuthenticatedUser,
+  ): Promise<boolean> {
     const store = await this.storeLikePort.findTargetOrThrow(storeid);
 
     const userId = user.firebaseUid;
@@ -72,7 +81,10 @@ export class LikeService {
     return true;
   }
 
-  async storeRemoveLikeList(storeid: string, user: IUser): Promise<boolean> {
+  async storeRemoveLikeList(
+    storeid: string,
+    user: AuthenticatedUser,
+  ): Promise<boolean> {
     await this.storeLikePort.findTargetOrThrow(storeid);
     const userId = user.firebaseUid;
 

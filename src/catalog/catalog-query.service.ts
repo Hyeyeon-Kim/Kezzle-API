@@ -4,7 +4,7 @@ import {
   CatalogCakeView,
 } from 'src/cake/cake-catalog.reader';
 import { StoreCatalogReader } from 'src/store/store-catalog.reader';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { CatalogPresenter } from './catalog.presenter';
 import { CatalogCakesResponseDto } from './dto/catalog-cake-response.dto';
 import { CatalogStoresResponseDto } from './dto/catalog-store-response.dto';
@@ -18,7 +18,7 @@ export class CatalogQueryService {
   ) {}
 
   async findAllCakes(
-    user: IUser,
+    user: AuthenticatedUser,
     latitude: number,
     longitude: number,
     distance: number,
@@ -39,7 +39,7 @@ export class CatalogQueryService {
   }
 
   async findAllCakesByLocation(
-    user: IUser,
+    user: AuthenticatedUser,
     latitude: number,
     longitude: number,
     distance: number,
@@ -61,7 +61,7 @@ export class CatalogQueryService {
 
   async findStoreCakes(
     storeId: string,
-    user: IUser,
+    user: AuthenticatedUser,
     after: string,
     limit: number,
   ): Promise<CatalogCakesResponseDto> {
@@ -78,7 +78,7 @@ export class CatalogQueryService {
   }
 
   async findAllStores(
-    user: IUser,
+    user: AuthenticatedUser,
     latitude: number,
     longitude: number,
     distance: number,

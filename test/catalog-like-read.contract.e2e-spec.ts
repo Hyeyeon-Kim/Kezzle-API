@@ -49,10 +49,10 @@ class ContractAuthenticationGuard implements CanActivate {
     request.user = {
       firebaseUid,
       nickname: `contract-${role}`,
-      oauth_provider: 'contract',
+      oauthProvider: 'contract',
       roles: [resolvedRole],
-      cake_like_ids: [],
-      store_like_ids: [],
+      cakeLikeIds: [],
+      storeLikeIds: [],
     };
     return true;
   }

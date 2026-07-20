@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { SearchService } from './search.service';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { assertSelfOrAdmin } from 'src/auth/authorization/self-or-admin';
 
@@ -13,7 +13,7 @@ export class SearchController {
   async cakeSearch(
     @Query('keyword') keywords: string,
     @Query('page') page,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ) {
     return await this.searchService.search(keywords, parseInt(page), userDto);
   }
@@ -25,7 +25,10 @@ export class SearchController {
   }
 
   @Get(':id')
-  async userLatest(@Param('id') userId: string, @GetUser() userDto: IUser) {
+  async userLatest(
+    @Param('id') userId: string,
+    @GetUser() userDto: AuthenticatedUser,
+  ) {
     assertSelfOrAdmin(userDto, userId);
     return await this.searchService.getLatest(userId);
   }

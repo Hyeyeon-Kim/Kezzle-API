@@ -10,8 +10,8 @@ const storeContext = {
 };
 
 const cake = {
-  _id: 'cake-1',
-  owner_store_id: 'store-1',
+  id: 'cake-1',
+  ownerStoreId: 'store-1',
   image: { s3Url: 'old-cake.jpg' },
 };
 
@@ -122,7 +122,7 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
       'old-cake.jpg',
     );
     expect(cakeRepository.updateOneById).toHaveBeenCalledWith('cake-1', {
-      is_delete: true,
+      isDeleted: true,
     });
   });
 
@@ -165,7 +165,7 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
       imageFile,
     );
     expect(cakeRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ owner_store_id: 'store-1', faiss_id: 1 }),
+      expect.objectContaining({ ownerStoreId: 'store-1', faissId: 1 }),
     );
     consoleLog.mockRestore();
   });

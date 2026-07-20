@@ -9,10 +9,10 @@ describe('LikeController ownership', () => {
     const user = {
       firebaseUid: 'user-1',
       nickname: 'user',
-      oauth_provider: 'firebase',
+      oauthProvider: 'firebase',
       roles: [Roles.BUYER],
-      cake_like_ids: [],
-      store_like_ids: [],
+      cakeLikeIds: [],
+      storeLikeIds: [],
     };
 
     expect(() => controller.getCake('user-2', user)).toThrow(

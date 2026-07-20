@@ -4,7 +4,7 @@ import { AllowHomeResilienceAuthBypass } from 'src/auth/decorators/home-resilien
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { Roles } from 'src/user/entities/roles.enum';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { HomeResponseDto } from './dto/home-response.dto';
 import { HomeFeedService } from './home-feed.service';
 
@@ -21,7 +21,7 @@ export class HomeController {
   @Get()
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
   @AllowHomeResilienceAuthBypass()
-  getHome(@GetUser() user: IUser) {
+  getHome(@GetUser() user: AuthenticatedUser) {
     return this.homeFeedService.getHome(user);
   }
 }

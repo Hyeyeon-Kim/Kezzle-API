@@ -43,4 +43,12 @@ export class ImageDto {
   static fromPersistence(image: ImagePersistenceRecord): ImageDto {
     return new ImageDto(ImageMapper.toValue(image));
   }
+
+  static fromValueOrPersistence(
+    image: ImageValue | ImagePersistenceRecord,
+  ): ImageDto {
+    return 'converteName' in image
+      ? new ImageDto(image)
+      : ImageDto.fromPersistence(image);
+  }
 }

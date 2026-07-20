@@ -4,7 +4,6 @@ import { Strategy, ExtractJwt } from 'passport-firebase-jwt';
 import { auth } from 'firebase-admin';
 import { UserService } from 'src/user/user.service';
 import { Reflector } from '@nestjs/core';
-import { UserResponseDto } from 'src/user/dto/response-user.dto';
 
 @Injectable()
 export class FirebaseAuthStrategy extends PassportStrategy(
@@ -27,8 +26,6 @@ export class FirebaseAuthStrategy extends PassportStrategy(
         throw new UnauthorizedException(err.message);
       });
 
-    return new UserResponseDto(
-      await this.userservice.findOneByFirebase(firebaseUser.uid),
-    );
+    return this.userservice.findAuthenticatedUser(firebaseUser.uid);
   }
 }

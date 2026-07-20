@@ -24,9 +24,9 @@ import { Roles } from './entities/roles.enum';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/response-user.dto';
-import { User } from './entities/user.schema';
 import { GetUser } from './decorators/get-user.decorator';
-import IUser from './interfaces/user.interface';
+import { AuthenticatedUser } from './application/authenticated-user';
+import { CreateUserResponseDto } from './dto/response-create-user.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { assertSelfOrAdmin } from 'src/auth/authorization/self-or-admin';
 
@@ -68,7 +68,7 @@ export class UserController {
   create(
     @Headers('authorization') authorization: string,
     @Body() createUserDto: CreateUserDto,
-  ): Promise<User> {
+  ): Promise<CreateUserResponseDto> {
     return this.userService.create(authorization, createUserDto);
   }
 
@@ -88,7 +88,7 @@ export class UserController {
   @ApiNotFoundResponse({ description: '유저를 찾을 수 없습니다.' })
   getOne(
     @Param('id') userId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<UserResponseDto> {
     assertSelfOrAdmin(userDto, userId);
     return this.userService.findOneByFirebase(userId);
@@ -111,7 +111,7 @@ export class UserController {
   modify(
     @Param('id') userId: string,
     @Body() updateData: UpdateUserDto,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ) {
     assertSelfOrAdmin(userDto, userId);
     return this.userService.changeContent(userId, updateData);
@@ -130,7 +130,10 @@ export class UserController {
     description: '유저 정보 삭제 성공',
   })
   @ApiNotFoundResponse({ description: '유저를 찾을 수 없습니다.' })
-  delete(@Param('id') userId: string, @GetUser() userDto: IUser) {
+  delete(
+    @Param('id') userId: string,
+    @GetUser() userDto: AuthenticatedUser,
+  ) {
     assertSelfOrAdmin(userDto, userId);
     return this.userService.removeContent(userId);
   }

@@ -11,7 +11,7 @@ import {
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
 import { Roles } from 'src/user/entities/roles.enum';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { CatalogQueryService } from './catalog-query.service';
 import { CatalogCakesResponseDto } from './dto/catalog-cake-response.dto';
 import { SimilarCakeCatalogQueryService } from './similar-cake-catalog-query.service';
@@ -62,7 +62,7 @@ export class CatalogCakeController {
     type: CatalogCakesResponseDto,
   })
   getAll(
-    @GetUser() user: IUser,
+    @GetUser() user: AuthenticatedUser,
     @Query('latitude') latitude,
     @Query('longitude') longitude,
     @Query('dist') distance,
@@ -116,7 +116,7 @@ export class CatalogCakeController {
     type: CatalogCakesResponseDto,
   })
   getAllByLocation(
-    @GetUser() user: IUser,
+    @GetUser() user: AuthenticatedUser,
     @Query('latitude') latitude,
     @Query('longitude') longitude,
     @Query('dist') distance,
@@ -162,7 +162,7 @@ export class CatalogCakeController {
   @ApiNotFoundResponse({ description: '케이크를 찾을 수 없습니다.' })
   getStoreCake(
     @Param('id') storeId: string,
-    @GetUser() user: IUser,
+    @GetUser() user: AuthenticatedUser,
     @Query('after') after,
     @Query('count') limit,
   ) {

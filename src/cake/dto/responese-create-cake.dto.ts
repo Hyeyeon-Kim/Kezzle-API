@@ -15,10 +15,10 @@ export class CakeCreateResponseDto {
   readonly owner_store_id: string;
 
   constructor(data: any) {
-    this._id = data?._id;
+    this._id = data?.id ?? data?._id;
     this.image = data?.image
-      ? ImageDto.fromPersistence(data.image)
+      ? ImageDto.fromValueOrPersistence(data.image)
       : data?.image;
-    this.owner_store_id = data?.owner_store_id;
+    this.owner_store_id = data?.ownerStoreId ?? data?.owner_store_id;
   }
 }

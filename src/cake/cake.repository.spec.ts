@@ -11,7 +11,13 @@ describe('CakeRepository', () => {
       const result = await repo.findByIdOrThrow('cake-1');
 
       expect(cakeModel.findById).toHaveBeenCalledWith('cake-1');
-      expect(result).toBe(doc);
+      expect(result).toMatchObject({
+        id: 'cake-1',
+        ownerStoreId: 'store-1',
+        likedUserIds: [],
+        tags: [],
+        isDeleted: false,
+      });
     });
 
     it('throws CakeNotFoundException when document is null', async () => {
@@ -64,7 +70,12 @@ describe('CakeRepository', () => {
         { $match: { is_delete: false } },
         { $sample: { size: 1 } },
       ]);
-      expect(result).toBe(sampled);
+      expect(result).toMatchObject({
+        id: 'random-cake',
+        likedUserIds: [],
+        tags: [],
+        isDeleted: false,
+      });
     });
   });
 
@@ -186,11 +197,35 @@ describe('CakeRepository', () => {
       const cakeModel = { create: jest.fn().mockResolvedValue(created) };
       const repo = new CakeRepository(cakeModel as any);
 
-      const doc = { owner_store_id: 'store-1', cursor: 'c1' };
-      const result = await repo.create(doc as any);
+      const data = {
+        image: {
+          name: 'cake.png',
+          converteName: 'cake-converted.png',
+          key: 'cakes/cake-converted.png',
+          s3Url: 'https://cdn.example.com/cake-converted.png',
+        },
+        ownerStoreId: 'store-1',
+        cursor: 'c1',
+        tags: ['chocolate'],
+        faissId: 1,
+      };
+      const result = await repo.create(data);
 
-      expect(cakeModel.create).toHaveBeenCalledWith(doc);
-      expect(result).toBe(created);
+      expect(cakeModel.create).toHaveBeenCalledWith({
+        image: {
+          name: 'cake.png',
+          converte_name: 'cake-converted.png',
+          key: 'cakes/cake-converted.png',
+          s3Url: 'https://cdn.example.com/cake-converted.png',
+        },
+        owner_store_id: 'store-1',
+        cursor: 'c1',
+        like_ins: undefined,
+        tag_ins: ['chocolate'],
+        content_ins: undefined,
+        faiss_id: 1,
+      });
+      expect(result).toMatchObject({ id: 'new-cake' });
     });
   });
 
@@ -202,7 +237,7 @@ describe('CakeRepository', () => {
       };
       const repo = new CakeRepository(cakeModel as any);
 
-      const result = await repo.updateOneById('cake-1', { is_delete: true });
+      const result = await repo.updateOneById('cake-1', { isDeleted: true });
 
       expect(cakeModel.updateOne).toHaveBeenCalledWith(
         { _id: 'cake-1' },
@@ -221,7 +256,7 @@ describe('CakeRepository', () => {
       const result = await repo.findByIds(['a', 'b']);
 
       expect(cakeModel.find).toHaveBeenCalledWith({ _id: { $in: ['a', 'b'] } });
-      expect(result).toBe(expected);
+      expect(result.map((cake) => cake.id)).toEqual(['a', 'b']);
     });
   });
 
@@ -312,7 +347,7 @@ describe('CakeRepository', () => {
 
       expect(result.size).toBe(2);
       expect(result.get('store-1')).toHaveLength(2);
-      expect(result.get('store-1')?.[0]).toMatchObject({ _id: 'cake-a' });
+      expect(result.get('store-1')?.[0]).toMatchObject({ id: 'cake-a' });
       expect(result.get('store-2')).toHaveLength(1);
       expect(result.get('store-3')).toBeUndefined();
     });

@@ -2,11 +2,13 @@ import { UserService } from './user.service';
 
 describe('UserService', () => {
   it('updates only the profile fields explicitly allowed by the DTO', async () => {
-    const userModel = {
-      findOne: jest.fn().mockResolvedValue({ firebaseUid: 'user-1' }),
-      updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+    const userRepository = {
+      findByFirebaseUidOrThrow: jest.fn().mockResolvedValue({
+        firebaseUid: 'user-1',
+      }),
+      update: jest.fn().mockResolvedValue({ acknowledged: true }),
     };
-    const service = new UserService(userModel as never);
+    const service = new UserService(userRepository as never);
     const input = {
       nickname: 'updated',
       roles: ['ADMIN'],
@@ -14,9 +16,8 @@ describe('UserService', () => {
 
     await service.changeContent('user-1', input);
 
-    expect(userModel.updateOne).toHaveBeenCalledWith(
-      { firebaseUid: 'user-1' },
-      { $set: { nickname: 'updated' } },
-    );
+    expect(userRepository.update).toHaveBeenCalledWith('user-1', {
+      nickname: 'updated',
+    });
   });
 });

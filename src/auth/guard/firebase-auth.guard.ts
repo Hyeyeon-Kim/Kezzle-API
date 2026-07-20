@@ -25,10 +25,10 @@ export class FirebaseAuthGuard extends AuthGuard('firebase-auth') {
       context.switchToHttp().getRequest().user = {
         firebaseUid: 'dev-mock-user',
         nickname: 'dev',
-        oauth_provider: 'dev',
+        oauthProvider: 'dev',
         roles: [Roles.BUYER],
-        cake_like_ids: [],
-        store_like_ids: [],
+        cakeLikeIds: [],
+        storeLikeIds: [],
       };
       return true;
     }
@@ -48,13 +48,13 @@ export class FirebaseAuthGuard extends AuthGuard('firebase-auth') {
         firebaseUid:
           process.env.HOME_RESILIENCE_USER_ID ?? 'home-resilience-user',
         nickname: 'home-resilience',
-        oauth_provider: 'local',
+        oauthProvider: 'local',
         roles: [Roles.BUYER],
-        cake_like_ids: (process.env.HOME_RESILIENCE_CAKE_LIKE_IDS ?? '')
+        cakeLikeIds: (process.env.HOME_RESILIENCE_CAKE_LIKE_IDS ?? '')
           .split(',')
           .map((id) => id.trim())
           .filter(Boolean),
-        store_like_ids: [],
+        storeLikeIds: [],
       };
       return true;
     }

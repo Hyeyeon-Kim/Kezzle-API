@@ -10,8 +10,8 @@ export class UserLikeRepositoryAdapter implements UserLikePort {
     const user = await this.userRepository.findByFirebaseUidOrThrow(userId);
     return {
       firebaseUid: user.firebaseUid,
-      cakeLikeIds: [...(user.cake_like_ids ?? [])],
-      storeLikeIds: [...(user.store_like_ids ?? [])],
+      cakeLikeIds: [...user.cakeLikeIds],
+      storeLikeIds: [...user.storeLikeIds],
     };
   }
 

@@ -60,10 +60,10 @@ class TypeBoundaryAuthenticationGuard implements CanActivate {
     request.user = {
       firebaseUid,
       nickname: `contract-${role}`,
-      oauth_provider: 'contract',
+      oauthProvider: 'contract',
       roles: [resolvedRole],
-      cake_like_ids: firebaseUid === 'user-1' ? ['cake-detail-1'] : [],
-      store_like_ids: [],
+      cakeLikeIds: firebaseUid === 'user-1' ? ['cake-detail-1'] : [],
+      storeLikeIds: [],
     };
     return true;
   }
@@ -195,7 +195,7 @@ describe('Type-A read HTTP contract baseline', () => {
       expect.objectContaining({
         firebaseUid: 'user-1',
         roles: [Roles.BUYER],
-        cake_like_ids: ['cake-detail-1'],
+        cakeLikeIds: ['cake-detail-1'],
       }),
       2,
     );

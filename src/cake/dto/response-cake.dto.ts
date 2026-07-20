@@ -35,13 +35,14 @@ export class CakeResponseDto {
   readonly hashtag: string[];
 
   constructor(data: any, userid: string) {
-    this._id = data?._id;
+    this._id = data?.id ?? data?._id;
     this.image = data?.image
-      ? ImageDto.fromPersistence(data.image)
+      ? ImageDto.fromValueOrPersistence(data.image)
       : data?.image;
-    this.owner_store_id = data?.owner_store_id;
-    this.isLiked = data?.user_like_ids.includes(userid);
+    this.owner_store_id = data?.ownerStoreId ?? data?.owner_store_id;
+    const likedUserIds = data?.likedUserIds ?? data?.user_like_ids ?? [];
+    this.isLiked = likedUserIds.includes(userid);
     this.cursor = data?.cursor;
-    this.hashtag = data?.tag_ins;
+    this.hashtag = data?.tags ?? data?.tag_ins;
   }
 }

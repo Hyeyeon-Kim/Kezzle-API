@@ -14,9 +14,9 @@ export class StoreCakeWriteContextRepositoryAdapter
   async findByIdOrThrow(storeId: string): Promise<StoreCakeWriteContext> {
     const store = await this.storeRepository.findByIdOrThrow(storeId);
     return {
-      storeId: store?._id?.toString() ?? store?.id?.toString(),
-      ownerUserId: store?.owner_user_id,
-      storeName: store?.name,
+      storeId: store.id,
+      ownerUserId: store.ownerUserId,
+      storeName: store.name,
     };
   }
 }

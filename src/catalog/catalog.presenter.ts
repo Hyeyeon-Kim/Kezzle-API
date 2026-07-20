@@ -13,13 +13,14 @@ import {
   CatalogStoreResponseDto,
   CatalogStoresResponseDto,
 } from './dto/catalog-store-response.dto';
+import { ImageDto } from 'src/common/image/api/image.dto';
 
 @Injectable()
 export class CatalogPresenter {
   cake(cake: CatalogCakeView, userId: string): CatalogCakeResponseDto {
     return new CatalogCakeResponseDto({
       _id: cake.id,
-      image: cake.image,
+      image: new ImageDto(cake.image),
       owner_store_id: cake.ownerStoreId,
       isLiked: cake.likedUserIds.includes(userId),
       cursor: cake.cursor,
@@ -50,7 +51,7 @@ export class CatalogPresenter {
           new CatalogStoreResponseDto({
             _id: store.id,
             name: store.name,
-            logo: store.logo,
+            logo: store.logo == null ? store.logo : new ImageDto(store.logo),
             address: store.address,
             isLiked: store.likedUserIds.includes(userId),
             distance: store.distance,
