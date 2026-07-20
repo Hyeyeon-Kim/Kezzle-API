@@ -1,39 +1,41 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { AnniversaryDto } from 'src/anniversary/dto/response-anniversary.dto';
-import { CakeSimpleResponseDto } from 'src/cake/dto/response-cake-simple.dto';
-import { CakesSimpleResponseDto } from 'src/cake/dto/response-cakes-simple.dto';
-import { PopularCakesResponseDto } from 'src/cake/dto/response-popular-cakes.dto';
-import { RankResponseDto } from 'src/search/dto/response-search-rank.dto';
+import { HomeAnniversaryDto } from './home-anniversary.dto';
+import {
+  HomeCakeDto,
+  HomeCakePageDto,
+  HomePopularCakesDto,
+} from './home-cake.dto';
+import { HomeRankDto } from './home-rank.dto';
 import { HomeCurationItemDto } from './home-curation.dto';
 import { HomeSectionsMetadataDto } from './home-section-metadata.dto';
 
 export class HomeResponseDto {
-  @ApiProperty({ description: '기념일 정보', type: AnniversaryDto })
-  readonly anniversary: AnniversaryDto;
+  @ApiProperty({ description: '기념일 정보', type: HomeAnniversaryDto })
+  readonly anniversary: HomeAnniversaryDto;
 
   @ApiProperty({
     description: '추천 케이크들 6개를 반환합니다.',
-    type: [CakeSimpleResponseDto],
+    type: [HomeCakeDto],
   })
-  readonly recommendCakes: CakeSimpleResponseDto[];
+  readonly recommendCakes: HomeCakeDto[];
 
   @ApiProperty({
     description: '인기 케이크들 3개를 반환합니다.',
-    type: PopularCakesResponseDto,
+    type: HomePopularCakesDto,
   })
-  readonly popularCakes: PopularCakesResponseDto;
+  readonly popularCakes: HomePopularCakesDto;
 
   @ApiProperty({
     description: '인기 검색어 4개를 반환합니다.',
-    type: RankResponseDto,
+    type: HomeRankDto,
   })
-  readonly keywordRanks: RankResponseDto;
+  readonly keywordRanks: HomeRankDto;
 
   @ApiProperty({
     description: '최신 케이크들 4개를 반환합니다.',
-    type: CakesSimpleResponseDto,
+    type: HomeCakePageDto,
   })
-  readonly newestCakes: CakesSimpleResponseDto;
+  readonly newestCakes: HomeCakePageDto;
 
   @ApiProperty({
     description: '큐레이션 4개를 반환합니다.',
@@ -54,21 +56,23 @@ export class HomeResponseDto {
   readonly sections: HomeSectionsMetadataDto;
 
   constructor(
-    anniversary: AnniversaryDto,
-    recommendCakes: CakeSimpleResponseDto[],
-    popularCakes: PopularCakesResponseDto,
-    keywordRanks: RankResponseDto,
-    newestCakes: CakesSimpleResponseDto,
-    curations: HomeCurationItemDto[],
+    anniversary: unknown,
+    recommendCakes: unknown[],
+    popularCakes: unknown,
+    keywordRanks: unknown,
+    newestCakes: unknown,
+    curations: unknown[],
     degraded: boolean,
     sections: HomeSectionsMetadataDto,
   ) {
-    this.anniversary = anniversary;
-    this.recommendCakes = recommendCakes;
-    this.popularCakes = popularCakes;
-    this.keywordRanks = keywordRanks;
-    this.newestCakes = newestCakes;
-    this.curations = curations;
+    this.anniversary = new HomeAnniversaryDto(anniversary);
+    this.recommendCakes = recommendCakes.map((cake) => new HomeCakeDto(cake));
+    this.popularCakes = new HomePopularCakesDto(popularCakes);
+    this.keywordRanks = new HomeRankDto(keywordRanks);
+    this.newestCakes = new HomeCakePageDto(newestCakes);
+    this.curations = curations.map(
+      (curation) => new HomeCurationItemDto(curation),
+    );
     this.degraded = degraded;
     this.sections = sections;
   }

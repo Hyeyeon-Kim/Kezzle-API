@@ -6,6 +6,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { CurationRefreshService } from './curation-refresh.service';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
 import { CurationQueryService } from './curation-query.service';
+import { CurationRepository } from './curation.repository';
 
 @Module({
   imports: [
@@ -16,7 +17,12 @@ import { CurationQueryService } from './curation-query.service';
     AiSearchModule,
   ],
   controllers: [CurationController],
-  providers: [CurationService, CurationQueryService, CurationRefreshService],
+  providers: [
+    CurationRepository,
+    CurationService,
+    CurationQueryService,
+    CurationRefreshService,
+  ],
   exports: [CurationQueryService],
 })
 export class CurationModule {}

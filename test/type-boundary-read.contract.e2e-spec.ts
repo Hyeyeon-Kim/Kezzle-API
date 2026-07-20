@@ -190,15 +190,7 @@ describe('Type-A read HTTP contract baseline', () => {
 
     expect(response.body).toEqual(fixtures.anniversaryCakes);
     expect(response.body.cakes[0].isLiked).toBe(true);
-    expect(cakeService.anniversary).toHaveBeenCalledWith(
-      'anniversary-1',
-      expect.objectContaining({
-        firebaseUid: 'user-1',
-        roles: [Roles.BUYER],
-        cakeLikeIds: ['cake-detail-1'],
-      }),
-      2,
-    );
+    expect(cakeService.anniversary).toHaveBeenCalledWith('anniversary-1', 2);
   });
 
   it('keeps Cake detail viewer-specific response', async () => {
@@ -209,10 +201,7 @@ describe('Type-A read HTTP contract baseline', () => {
 
     expect(response.body).toEqual(fixtures.cakeDetail);
     expect(response.body.isLiked).toBe(true);
-    expect(cakeService.findOne).toHaveBeenCalledWith(
-      'cake-detail-1',
-      expect.objectContaining({ roles: [Roles.BUYER] }),
-    );
+    expect(cakeService.findOne).toHaveBeenCalledWith('cake-detail-1');
   });
 
   it('keeps Store detail null logo and empty detail image boundaries', async () => {
@@ -225,10 +214,7 @@ describe('Type-A read HTTP contract baseline', () => {
     expect(response.body.logo).toBeNull();
     expect(response.body.detail_images).toEqual([]);
     expect(response.body).toHaveProperty('kakako_url');
-    expect(storeService.findOne).toHaveBeenCalledWith(
-      'store-detail-1',
-      expect.objectContaining({ firebaseUid: 'user-1' }),
-    );
+    expect(storeService.findOne).toHaveBeenCalledWith('store-detail-1');
   });
 
   it('keeps admin-only User list and roles arrays', async () => {
@@ -275,7 +261,7 @@ describe('Type-A read HTTP contract baseline', () => {
     expect(searchService.search).toHaveBeenCalledWith(
       'lettering, birthday',
       0,
-      expect.objectContaining({ roles: [Roles.BUYER] }),
+      'user-1',
     );
   });
 

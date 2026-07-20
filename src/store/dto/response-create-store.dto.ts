@@ -59,26 +59,40 @@ export class CreateStoreResponseDto {
   readonly updatedAt: Date;
 
   constructor(store: StoreView) {
-    this._id = store.id;
+    const source = store as any;
+    this._id = source.id ?? source._id;
     this.name = store.name;
     this.logo =
-      store.logo == null ? store.logo : new ImageDto(store.logo);
-    this.store_feature = store.feature;
-    this.store_description = store.description;
-    this.insta_url = store.instagramUrl;
-    this.kakako_url = store.kakaoChannelUrl;
-    this.kakao_map_url = store.kakaoMapUrl;
-    this.location = {
-      type: 'Point',
-      coordinates: [store.location?.longitude, store.location?.latitude],
-    } as never;
+      store.logo == null
+        ? store.logo
+        : ImageDto.fromValueOrPersistence(store.logo as never);
+    this.store_feature = source.feature ?? source.store_feature;
+    this.store_description = source.description ?? source.store_description;
+    this.insta_url = source.instagramUrl ?? source.insta_url;
+    this.kakako_url = source.kakaoChannelUrl ?? source.kakako_url;
+    this.kakao_map_url = source.kakaoMapUrl ?? source.kakao_map_url;
+    this.location = source.location?.coordinates
+      ? source.location
+      : ({
+          type: 'Point',
+          coordinates: [source.location?.longitude, source.location?.latitude],
+        } as never);
     this.address = store.address;
-    this.phone_number = store.phoneNumber;
-    this.owner_user_id = store.ownerUserId;
-    this.detail_images = store.detailImages.map((image) => new ImageDto(image));
-    this.operating_time = [...store.operatingTime];
-    this.user_like_ids = [...store.likedUserIds];
-    this.taste = [...store.taste];
+    this.phone_number = source.phoneNumber ?? source.phone_number;
+    this.owner_user_id = source.ownerUserId ?? source.owner_user_id;
+    const detailImages = (
+      source.detailImages ??
+      source.detail_images ??
+      []
+    ).map((image) => ImageDto.fromValueOrPersistence(image));
+    this.detail_images = detailImages.length > 0 ? detailImages : undefined;
+    this.operating_time = [
+      ...(source.operatingTime ?? source.operating_time ?? []),
+    ];
+    this.user_like_ids = [
+      ...(source.likedUserIds ?? source.user_like_ids ?? []),
+    ];
+    this.taste = [...(source.taste ?? [])];
     this.createdAt = store.createdAt;
     this.updatedAt = store.updatedAt;
   }

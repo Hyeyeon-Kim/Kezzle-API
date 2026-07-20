@@ -1,7 +1,7 @@
 # Persistence/Application/API 타입 분리 작업 계획서
 
 > 작성일: 2026-07-20
-> 문서 상태: Type-C 구현 완료, Type-D 승인 대기
+> 문서 상태: Type-D 구현 완료, Type-E 승인 대기
 > 상위 로드맵: [`docs/refactoring.md`](../../refactoring.md) 4.5, Phase 3
 > 선행 작업: Catalog query와 feature 경계 캡슐화 Phase 4-A~D
 > 권장 라벨: `type: refactor`, `area: db`, `priority: p1`, `size: L`
@@ -290,6 +290,9 @@ CakeController
 ### Type-D. Feature service와 API presenter 분리
 
 권장 type: `refactor`, area: `db`, size: L
+
+구현 상태: **완료 (2026-07-20)**
+결과: [`8_type_d_feature_service_api_presenter_분리_결과.md`](./8_type_d_feature_service_api_presenter_분리_결과.md)
 
 1. Cake/Store/User/Search/Anniversary/Curation service가 request/response DTO를 import하지 않도록 전환한다.
 2. request DTO는 controller에서 application command로 변환한다.

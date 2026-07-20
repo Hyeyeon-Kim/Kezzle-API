@@ -41,8 +41,11 @@ export class CakeResponseDto {
       : data?.image;
     this.owner_store_id = data?.ownerStoreId ?? data?.owner_store_id;
     const likedUserIds = data?.likedUserIds ?? data?.user_like_ids ?? [];
-    this.isLiked = likedUserIds.includes(userid);
+    this.isLiked =
+      data?.likedUserIds === undefined && data?.user_like_ids === undefined
+        ? data?.isLiked ?? false
+        : likedUserIds.includes(userid);
     this.cursor = data?.cursor;
-    this.hashtag = data?.tags ?? data?.tag_ins;
+    this.hashtag = data?.tags ?? data?.hashtag ?? data?.tag_ins;
   }
 }

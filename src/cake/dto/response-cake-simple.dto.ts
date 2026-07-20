@@ -34,7 +34,12 @@ export class CakeSimpleResponseDto {
       ? ImageDto.fromValueOrPersistence(data.image)
       : data?.image;
     this.owner_store_id = data?.ownerStoreId ?? data?.owner_store_id;
-    this.hashtag = data?.tags ?? data?.tag_ins;
-    this.popular_cal = data?.calculatedLikes ?? data?.total;
+    this.hashtag = data?.tags ?? data?.hashtag ?? data?.tag_ins;
+    this.popular_cal =
+      data != null && 'calculatedLikes' in data
+        ? data.calculatedLikes
+        : data != null && 'popular_cal' in data
+        ? data.popular_cal
+        : data?.total;
   }
 }

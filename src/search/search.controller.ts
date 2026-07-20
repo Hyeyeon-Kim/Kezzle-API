@@ -4,6 +4,7 @@ import { GetUser } from 'src/user/decorators/get-user.decorator';
 import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { assertSelfOrAdmin } from 'src/auth/authorization/self-or-admin';
+import { SearchPresenter } from './search.presenter';
 
 @Controller('search')
 export class SearchController {
@@ -15,13 +16,22 @@ export class SearchController {
     @Query('page') page,
     @GetUser() userDto: AuthenticatedUser,
   ) {
-    return await this.searchService.search(keywords, parseInt(page), userDto);
+    return SearchPresenter.result(
+      await this.searchService.search(
+        keywords,
+        parseInt(page),
+        userDto.firebaseUid,
+      ),
+      userDto.firebaseUid,
+    );
   }
 
   @Get('rank')
   @Public()
   async keywordRank(@Query('startDate') startDate, @Query('endDate') endDate) {
-    return await this.searchService.getRank(startDate, endDate);
+    return SearchPresenter.rank(
+      await this.searchService.getRank(startDate, endDate),
+    );
   }
 
   @Get(':id')
@@ -30,6 +40,6 @@ export class SearchController {
     @GetUser() userDto: AuthenticatedUser,
   ) {
     assertSelfOrAdmin(userDto, userId);
-    return await this.searchService.getLatest(userId);
+    return SearchPresenter.latest(await this.searchService.getLatest(userId));
   }
 }

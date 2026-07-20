@@ -332,6 +332,15 @@ describe('Catalog/Like read HTTP contract', () => {
       .expect(201);
 
     expect(response.body).toEqual(fixtures.createdStore);
-    expect(storeService.create).toHaveBeenCalledWith(requestBody);
+    expect(storeService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Created Store',
+        location: { longitude: 127.1, latitude: 37.5 },
+        address: 'Seoul',
+        ownerUserId: 'seller-1',
+        operatingTime: ['10:00-18:00'],
+        taste: ['vanilla'],
+      }),
+    );
   });
 });

@@ -29,6 +29,7 @@ import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { DetailStoreResponseDto } from './dto/response-detail-store.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateStoreResponseDto } from './dto/response-create-store.dto';
+import { StorePresenter } from './store.presenter';
 
 const storeIdParams = {
   name: 'id',
@@ -56,8 +57,10 @@ export class StoreController {
   @ApiBadRequestResponse({
     description: 'request body의 조건이 잘못됨.',
   })
-  create(@Body() storeData: CreateStoreDto) {
-    return this.storeService.create(storeData);
+  async create(@Body() storeData: CreateStoreDto) {
+    return StorePresenter.created(
+      await this.storeService.create(StorePresenter.toCreateData(storeData)),
+    );
   }
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
@@ -75,11 +78,14 @@ export class StoreController {
     type: DetailStoreResponseDto,
   })
   @ApiNotFoundResponse({ description: '매장을 찾을 수 없습니다.' })
-  getOne(
+  async getOne(
     @Param('id') cakeId: string,
     @GetUser() userDto: AuthenticatedUser,
   ): Promise<DetailStoreResponseDto> {
-    return this.storeService.findOne(cakeId, userDto);
+    return StorePresenter.detail(
+      await this.storeService.findOne(cakeId),
+      userDto.firebaseUid,
+    );
   }
 
   @RolesAllowed(Roles.SELLER, Roles.ADMIN)
@@ -102,7 +108,11 @@ export class StoreController {
     @Body() updateStoreDto: UpdateStoreDto,
     @GetUser() userDto: AuthenticatedUser,
   ) {
-    return this.storeService.changeContent(storeId, updateStoreDto, userDto);
+    return this.storeService.changeContent(
+      storeId,
+      StorePresenter.toUpdateData(updateStoreDto),
+      userDto,
+    );
   }
 
   @RolesAllowed(Roles.SELLER, Roles.ADMIN)
@@ -119,10 +129,7 @@ export class StoreController {
     description: '매장 정보 삭제 성공',
   })
   @ApiNotFoundResponse({ description: '매장을 찾을 수 없습니다.' })
-  remove(
-    @Param('id') storeId: string,
-    @GetUser() userDto: AuthenticatedUser,
-  ) {
+  remove(@Param('id') storeId: string, @GetUser() userDto: AuthenticatedUser) {
     return this.storeService.removeContent(storeId, userDto);
   }
 

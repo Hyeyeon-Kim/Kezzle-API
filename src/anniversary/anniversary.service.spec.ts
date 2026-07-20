@@ -9,23 +9,14 @@ describe('AnniversaryService', () => {
       keyword: ['기념일'],
       date: new Date(),
     };
-    const query = {
-      sort: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      maxTimeMS: jest.fn().mockReturnThis(),
-      then: (
-        resolve: (value: (typeof anniversary)[]) => unknown,
-        reject?: (reason: unknown) => unknown,
-      ) => Promise.resolve([anniversary]).then(resolve, reject),
-    };
-    const anniversaryModel = {
-      find: jest.fn(() => query),
+    const anniversaryRepository = {
+      findNext: jest.fn().mockResolvedValue(anniversary),
     };
     const clipClient = {
       koSearch: jest.fn().mockResolvedValue([]),
     };
     const service = new AnniversaryService(
-      anniversaryModel as never,
+      anniversaryRepository as never,
       clipClient as never,
     );
     const controller = new AbortController();
@@ -33,7 +24,7 @@ describe('AnniversaryService', () => {
     const source = await service.findNextAnniversary(250);
     await service.getAnniversaryRecommendations(source, controller.signal);
 
-    expect(query.maxTimeMS).toHaveBeenCalledWith(250);
+    expect(anniversaryRepository.findNext).toHaveBeenCalledWith(250);
     expect(clipClient.koSearch).toHaveBeenCalledWith(
       '기념일',
       6,

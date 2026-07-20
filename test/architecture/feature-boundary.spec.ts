@@ -100,6 +100,64 @@ describe('Feature boundary architecture', () => {
     expect(violations).toEqual([]);
   });
 
+  it('keeps Type-D feature services independent from API DTOs', () => {
+    const targetFeatures = /^(cake|store|user|search|anniversary|curation)\//;
+    const violations = sourceFiles
+      .filter(
+        (source) =>
+          targetFeatures.test(source.path) &&
+          source.path.endsWith('.service.ts'),
+      )
+      .flatMap((source) => {
+        const dtoImports = importSpecifiers(source.content).filter((value) =>
+          /(^|\/)dto(\/|$)/.test(value),
+        );
+        const dtoConstruction = /new\s+[A-Za-z0-9_]+Dto\s*\(/.test(
+          source.content,
+        )
+          ? ['DTO construction']
+          : [];
+        return [...dtoImports, ...dtoConstruction].map(
+          (value) => `${source.path}: ${value}`,
+        );
+      });
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps Search, Curation, and Home independent from Cake API DTOs', () => {
+    const violations = sourceFiles
+      .filter((source) => /^(search|curation|home)\//.test(source.path))
+      .flatMap((source) =>
+        importSpecifiers(source.content)
+          .filter((value) => value.startsWith('src/cake/dto'))
+          .map((value) => `${source.path}: ${value}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps Curation Mongoose access inside its repository', () => {
+    const violations = sourceFiles
+      .filter(
+        (source) =>
+          source.path.startsWith('curation/') &&
+          source.path.endsWith('.service.ts'),
+      )
+      .flatMap((source) =>
+        importSpecifiers(source.content)
+          .filter(
+            (value) =>
+              value === 'mongoose' ||
+              value === '@nestjs/mongoose' ||
+              value.includes('/entities/curation.schema'),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
   it('forbids forwardRef', () => {
     const violations = sourceFiles
       .filter((source) => source.content.includes('forwardRef'))

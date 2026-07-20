@@ -7,3 +7,8 @@ export interface CreateUserData {
 export interface UpdateUserData {
   readonly nickname: string;
 }
+
+export interface RegisterUserCommand {
+  readonly token: string;
+  readonly nickname: string;
+}

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { CakeSimpleResponseDto } from 'src/cake/dto/response-cake-simple.dto';
+import { HomeCakeDto } from './home-cake.dto';
 
 export class HomeCurationItemDto {
   @ApiProperty({
@@ -10,9 +10,9 @@ export class HomeCurationItemDto {
 
   @ApiProperty({
     description: '큐레이션에 관련한 사진들 url',
-    type: [CakeSimpleResponseDto],
+    type: [HomeCakeDto],
   })
-  readonly cakes: CakeSimpleResponseDto[];
+  readonly cakes: HomeCakeDto[];
 
   @ApiProperty({
     description: '큐레이션 문구',
@@ -21,10 +21,8 @@ export class HomeCurationItemDto {
   readonly description: string;
 
   constructor(data: any) {
-    this._id = data._id;
-    this.cakes = data?.cakes
-      .map((cake) => new CakeSimpleResponseDto(cake))
-      .slice(0, 6);
-    this.description = data?.key;
+    this._id = data?.id ?? data?._id;
+    this.cakes = data?.cakes.map((cake) => new HomeCakeDto(cake)).slice(0, 6);
+    this.description = data?.key ?? data?.description;
   }
 }

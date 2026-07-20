@@ -1,0 +1,36 @@
+import {
+  LatestSearchView,
+  SearchRankView,
+  SearchResultView,
+} from './application/search.view';
+import { LatestResponseDto } from './dto/response-latest-search.dto';
+import { RankResponseDto } from './dto/response-search-rank.dto';
+import {
+  SearchCakeResponseDto,
+  SearchResponseDto,
+} from './dto/response-search.dto';
+
+export class SearchPresenter {
+  static result(result: SearchResultView, viewerId: string): SearchResponseDto {
+    return new SearchResponseDto(
+      result.cakes.map((cake) => new SearchCakeResponseDto(cake, viewerId)),
+      result.hasMore,
+      result.nextPage,
+    );
+  }
+
+  static rank(result: SearchRankView): RankResponseDto {
+    return new RankResponseDto(
+      result.ranking.map((item) => ({
+        _id: item.id ?? (item as any)._id,
+        count: item.count,
+      })),
+      result.startDate,
+      result.endDate,
+    );
+  }
+
+  static latest(result: LatestSearchView): LatestResponseDto {
+    return new LatestResponseDto(result.keywords);
+  }
+}

@@ -4,12 +4,15 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { AnniversaryService } from 'src/anniversary/anniversary.service';
-import { AnniversaryDto } from 'src/anniversary/dto/response-anniversary.dto';
+import { AnniversaryRecommendationView } from 'src/anniversary/application/anniversary.view';
 import { CakeService } from 'src/cake/cake.service';
-import { CakeSimpleResponseDto } from 'src/cake/dto/response-cake-simple.dto';
-import { CakesSimpleResponseDto } from 'src/cake/dto/response-cakes-simple.dto';
-import { PopularCakesResponseDto } from 'src/cake/dto/response-popular-cakes.dto';
+import {
+  CakePageView,
+  PopularCakesView,
+} from 'src/cake/application/cake-result.view';
+import { CakeView } from 'src/cake/application/cake.view';
 import { CurationQueryService } from 'src/curation/curation-query.service';
+import { CurationView } from 'src/curation/application/curation.view';
 import { HomeCacheService } from 'src/home-cache/home-cache.service';
 import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
@@ -23,9 +26,8 @@ import {
   MonitoringService,
 } from 'src/monitoring/monitoring.service';
 import { SearchService } from 'src/search/search.service';
-import { RankResponseDto } from 'src/search/dto/response-search-rank.dto';
+import { SearchRankView } from 'src/search/application/search.view';
 import { AuthenticatedUser } from 'src/user/application/authenticated-user';
-import { HomeCurationItemDto } from './dto/home-curation.dto';
 import { HomeResponseDto } from './dto/home-response.dto';
 import { HomeSectionsMetadataDto } from './dto/home-section-metadata.dto';
 import {
@@ -63,9 +65,7 @@ export class HomeFeedService {
     private readonly monitoring: MonitoringService,
   ) {}
 
-  async getHome(
-    user: AuthenticatedUser | undefined,
-  ): Promise<HomeResponseDto> {
+  async getHome(user: AuthenticatedUser | undefined): Promise<HomeResponseDto> {
     const startedAt = process.hrtime.bigint();
     return this.homeMetrics.run(async () => {
       try {
@@ -94,33 +94,34 @@ export class HomeFeedService {
     const startedAt = process.hrtime.bigint();
 
     try {
-      const recommendFallback: CakeSimpleResponseDto[] = [];
+      const recommendFallback: CakeView[] = [];
       const anniversaryFallback = this.emptyAnniversary();
       const popularWindow = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
-      const popularFallback = new PopularCakesResponseDto(
-        [],
-        popularWindow.startDate,
-        popularWindow.endDate,
-      );
+      const popularFallback: PopularCakesView = {
+        cakes: [],
+        startDate: popularWindow.startDate,
+        endDate: popularWindow.endDate,
+      };
       const keywordWindow = computeRankWindow(KEYWORD_RANK_WINDOW_DAYS_ENV);
-      const keywordRanksFallback = new RankResponseDto(
-        [],
-        keywordWindow.startDate,
-        keywordWindow.endDate,
-      );
-      const newestCakesFallback = new CakesSimpleResponseDto([], false);
-      const curationsFallback: HomeCurationItemDto[] = [];
+      const keywordRanksFallback: SearchRankView = {
+        ranking: [],
+        startDate: keywordWindow.startDate,
+        endDate: keywordWindow.endDate,
+      };
+      const newestCakesFallback: CakePageView = {
+        cakes: [],
+        hasMore: false,
+      };
+      const curationsFallback: CurationView[] = [];
 
-      let recommendResult:
-        | HomeSectionResult<CakeSimpleResponseDto[]>
+      let recommendResult: HomeSectionResult<CakeView[]> | undefined;
+      let anniversaryResult:
+        | HomeSectionResult<AnniversaryRecommendationView>
         | undefined;
-      let anniversaryResult: HomeSectionResult<AnniversaryDto> | undefined;
-      let popularResult: HomeSectionResult<PopularCakesResponseDto> | undefined;
-      let keywordRanksResult: HomeSectionResult<RankResponseDto> | undefined;
-      let newestCakesResult:
-        | HomeSectionResult<CakesSimpleResponseDto>
-        | undefined;
-      let curationsResult: HomeSectionResult<HomeCurationItemDto[]> | undefined;
+      let popularResult: HomeSectionResult<PopularCakesView> | undefined;
+      let keywordRanksResult: HomeSectionResult<SearchRankView> | undefined;
+      let newestCakesResult: HomeSectionResult<CakePageView> | undefined;
+      let curationsResult: HomeSectionResult<CurationView[]> | undefined;
 
       const recommendTimeout = this.getSectionTimeout('recommendCakes');
       const recommendSection = this.homeMetrics
@@ -334,9 +335,7 @@ export class HomeFeedService {
                     4,
                     curationsTimeout,
                   );
-                  return curations.map(
-                    (curation) => new HomeCurationItemDto(curation),
-                  );
+                  return curations;
                 },
               }),
             deadline.signal,
@@ -507,8 +506,8 @@ export class HomeFeedService {
       : config.defaultMs;
   }
 
-  private emptyAnniversary(): AnniversaryDto {
-    return { _id: '', name: '', dday: '', ment: '', images: [] };
+  private emptyAnniversary(): AnniversaryRecommendationView {
+    return { id: '', name: '', dday: '', mention: '', images: [] };
   }
 
   private logSectionFallback(

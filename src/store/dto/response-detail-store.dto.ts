@@ -140,9 +140,13 @@ export class DetailStoreResponseDto {
     this.is_liked = likedUserIds.includes(userid);
     this.like_cnt = likedUserIds.length;
     this.longitude =
-      data?.location?.longitude ?? data?.location?.coordinates?.[0];
+      data?.location?.longitude ??
+      data?.location?.coordinates?.[0] ??
+      data?.longitude;
     this.latitude =
-      data?.location?.latitude ?? data?.location?.coordinates?.[1];
+      data?.location?.latitude ??
+      data?.location?.coordinates?.[1] ??
+      data?.latitude;
     this.kakao_map_url = data?.kakaoMapUrl ?? data?.kakao_map_url;
     this.distance = data?.distance;
   }

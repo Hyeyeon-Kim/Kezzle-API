@@ -3,6 +3,7 @@ import { CurationService } from './curation.service';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { Roles } from 'src/user/entities/roles.enum';
+import { CurationPresenter } from './curation.presenter';
 
 @Controller('curation')
 export class CurationController {
@@ -10,17 +11,24 @@ export class CurationController {
 
   @Post()
   @RolesAllowed(Roles.ADMIN)
-  createNewCuration(
+  async createNewCuration(
     @Query('keyword') keywords: string,
     @Query('disc') disc: string,
     @Query('note') note: string,
   ) {
-    return this.curationService.createCuration(keywords, disc, note);
+    return CurationPresenter.created(
+      await this.curationService.createCuration(keywords, disc, note),
+    );
   }
 
   @Get(':id')
   @Public()
-  showCuration(@Param('id') curationId: string, @Query('page') page: string) {
-    return this.curationService.showCuration(curationId, parseInt(page));
+  async showCuration(
+    @Param('id') curationId: string,
+    @Query('page') page: string,
+  ) {
+    return CurationPresenter.detail(
+      await this.curationService.showCuration(curationId, parseInt(page)),
+    );
   }
 }

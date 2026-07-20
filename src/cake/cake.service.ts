@@ -1,6 +1,4 @@
-import { CakesResponseDto } from './dto/response-cakes.dto';
 import { Injectable } from '@nestjs/common';
-import { CakeResponseDto } from './dto/response-cake.dto';
 import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
 import { Roles } from 'src/user/entities/roles.enum';
@@ -9,15 +7,15 @@ import { ObjectId } from 'mongodb';
 import * as XLSX from 'xlsx'; // TODO:나중에 이거 바꿔야함
 import { CakeImportRow } from './application/cake-import-row';
 import { PopularRankService } from 'src/log/popular-rank.service';
-import { PopularCakesResponseDto } from './dto/response-popular-cakes.dto';
 import { AnniversaryService } from 'src/anniversary/anniversary.service';
-import { CakeSimpleResponseDto } from './dto/response-cake-simple.dto';
 import { CounterService } from 'src/counter/counter.service';
-import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
 import { VitClient } from 'src/ai-search/vit-client';
 import { ClipClient } from 'src/ai-search/clip-client';
 import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.reader';
 import { CakeRepository } from './cake.repository';
+import { CakeExternalMapper } from './cake-external.mapper';
+import { CakePageView, PopularCakesView } from './application/cake-result.view';
+import { CakeView } from './application/cake.view';
 
 @Injectable()
 export class CakeService {
@@ -48,9 +46,7 @@ export class CakeService {
       cakes = cakes.slice(0, cakes.length - 1);
     }
 
-    const cakeResponse = cakes.map((cake) => new CakeSimpleResponseDto(cake));
-
-    return new CakesSimpleResponseDto(cakeResponse, hasMore);
+    return { cakes, hasMore };
   }
 
   async findRecommendationSeed(
@@ -74,18 +70,14 @@ export class CakeService {
   async findAllByRecommend(
     seedCakeId: string,
     signal?: AbortSignal,
-  ): Promise<CakeSimpleResponseDto[]> {
+  ): Promise<CakeView[]> {
     const cakes = await this.vitClient.similarSearch(seedCakeId, 6, signal);
 
-    return cakes.map((cake) => new CakeSimpleResponseDto(cake));
+    return cakes.map((cake) => CakeExternalMapper.toView(cake));
   }
 
-  async findOne(
-    cakeid: string,
-    user: AuthenticatedUser,
-  ): Promise<CakeResponseDto> {
-    const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
-    return new CakeResponseDto(cake, user.firebaseUid);
+  async findOne(cakeid: string): Promise<CakeView> {
+    return this.cakeRepository.findByIdOrThrow(cakeid);
   }
 
   async changeContent(cakeid: string, user: AuthenticatedUser, file) {
@@ -201,29 +193,32 @@ export class CakeService {
     return cnt + '개의 파일 업로드 성공';
   }
 
-  async popular(after, limit: number, maxTimeMs?: number) {
+  async popular(
+    after,
+    limit: number,
+    maxTimeMs?: number,
+  ): Promise<PopularCakesView> {
     // 요청 path 에서 cakelikelogs 실시간 집계를 제거하고 사전 계산 read model 을 조회한다.
     // 날짜는 read model 배치가 실제로 집계한 rolling window 구간이다.
     const { cakes, startDate, endDate } =
       await this.popularRankService.getRanked(after, limit, maxTimeMs);
 
-    const cakeResponse = cakes.map((cake) => new CakeSimpleResponseDto(cake));
-    return new PopularCakesResponseDto(cakeResponse, startDate, endDate);
+    return {
+      cakes: cakes.map((cake) => CakeExternalMapper.toView(cake)),
+      startDate,
+      endDate,
+    };
   }
 
-  async anniversary(
-    anniId: string,
-    user: AuthenticatedUser,
-    page: number,
-  ) {
+  async anniversary(anniId: string, page: number): Promise<CakePageView> {
     if (Number.isNaN(page)) page = 0;
     const anniversary =
       await this.anniversaryService.getAnniversaryWord(anniId);
     const keyword = anniversary.keyword.join(', ');
     const { result } = await this.clipClient.koSearchPage(keyword, 20, page);
-    const cakeResponse = result.map(
-      (cake) => new CakeResponseDto(cake, user.firebaseUid),
-    );
-    return new CakesResponseDto(cakeResponse, false);
+    return {
+      cakes: result.map((cake) => CakeExternalMapper.toView(cake)),
+      hasMore: false,
+    };
   }
 }
