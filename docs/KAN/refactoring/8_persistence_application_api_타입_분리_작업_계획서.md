@@ -1,7 +1,7 @@
 # Persistence/Application/API 타입 분리 작업 계획서
 
 > 작성일: 2026-07-20
-> 문서 상태: Type-D 구현 완료, Type-E 승인 대기
+> 문서 상태: Type-E 구현 완료, Type-F 승인 대기
 > 상위 로드맵: [`docs/refactoring.md`](../../refactoring.md) 4.5, Phase 3
 > 선행 작업: Catalog query와 feature 경계 캡슐화 Phase 4-A~D
 > 권장 라벨: `type: refactor`, `area: db`, `priority: p1`, `size: L`
@@ -314,6 +314,9 @@ CakeController
 ### Type-E. Home/Catalog/Like 복합 API 소유권 완성
 
 권장 type: `refactor`, area: `home`, `db`, size: L
+
+구현 상태: **완료 (2026-07-20)**
+결과: [`8_type_e_home_catalog_like_api_소유권_분리_결과.md`](./8_type_e_home_catalog_like_api_소유권_분리_결과.md)
 
 1. Home/Catalog/Like DTO를 각각 `api/dto` 아래로 이동한다.
 2. Home section과 cache value를 다른 feature DTO가 아닌 pure view로 전환한다.

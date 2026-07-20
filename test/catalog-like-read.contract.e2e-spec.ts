@@ -11,11 +11,13 @@ import request from 'supertest';
 import { CakeController } from 'src/cake/cake.controller';
 import { CakeService } from 'src/cake/cake.service';
 import { CatalogCakeController } from 'src/catalog/catalog-cake.controller';
+import { CatalogPresenter } from 'src/catalog/api/catalog.presenter';
 import { CatalogQueryService } from 'src/catalog/catalog-query.service';
 import { CatalogStoreController } from 'src/catalog/catalog-store.controller';
 import { SimilarCakeCatalogQueryService } from 'src/catalog/similar-cake-catalog-query.service';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { LikeController } from 'src/like/like.controller';
+import { LikePresenter } from 'src/like/api/like.presenter';
 import { LikeService } from 'src/like/like.service';
 import { StoreController } from 'src/store/store.controller';
 import { StoreService } from 'src/store/store.service';
@@ -95,6 +97,8 @@ describe('Catalog/Like read HTTP contract', () => {
         { provide: CakeService, useValue: cakeService },
         { provide: StoreService, useValue: storeService },
         { provide: LikeService, useValue: likeService },
+        CatalogPresenter,
+        LikePresenter,
         {
           provide: APP_GUARD,
           useClass: ContractAuthenticationGuard,
@@ -112,16 +116,71 @@ describe('Catalog/Like read HTTP contract', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    catalogQuery.findAllCakes.mockResolvedValue(fixtures.cakesByCursor);
-    catalogQuery.findAllCakesByLocation.mockResolvedValue(
-      fixtures.cakesByLocation,
-    );
-    catalogQuery.findStoreCakes.mockResolvedValue(fixtures.storeCakes);
-    catalogQuery.findAllStores.mockResolvedValue(fixtures.stores);
-    similarCakeQuery.execute.mockResolvedValue(fixtures.similarCakes);
+    const cakeView = (cake, likedUserId = 'user-1') => ({
+      id: cake._id,
+      image: cake.image,
+      ownerStoreId: cake.owner_store_id,
+      likedUserIds: cake.isLiked ? [likedUserId] : [],
+      cursor: cake.cursor,
+      tags: cake.hashtag,
+    });
+    catalogQuery.findAllCakes.mockResolvedValue({
+      cakes: fixtures.cakesByCursor.cakes.map((cake) => cakeView(cake)),
+      hasMore: fixtures.cakesByCursor.hasMore,
+    });
+    catalogQuery.findAllCakesByLocation.mockResolvedValue({
+      cakes: fixtures.cakesByLocation.cakes.map((cake) => cakeView(cake)),
+      hasMore: fixtures.cakesByLocation.hasMore,
+    });
+    catalogQuery.findStoreCakes.mockResolvedValue({
+      cakes: fixtures.storeCakes.cakes.map((cake) => cakeView(cake)),
+      hasMore: fixtures.storeCakes.hasMore,
+    });
+    const stores = fixtures.stores.stores.map((store) => ({
+      id: store._id,
+      name: store.name,
+      logo: store.logo,
+      address: store.address,
+      likedUserIds: store.isLiked ? ['seller-1'] : [],
+      distance: store.distance,
+    }));
+    catalogQuery.findAllStores.mockResolvedValue({
+      stores,
+      cakesByStoreId: new Map(
+        fixtures.stores.stores.map((store) => [
+          store._id,
+          store.cakes.map((cake) => cakeView(cake, 'seller-1')),
+        ]),
+      ),
+      hasMore: fixtures.stores.hasMore,
+    });
+    similarCakeQuery.execute.mockResolvedValue({
+      cakes: fixtures.similarCakes.cakes.map((cake) => ({
+        id: cake._id,
+        image: cake.image,
+        ownerStoreId: cake.owner_store_id,
+        ownerStoreName: cake.owner_store_name,
+        ownerStoreAddress: cake.owner_store_address,
+        ownerStoreTaste: cake.owner_store_taste,
+        ownerStoreLatitude: cake.owner_store_latitude,
+        ownerStoreLongitude: cake.owner_store_longitude,
+      })),
+      hasMore: fixtures.similarCakes.hasMore,
+    });
     storeService.create.mockResolvedValue(fixtures.createdStore);
-    likeService.findUserLikeCake.mockResolvedValue(fixtures.likedCakes);
-    likeService.findUserLikeStore.mockResolvedValue(fixtures.likedStores);
+    likeService.findUserLikeCake.mockResolvedValue(
+      fixtures.likedCakes.map((cake) => cakeView(cake)),
+    );
+    likeService.findUserLikeStore.mockResolvedValue(
+      fixtures.likedStores.map((store) => ({
+        id: store._id,
+        name: store.name,
+        logo: store.logo,
+        address: store.address,
+        likedUserIds: store.isLiked ? ['user-1'] : [],
+        cakes: store.cakes.map((cake) => cakeView(cake, 'admin-1')),
+      })),
+    );
   });
 
   afterAll(async () => {
@@ -152,10 +211,6 @@ describe('Catalog/Like read HTTP contract', () => {
 
     expect(response.body).toEqual(fixtures.cakesByCursor);
     expect(catalogQuery.findAllCakes).toHaveBeenCalledWith(
-      expect.objectContaining({
-        firebaseUid: 'user-1',
-        roles: [Roles.BUYER],
-      }),
       37.5,
       127.1,
       3000,
@@ -174,7 +229,6 @@ describe('Catalog/Like read HTTP contract', () => {
 
     expect(response.body).toEqual(fixtures.cakesByLocation);
     expect(catalogQuery.findAllCakesByLocation).toHaveBeenCalledWith(
-      expect.objectContaining({ firebaseUid: 'user-1' }),
       37.6,
       127.2,
       2500,
@@ -191,10 +245,6 @@ describe('Catalog/Like read HTTP contract', () => {
 
     expect(response.body).toEqual(fixtures.stores);
     expect(catalogQuery.findAllStores).toHaveBeenCalledWith(
-      expect.objectContaining({
-        firebaseUid: 'seller-1',
-        roles: [Roles.SELLER],
-      }),
       37.7,
       127.3,
       1500,
@@ -212,7 +262,6 @@ describe('Catalog/Like read HTTP contract', () => {
     expect(response.body).toEqual(fixtures.storeCakes);
     expect(catalogQuery.findStoreCakes).toHaveBeenCalledWith(
       'store-1',
-      expect.objectContaining({ firebaseUid: 'user-1' }),
       'after-cake-id',
       4,
     );
@@ -253,13 +302,7 @@ describe('Catalog/Like read HTTP contract', () => {
       .expect(200);
 
     expect(response.body).toEqual(fixtures.likedStores);
-    expect(likeService.findUserLikeStore).toHaveBeenCalledWith(
-      'user-1',
-      expect.objectContaining({
-        firebaseUid: 'admin-1',
-        roles: [Roles.ADMIN],
-      }),
-    );
+    expect(likeService.findUserLikeStore).toHaveBeenCalledWith('user-1');
   });
 
   it('rejects a seller and another buyer from liked-store reads', async () => {
@@ -285,16 +328,23 @@ describe('Catalog/Like read HTTP contract', () => {
       .expect(200);
 
     const call = catalogQuery.findAllCakes.mock.calls[0];
+    expect(Number.isNaN(call[0])).toBe(true);
     expect(Number.isNaN(call[1])).toBe(true);
     expect(Number.isNaN(call[2])).toBe(true);
-    expect(Number.isNaN(call[3])).toBe(true);
-    expect(call[4]).toBe('');
-    expect(Number.isNaN(call[5])).toBe(true);
+    expect(call[3]).toBe('');
+    expect(Number.isNaN(call[4])).toBe(true);
   });
 
   it('keeps empty catalog and like response shapes', async () => {
-    catalogQuery.findAllStores.mockResolvedValueOnce(fixtures.emptyStoresPage);
-    similarCakeQuery.execute.mockResolvedValueOnce(fixtures.emptyPage);
+    catalogQuery.findAllStores.mockResolvedValueOnce({
+      stores: [],
+      cakesByStoreId: new Map(),
+      hasMore: false,
+    });
+    similarCakeQuery.execute.mockResolvedValueOnce({
+      cakes: [],
+      hasMore: false,
+    });
     likeService.findUserLikeStore.mockResolvedValueOnce(fixtures.emptyList);
 
     const stores = await request(app.getHttpServer())

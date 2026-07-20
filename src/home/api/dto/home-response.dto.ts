@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { HomeView } from '../../application/home.view';
 import { HomeAnniversaryDto } from './home-anniversary.dto';
 import {
   HomeCakeDto,
@@ -55,25 +56,18 @@ export class HomeResponseDto {
   })
   readonly sections: HomeSectionsMetadataDto;
 
-  constructor(
-    anniversary: unknown,
-    recommendCakes: unknown[],
-    popularCakes: unknown,
-    keywordRanks: unknown,
-    newestCakes: unknown,
-    curations: unknown[],
-    degraded: boolean,
-    sections: HomeSectionsMetadataDto,
-  ) {
-    this.anniversary = new HomeAnniversaryDto(anniversary);
-    this.recommendCakes = recommendCakes.map((cake) => new HomeCakeDto(cake));
-    this.popularCakes = new HomePopularCakesDto(popularCakes);
-    this.keywordRanks = new HomeRankDto(keywordRanks);
-    this.newestCakes = new HomeCakePageDto(newestCakes);
-    this.curations = curations.map(
+  constructor(view: HomeView) {
+    this.anniversary = new HomeAnniversaryDto(view.anniversary);
+    this.recommendCakes = view.recommendCakes.map(
+      (cake) => new HomeCakeDto(cake),
+    );
+    this.popularCakes = new HomePopularCakesDto(view.popularCakes);
+    this.keywordRanks = new HomeRankDto(view.keywordRanks);
+    this.newestCakes = new HomeCakePageDto(view.newestCakes);
+    this.curations = view.curations.map(
       (curation) => new HomeCurationItemDto(curation),
     );
-    this.degraded = degraded;
-    this.sections = sections;
+    this.degraded = view.degraded;
+    this.sections = new HomeSectionsMetadataDto(view.sections);
   }
 }

@@ -1,5 +1,6 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { HomeFeedService } from './home-feed.service';
+import { HomePresenter } from './api/home.presenter';
 import fixtures from '../../test/fixtures/type-boundary-read.contract.json';
 
 function normalizeSectionDurations(response: unknown) {
@@ -19,25 +20,25 @@ describe('HomeFeedService', () => {
   });
 
   const anniversary = {
-    _id: 'anniversary-id',
+    id: 'anniversary-id',
     name: '기념일',
     dday: 'D-1',
-    ment: '기념일 케이크',
+    mention: '기념일 케이크',
     images: ['image'],
   };
   const popularCakes = {
     startDate: '2023-01-01',
     endDate: '2023-12-31',
-    cakes: [{ _id: 'popular-cake' }],
+    cakes: [{ id: 'popular-cake' }],
   };
   const keywordRanks = {
     startDate: '2023-01-01',
     endDate: '2023-11-25',
-    ranking: [{ _id: '스마일', count: 10 }],
+    ranking: [{ id: '스마일', count: 10 }],
   };
   const newestCakes = {
     hasMore: false,
-    cakes: [{ _id: 'newest-cake' }],
+    cakes: [{ id: 'newest-cake' }],
   };
 
   function createService(overrides?: {
@@ -151,10 +152,10 @@ describe('HomeFeedService', () => {
 
     expect(response.degraded).toBe(true);
     expect(response.anniversary).toEqual({
-      _id: '',
+      id: '',
       name: '',
       dday: '',
-      ment: '',
+      mention: '',
       images: [],
     });
     expect(response.sections.anniversary).toMatchObject({
@@ -280,7 +281,7 @@ describe('HomeFeedService', () => {
     const { service, curationQuery } = createService();
     curationQuery.findFeatured.mockResolvedValue([
       {
-        _id: 'curation-1',
+        id: 'curation-1',
         key: 'fixture curation',
         cakes: [],
         updatedAt: new Date('2020-01-01T00:00:00.000Z'),
@@ -290,7 +291,11 @@ describe('HomeFeedService', () => {
     const response = await service.getHome({ cake_like_ids: [] } as never);
 
     expect(response.curations).toEqual([
-      { _id: 'curation-1', cakes: [], description: 'fixture curation' },
+      expect.objectContaining({
+        id: 'curation-1',
+        cakes: [],
+        key: 'fixture curation',
+      }),
     ]);
     expect(curationQuery.findFeatured).toHaveBeenCalledTimes(1);
   });
@@ -302,7 +307,8 @@ describe('HomeFeedService', () => {
       Promise.resolve(cacheValues[key]),
     );
 
-    const response = await service.getHome({ cake_like_ids: [] } as never);
+    const view = await service.getHome({ cake_like_ids: [] } as never);
+    const response = new HomePresenter().response(view);
 
     expect(normalizeSectionDurations(response)).toEqual(fixtures.home);
     expect(homeCache.getWithSwr).toHaveBeenCalledTimes(6);
@@ -315,7 +321,8 @@ describe('HomeFeedService', () => {
         .mockRejectedValue(new Error('CLIP unavailable')),
     });
 
-    const response = await service.getHome({ cake_like_ids: [] } as never);
+    const view = await service.getHome({ cake_like_ids: [] } as never);
+    const response = new HomePresenter().response(view);
 
     expect(normalizeSectionDurations(response)).toEqual(
       fixtures.homeAnniversaryFallback,

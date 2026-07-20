@@ -1,24 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  HomeSectionFallbackReason,
-  HomeSectionResult,
-  HomeSectionStatus,
-} from '../home-section.executor';
+  HomeSectionMetadataView,
+  HomeSectionsView,
+} from '../../application/home.view';
 
 export class HomeSectionMetadataDto {
   @ApiProperty({ enum: ['success', 'fallback'], example: 'success' })
-  readonly status: HomeSectionStatus;
+  readonly status: HomeSectionMetadataView['status'];
 
   @ApiPropertyOptional({
     enum: ['timeout', 'dependency_error'],
     example: 'timeout',
   })
-  readonly reason?: HomeSectionFallbackReason;
+  readonly reason?: HomeSectionMetadataView['reason'];
 
   @ApiProperty({ description: '섹션 처리 시간(ms)', example: 12.34 })
   readonly durationMs: number;
 
-  constructor(result: HomeSectionResult<unknown>) {
+  constructor(result: HomeSectionMetadataView) {
     this.status = result.status;
     this.durationMs = result.durationMs;
     if (result.status === 'fallback') {
@@ -46,14 +45,7 @@ export class HomeSectionsMetadataDto {
   @ApiProperty({ type: HomeSectionMetadataDto })
   readonly curations: HomeSectionMetadataDto;
 
-  constructor(results: {
-    recommendCakes: HomeSectionResult<unknown>;
-    anniversary: HomeSectionResult<unknown>;
-    popularCakes: HomeSectionResult<unknown>;
-    keywordRanks: HomeSectionResult<unknown>;
-    newestCakes: HomeSectionResult<unknown>;
-    curations: HomeSectionResult<unknown>;
-  }) {
+  constructor(results: HomeSectionsView) {
     this.recommendCakes = new HomeSectionMetadataDto(results.recommendCakes);
     this.anniversary = new HomeSectionMetadataDto(results.anniversary);
     this.popularCakes = new HomeSectionMetadataDto(results.popularCakes);

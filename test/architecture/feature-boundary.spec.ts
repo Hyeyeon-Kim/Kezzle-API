@@ -1,6 +1,6 @@
 import { MODULE_METADATA } from '@nestjs/common/constants';
 import { readdirSync, readFileSync } from 'fs';
-import { join, relative, sep } from 'path';
+import { dirname, join, normalize, relative, sep } from 'path';
 import { CakeCatalogReader } from 'src/cake/cake-catalog.reader';
 import { CakeLikePort } from 'src/cake/cake-like.port';
 import { CakeRepositoryModule } from 'src/cake/cake-repository.module';
@@ -57,6 +57,18 @@ function importSpecifiers(content: string): string[] {
 
 function moduleMetadata(module: object, key: string): unknown[] {
   return Reflect.getMetadata(key, module) ?? [];
+}
+
+function normalizeImportPath(sourcePath: string, specifier: string): string {
+  if (specifier.startsWith('src/')) {
+    return specifier.slice('src/'.length);
+  }
+  if (specifier.startsWith('.')) {
+    return normalize(join(dirname(sourcePath), specifier))
+      .split(sep)
+      .join('/');
+  }
+  return specifier;
 }
 
 describe('Feature boundary architecture', () => {
@@ -156,6 +168,62 @@ describe('Feature boundary architecture', () => {
       );
 
     expect(violations).toEqual([]);
+  });
+
+  it('keeps Type-E composite services independent from API DTOs and presenters', () => {
+    const violations = sourceFiles
+      .filter(
+        (source) =>
+          /^(home|catalog|like)\//.test(source.path) &&
+          source.path.endsWith('.service.ts'),
+      )
+      .flatMap((source) => {
+        const forbiddenImports = importSpecifiers(source.content).filter(
+          (value) => /(^|\/)dto(\/|$)|presenter/.test(value),
+        );
+        const dtoConstruction = /new\s+[A-Za-z0-9_]+Dto\s*\(/.test(
+          source.content,
+        )
+          ? ['DTO construction']
+          : [];
+        return [...forbiddenImports, ...dtoConstruction].map(
+          (value) => `${source.path}: ${value}`,
+        );
+      });
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps Home application code independent from feature API DTOs', () => {
+    const violations = sourceFiles
+      .filter(
+        (source) =>
+          source.path.startsWith('home/') &&
+          !source.path.startsWith('home/api/'),
+      )
+      .flatMap((source) =>
+        importSpecifiers(source.content)
+          .map((value) => normalizeImportPath(source.path, value))
+          .filter((value) => /^(cake|anniversary|search)\/.*dto/.test(value))
+          .map((value) => `${source.path}: ${value}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps Home, Catalog, and Like API DTOs under their endpoint owner', () => {
+    const misplacedDtos = sourceFiles
+      .filter((source) => /^(home|catalog|like)\/dto\//.test(source.path))
+      .map((source) => source.path);
+    const crossFeatureImports = sourceFiles.flatMap((source) =>
+      importSpecifiers(source.content)
+        .map((value) => normalizeImportPath(source.path, value))
+        .filter((value) => /^(home|catalog|like)\/api\/dto\//.test(value))
+        .filter((value) => value.split('/')[0] !== source.path.split('/')[0])
+        .map((value) => `${source.path}: ${value}`),
+    );
+
+    expect([...misplacedDtos, ...crossFeatureImports]).toEqual([]);
   });
 
   it('forbids forwardRef', () => {

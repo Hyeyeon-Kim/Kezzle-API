@@ -1,6 +1,5 @@
 import { CakeAlredyLikeException } from 'src/cake/exceptions/cake-already-like.exception';
 import { StoreAlredyLikeException } from 'src/store/exceptions/store-already-like.exception';
-import { LikePresenter } from './like.presenter';
 import { LikeService } from './like.service';
 
 const viewer = { firebaseUid: 'viewer-user', roles: [] };
@@ -18,7 +17,6 @@ const buildService = ({
     storeLikePort as any,
     likedStoreReader as any,
     logService as any,
-    new LikePresenter(),
   );
 
 const expectCallOrder = (...mocks: jest.Mock[]) => {
@@ -55,9 +53,7 @@ describe('LikeService public port boundary', () => {
       'target-user',
     );
     expect(cakeLikePort.findByIds).toHaveBeenCalledWith(['cake-1']);
-    expect(result).toEqual([
-      expect.objectContaining({ _id: 'cake-1', isLiked: true }),
-    ]);
+    expect(result).toEqual([expect.objectContaining({ id: 'cake-1' })]);
   });
 
   it('reads liked stores through one catalog reader and preserves target/viewer like semantics', async () => {
@@ -91,17 +87,13 @@ describe('LikeService public port boundary', () => {
     };
     const service = buildService({ userLikePort, likedStoreReader });
 
-    const result = await service.findUserLikeStore(
-      'target-user',
-      viewer as any,
-    );
+    const result = await service.findUserLikeStore('target-user');
 
     expect(likedStoreReader.findByUserLike).toHaveBeenCalledTimes(1);
     expect(likedStoreReader.findByUserLike).toHaveBeenCalledWith('target-user');
-    expect(result[0]).toMatchObject({ _id: 'store-1', isLiked: true });
+    expect(result[0]).toMatchObject({ id: 'store-1' });
     expect(result[0].cakes[0]).toMatchObject({
-      _id: 'cake-1',
-      isLiked: true,
+      id: 'cake-1',
     });
   });
 

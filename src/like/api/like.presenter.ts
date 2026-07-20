@@ -18,6 +18,10 @@ export class LikePresenter {
     });
   }
 
+  cakes(cakes: CakeLikeView[], viewerUserId: string): LikedCakeResponseDto[] {
+    return cakes.map((cake) => this.cake(cake, viewerUserId));
+  }
+
   stores(
     stores: LikedStoreCatalogView[],
     targetUserId: string,

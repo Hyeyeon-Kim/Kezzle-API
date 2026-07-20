@@ -2,8 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { VitClient } from 'src/ai-search/vit-client';
 import { MetricsService } from 'src/metrics/metrics.service';
 import { StoreCatalogReader } from 'src/store/store-catalog.reader';
-import { CatalogPresenter } from './catalog.presenter';
-import { CatalogSimilarCakesResponseDto } from './dto/catalog-similar-cake-response.dto';
+import { CatalogSimilarCakePageView } from './application/catalog.view';
 
 @Injectable()
 export class SimilarCakeCatalogQueryService {
@@ -11,7 +10,6 @@ export class SimilarCakeCatalogQueryService {
     private readonly storeReader: StoreCatalogReader,
     private readonly vitClient: VitClient,
     private readonly metricsService: MetricsService,
-    private readonly presenter: CatalogPresenter,
   ) {}
 
   async execute(
@@ -20,7 +18,7 @@ export class SimilarCakeCatalogQueryService {
     latitude: number,
     distance: number,
     size: number,
-  ): Promise<CatalogSimilarCakesResponseDto> {
+  ): Promise<CatalogSimilarCakePageView> {
     const endSimilarSearch =
       this.metricsService.similarSearchDuration.startTimer();
 
@@ -43,12 +41,23 @@ export class SimilarCakeCatalogQueryService {
       const response = cakes
         .map((cake) => {
           const store = storeMap.get(cake.owner_store_id);
-          return store ? this.presenter.similarCake(cake, store) : null;
+          return store
+            ? {
+                id: cake.id,
+                image: cake.image,
+                ownerStoreId: cake.owner_store_id,
+                ownerStoreName: store.name,
+                ownerStoreAddress: store.address,
+                ownerStoreTaste: store.taste,
+                ownerStoreLatitude: store.latitude,
+                ownerStoreLongitude: store.longitude,
+              }
+            : null;
         })
         .filter((cake) => cake !== null);
 
       endSimilarSearch({ status: 'success' });
-      return new CatalogSimilarCakesResponseDto(response, false);
+      return { cakes: response, hasMore: false };
     } catch (error) {
       endSimilarSearch({ status: 'error' });
       throw error;

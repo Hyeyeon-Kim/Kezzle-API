@@ -16,6 +16,7 @@ import { CurationController } from 'src/curation/curation.controller';
 import { CurationService } from 'src/curation/curation.service';
 import { HomeFeedService } from 'src/home/home-feed.service';
 import { HomeController } from 'src/home/home.controller';
+import { HomePresenter } from 'src/home/api/home.presenter';
 import { SearchController } from 'src/search/search.controller';
 import { SearchService } from 'src/search/search.service';
 import { StoreController } from 'src/store/store.controller';
@@ -108,6 +109,7 @@ describe('Type-A read HTTP contract baseline', () => {
         { provide: SearchService, useValue: searchService },
         { provide: CurationService, useValue: curationService },
         { provide: HomeFeedService, useValue: homeFeedService },
+        HomePresenter,
         {
           provide: APP_GUARD,
           useClass: TypeBoundaryAuthenticationGuard,

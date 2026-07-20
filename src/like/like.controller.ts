@@ -15,13 +15,17 @@ import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { Roles } from 'src/user/entities/roles.enum';
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { assertSelfOrAdmin } from 'src/auth/authorization/self-or-admin';
-import { LikedCakeResponseDto } from './dto/liked-cake-response.dto';
-import { LikedStoreResponseDto } from './dto/liked-store-response.dto';
+import { LikedCakeResponseDto } from './api/dto/liked-cake-response.dto';
+import { LikedStoreResponseDto } from './api/dto/liked-store-response.dto';
+import { LikePresenter } from './api/like.presenter';
 
 @ApiTags('likes')
 @Controller()
 export class LikeController {
-  constructor(private readonly likeService: LikeService) {}
+  constructor(
+    private readonly likeService: LikeService,
+    private readonly likePresenter: LikePresenter,
+  ) {}
 
   @RolesAllowed(Roles.BUYER, Roles.ADMIN)
   @Get('users/:id/liked-cakes')
@@ -37,7 +41,9 @@ export class LikeController {
     @GetUser() userDto: AuthenticatedUser,
   ): Promise<LikedCakeResponseDto[]> {
     assertSelfOrAdmin(userDto, userId);
-    return this.likeService.findUserLikeCake(userId);
+    return this.likeService
+      .findUserLikeCake(userId)
+      .then((cakes) => this.likePresenter.cakes(cakes, userId));
   }
 
   @RolesAllowed(Roles.BUYER, Roles.ADMIN)
@@ -56,7 +62,11 @@ export class LikeController {
     @GetUser() userDto: AuthenticatedUser,
   ): Promise<LikedStoreResponseDto[]> {
     assertSelfOrAdmin(userDto, userId);
-    return this.likeService.findUserLikeStore(userId, userDto);
+    return this.likeService
+      .findUserLikeStore(userId)
+      .then((stores) =>
+        this.likePresenter.stores(stores, userId, userDto.firebaseUid),
+      );
   }
 
   @RolesAllowed(Roles.BUYER)

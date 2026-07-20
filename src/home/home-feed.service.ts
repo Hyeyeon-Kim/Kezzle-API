@@ -28,8 +28,11 @@ import {
 import { SearchService } from 'src/search/search.service';
 import { SearchRankView } from 'src/search/application/search.view';
 import { AuthenticatedUser } from 'src/user/application/authenticated-user';
-import { HomeResponseDto } from './dto/home-response.dto';
-import { HomeSectionsMetadataDto } from './dto/home-section-metadata.dto';
+import {
+  HomeSectionMetadataView,
+  HomeSectionsView,
+  HomeView,
+} from './application/home.view';
 import {
   executeHomeSection,
   HomeSectionFallbackReason,
@@ -65,7 +68,7 @@ export class HomeFeedService {
     private readonly monitoring: MonitoringService,
   ) {}
 
-  async getHome(user: AuthenticatedUser | undefined): Promise<HomeResponseDto> {
+  async getHome(user: AuthenticatedUser | undefined): Promise<HomeView> {
     const startedAt = process.hrtime.bigint();
     return this.homeMetrics.run(async () => {
       try {
@@ -89,7 +92,7 @@ export class HomeFeedService {
 
   private async buildHome(
     user: AuthenticatedUser | undefined,
-  ): Promise<HomeResponseDto> {
+  ): Promise<HomeView> {
     const deadline = startHomeDeadline(this.getHomeHardDeadlineMs());
     const startedAt = process.hrtime.bigint();
 
@@ -419,16 +422,16 @@ export class HomeFeedService {
         this.monitoring.countHomeDegraded();
       }
 
-      return new HomeResponseDto(
-        results.anniversary.data,
-        results.recommendCakes.data,
-        results.popularCakes.data,
-        results.keywordRanks.data,
-        results.newestCakes.data,
-        results.curations.data,
+      return {
+        anniversary: results.anniversary.data,
+        recommendCakes: results.recommendCakes.data,
+        popularCakes: results.popularCakes.data,
+        keywordRanks: results.keywordRanks.data,
+        newestCakes: results.newestCakes.data,
+        curations: results.curations.data,
         degraded,
-        new HomeSectionsMetadataDto(results),
-      );
+        sections: this.sectionMetadata(results),
+      };
     } finally {
       deadline.clear();
     }
@@ -508,6 +511,36 @@ export class HomeFeedService {
 
   private emptyAnniversary(): AnniversaryRecommendationView {
     return { id: '', name: '', dday: '', mention: '', images: [] };
+  }
+
+  private sectionMetadata(results: {
+    recommendCakes: HomeSectionResult<unknown>;
+    anniversary: HomeSectionResult<unknown>;
+    popularCakes: HomeSectionResult<unknown>;
+    keywordRanks: HomeSectionResult<unknown>;
+    newestCakes: HomeSectionResult<unknown>;
+    curations: HomeSectionResult<unknown>;
+  }): HomeSectionsView {
+    return {
+      recommendCakes: this.sectionMetadataItem(results.recommendCakes),
+      anniversary: this.sectionMetadataItem(results.anniversary),
+      popularCakes: this.sectionMetadataItem(results.popularCakes),
+      keywordRanks: this.sectionMetadataItem(results.keywordRanks),
+      newestCakes: this.sectionMetadataItem(results.newestCakes),
+      curations: this.sectionMetadataItem(results.curations),
+    };
+  }
+
+  private sectionMetadataItem(
+    result: HomeSectionResult<unknown>,
+  ): HomeSectionMetadataView {
+    return result.status === 'fallback'
+      ? {
+          status: result.status,
+          reason: result.reason,
+          durationMs: result.durationMs,
+        }
+      : { status: result.status, durationMs: result.durationMs };
   }
 
   private logSectionFallback(
