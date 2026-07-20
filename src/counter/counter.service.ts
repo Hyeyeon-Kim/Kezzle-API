@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Counter, CounterDocument } from './entities/counter.schema';
+import { Counter } from './entities/counter.schema';
 import { Model } from 'mongoose';
 
 @Injectable()
 export class CounterService {
   constructor(
     @InjectModel(Counter.name, 'kezzle')
-    private counterModel: Model<CounterDocument>,
+    private readonly counterModel: Model<Counter>,
   ) {}
 
   async getNextSequenceValue(sequenceName: string) {

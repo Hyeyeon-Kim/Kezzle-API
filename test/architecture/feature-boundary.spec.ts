@@ -71,6 +71,41 @@ function normalizeImportPath(sourcePath: string, specifier: string): string {
   return specifier;
 }
 
+function normalizedImports(source: SourceFile): string[] {
+  return importSpecifiers(source.content).map((specifier) =>
+    normalizeImportPath(source.path, specifier),
+  );
+}
+
+function isApiDtoPath(path: string): boolean {
+  return (
+    /(^|\/)(api\/)?dto(\/|$)/.test(path) || /\.dto(?:\.ts)?$/.test(path)
+  );
+}
+
+function isPersistenceSchemaPath(path: string): boolean {
+  return (
+    /(^|\/)entities\/.*\.(?:schema|shema)$/.test(path) ||
+    /(^|\/)persistence\/.*\.schema$/.test(path)
+  );
+}
+
+function isPersistenceSource(path: string): boolean {
+  return (
+    /(^|\/)(entities|persistence)\//.test(path) ||
+    path.endsWith('.repository.ts')
+  );
+}
+
+function isApplicationBoundarySource(path: string): boolean {
+  return (
+    path.includes('/application/') ||
+    path.endsWith('.service.ts') ||
+    path.endsWith('.reader.ts') ||
+    path.endsWith('.port.ts')
+  );
+}
+
 describe('Feature boundary architecture', () => {
   const sourceFiles = readSourceFiles();
 
@@ -224,6 +259,109 @@ describe('Feature boundary architecture', () => {
     );
 
     expect([...misplacedDtos, ...crossFeatureImports]).toEqual([]);
+  });
+
+  it('keeps the final type boundary baseline at 0 / 0 / 0 / 0', () => {
+    const persistenceToDto = sourceFiles
+      .filter((source) => isPersistenceSource(source.path))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(isApiDtoPath)
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const dtoToPersistence = sourceFiles
+      .filter((source) => isApiDtoPath(source.path))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(
+            (value) =>
+              isPersistenceSchemaPath(value) ||
+              value === 'mongoose' ||
+              value === '@nestjs/mongoose',
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const applicationToDocument = sourceFiles
+      .filter((source) => isApplicationBoundarySource(source.path))
+      .filter((source) =>
+        /\b(?:Document|HydratedDocument)\b/.test(source.content),
+      )
+      .map((source) => source.path);
+    const serviceToDto = sourceFiles
+      .filter(
+        (source) =>
+          source.path.endsWith('.service.ts') ||
+          source.path.endsWith('.reader.ts') ||
+          source.path.endsWith('.port.ts'),
+      )
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(isApiDtoPath)
+          .map((value) => `${source.path}: ${value}`),
+      );
+
+    expect({
+      persistenceToDto,
+      dtoToPersistence,
+      applicationToDocument,
+      serviceToDto,
+    }).toEqual({
+      persistenceToDto: [],
+      dtoToPersistence: [],
+      applicationToDocument: [],
+      serviceToDto: [],
+    });
+  });
+
+  it('keeps application types independent from persistence and API frameworks', () => {
+    const violations = sourceFiles
+      .filter((source) => source.path.includes('/application/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(
+            (value) =>
+              isApiDtoPath(value) ||
+              isPersistenceSchemaPath(value) ||
+              value === 'mongoose' ||
+              value === '@nestjs/mongoose' ||
+              value === '@nestjs/swagger' ||
+              value === 'class-validator' ||
+              value === 'class-transformer',
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('forbids API DTO imports across feature owners', () => {
+    const featureOwners = new Set([
+      'anniversary',
+      'cake',
+      'catalog',
+      'curation',
+      'home',
+      'like',
+      'search',
+      'store',
+      'user',
+    ]);
+    const violations = sourceFiles
+      .filter((source) => !source.path.endsWith('.spec.ts'))
+      .flatMap((source) => {
+        const sourceOwner = source.path.split('/')[0];
+        return normalizedImports(source)
+          .filter(isApiDtoPath)
+          .filter((value) => {
+            const targetOwner = value.split('/')[0];
+            return (
+              featureOwners.has(targetOwner) && targetOwner !== sourceOwner
+            );
+          })
+          .map((value) => `${source.path}: ${value}`);
+      });
+
+    expect(violations).toEqual([]);
   });
 
   it('forbids forwardRef', () => {

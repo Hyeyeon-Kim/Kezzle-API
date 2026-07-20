@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import {
-  PopularCakeRank,
-  PopularCakeRankDocument,
-} from './entities/popularCakeRank.shema';
+import { PopularCakeRank } from './entities/popularCakeRank.shema';
 import { LogService } from './log.service';
 import {
   computeRankWindow,
@@ -31,7 +28,7 @@ export class PopularRankService {
 
   constructor(
     @InjectModel(PopularCakeRank.name, 'kezzle')
-    private readonly rankModel: Model<PopularCakeRankDocument>,
+    private readonly rankModel: Model<PopularCakeRank>,
     private readonly logService: LogService,
   ) {}
 

@@ -1,7 +1,7 @@
 # Persistence/Application/API 타입 분리 작업 계획서
 
 > 작성일: 2026-07-20
-> 문서 상태: Type-E 구현 완료, Type-F 승인 대기
+> 문서 상태: Type-A~F 구현 및 검증 완료
 > 상위 로드맵: [`docs/refactoring.md`](../../refactoring.md) 4.5, Phase 3
 > 선행 작업: Catalog query와 feature 경계 캡슐화 Phase 4-A~D
 > 권장 라벨: `type: refactor`, `area: db`, `priority: p1`, `size: L`
@@ -338,6 +338,9 @@ CakeController
 
 권장 type: `chore`, area: `infra`, size: M
 
+구현 상태: **완료 (2026-07-20)**
+결과: [`8_type_f_persistence_application_api_architecture_gate_결과.md`](./8_type_f_persistence_application_api_architecture_gate_결과.md)
+
 1. 기존 `test:architecture`에 타입 계층 규칙을 추가한다.
 2. source import scan과 module/presenter spec을 Docker validation에 포함한다.
 3. Curation 외에 남아 있는 Ranking/Counter service의 `*Document` generic은 schema class generic으로 바꿔 application/service 코드의 explicit Document 의존을 닫는다. model injection 자체의 repository 이동은 하지 않는다.
@@ -481,16 +484,16 @@ docker compose -f ../docker-compose.yml up -d mongodb redis ai-server kezzle-api
 
 ## 9. 최종 완료 조건
 
-- [ ] Persistence schema/repository가 API DTO를 import하지 않는다.
-- [ ] API DTO가 Mongoose schema/document class를 import하지 않는다.
-- [ ] application service/port/reader가 API DTO와 `Document`/`HydratedDocument`를 import하지 않는다.
-- [ ] `AuthenticatedUser.roles`와 User API response roles가 실제 값처럼 배열이다.
-- [ ] `ICake`/`IUser`의 잘못된 `Document` alias가 제거된다.
-- [ ] Cake/Store/User/Curation repository 경계가 pure type을 반환한다.
-- [ ] Home/Like/Catalog/Search/Curation 복합 DTO를 endpoint 소유 feature가 가진다.
-- [ ] Mongo document와 API response fixture가 migration 없이 동일하다.
-- [ ] architecture 기준선이 `2 / 4 / 12 / 36`에서 `0 / 0 / 0 / 0`이다.
-- [ ] `forwardRef` 0개, unit/contract/integration/build/DI boot가 Docker에서 통과한다.
+- [x] Persistence schema/repository가 API DTO를 import하지 않는다.
+- [x] API DTO가 Mongoose schema/document class를 import하지 않는다.
+- [x] application service/port/reader가 API DTO와 `Document`/`HydratedDocument`를 import하지 않는다.
+- [x] `AuthenticatedUser.roles`와 User API response roles가 실제 값처럼 배열이다.
+- [x] `ICake`/`IUser`의 잘못된 `Document` alias가 제거된다.
+- [x] Cake/Store/User/Curation repository 경계가 pure type을 반환한다.
+- [x] Home/Like/Catalog/Search/Curation 복합 DTO를 endpoint 소유 feature가 가진다.
+- [x] Mongo document와 API response fixture가 migration 없이 동일하다.
+- [x] architecture 기준선이 `2 / 4 / 12 / 36`에서 `0 / 0 / 0 / 0`이다.
+- [x] `forwardRef` 0개, unit/contract/integration/build/DI boot가 Docker에서 통과한다.
 
 ## 10. 권장 commit 분할
 
