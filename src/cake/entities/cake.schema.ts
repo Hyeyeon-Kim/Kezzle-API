@@ -1,13 +1,16 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { ImageResponseDto } from 'src/upload/dto/Image-response.dto';
+import {
+  ImageEmbedded,
+  ImageEmbeddedSchema,
+} from 'src/common/image/persistence/image.schema';
 
 export type CakeDocument = Cake & Document;
 
 @Schema({ timestamps: true }) // timestamps: createdAt과 updatedAt을 자동으로 생성
 export class Cake {
-  @Prop({ type: ImageResponseDto, required: true })
-  image: ImageResponseDto;
+  @Prop({ type: ImageEmbeddedSchema, required: true })
+  image: ImageEmbedded;
 
   @Prop({ type: String })
   cursor: string;

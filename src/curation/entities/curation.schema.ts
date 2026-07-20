@@ -1,12 +1,15 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
+import {
+  CurationCakeSnapshot,
+  CurationCakeSnapshotSchema,
+} from './curation-cake-snapshot.schema';
 export type CurationDocument = Curation & Document;
 
 @Schema({ timestamps: true }) // timestamps: createdAt과 updatedAt을 자동으로 생성
 export class Curation {
-  @Prop({ type: CakeResponseDto, required: true })
-  cakes: CakeResponseDto[];
+  @Prop({ type: [CurationCakeSnapshotSchema], required: true })
+  cakes: CurationCakeSnapshot[];
 
   @Prop({ type: String })
   key: string;

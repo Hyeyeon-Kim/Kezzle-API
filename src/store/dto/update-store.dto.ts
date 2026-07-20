@@ -1,7 +1,7 @@
-import { Image } from '../../upload/entities/image.Schema';
 import { IsOptional, IsString, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { LocationDto } from './response-location.dto';
+import { ImageDto } from 'src/common/image/api/image.dto';
 
 export class UpdateStoreDto {
   @IsOptional()
@@ -64,11 +64,11 @@ export class UpdateStoreDto {
 
   @IsOptional()
   @ApiProperty({
-    type: Image,
+    type: [ImageDto],
     description: '케이크 매장 소개 이미지들',
     required: false,
   })
-  readonly detail_images?: Image[];
+  readonly detail_images?: ImageDto[];
 
   @IsOptional()
   @IsArray()

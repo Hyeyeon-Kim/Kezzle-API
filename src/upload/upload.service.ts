@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { S3 } from 'aws-sdk';
 import { randomUUID } from 'crypto';
 import { S3UploadException } from './exception/s3-upload.exception';
-import { ImageResponseDto } from './dto/Image-response.dto';
 import { S3DeleteException } from './exception/s3-delete.exception';
+import { ImageValue } from 'src/common/image/application/image.value';
 
 @Injectable()
 export class UploadService {
   private s3 = new S3();
-  async create(parentDirectory: string, file) {
+  async create(parentDirectory: string, file): Promise<ImageValue> {
     const extension = file.originalname.split('.').pop();
     const convertedName = randomUUID() + '.' + extension;
     const params = {
@@ -25,12 +25,12 @@ export class UploadService {
         console.log(error);
         throw new S3UploadException();
       });
-    return new ImageResponseDto({
+    return {
       name: file.originalname,
-      converte_name: convertedName,
+      converteName: convertedName,
       key: `${parentDirectory}/${convertedName}`,
       s3Url: data.Location,
-    });
+    };
   }
 
   async remove(parentDirectory: string, s3Url: string): Promise<void> {

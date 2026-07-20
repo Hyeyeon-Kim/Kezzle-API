@@ -19,6 +19,7 @@ import { VitClient } from 'src/ai-search/vit-client';
 import { ClipClient } from 'src/ai-search/clip-client';
 import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.reader';
 import { CakeRepository } from './cake.repository';
+import { ImageMapper } from 'src/common/image/image.mapper';
 
 @Injectable()
 export class CakeService {
@@ -177,7 +178,7 @@ export class CakeService {
           .filter((item) => item !== '');
 
         await this.cakeRepository.create({
-          image: image,
+          image: ImageMapper.toPersistence(image),
           owner_store_id: storeid,
           cursor: cursorValue,
           like_ins: content.fav,
@@ -187,7 +188,7 @@ export class CakeService {
         });
       } else {
         await this.cakeRepository.create({
-          image: image,
+          image: ImageMapper.toPersistence(image),
           owner_store_id: storeid,
           cursor: cursorValue,
           faiss_id: faissId,

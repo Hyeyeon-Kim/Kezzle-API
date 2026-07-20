@@ -1,21 +1,25 @@
-import { ImageResponseDto } from 'src/upload/dto/Image-response.dto';
 import { IsNotEmpty, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { Image } from '../../upload/entities/image.Schema';
+import { ImageDto } from 'src/common/image/api/image.dto';
+import { ImageValue } from 'src/common/image/application/image.value';
+import { ImagePersistenceRecord } from 'src/common/image/image.mapper';
 
 export class UpdateStoreImageDto {
   @ValidateNested()
-  @Type(() => ImageResponseDto)
+  @Type(() => ImageDto)
   @IsNotEmpty()
   @ApiProperty({
-    type: ImageResponseDto,
+    type: [ImageDto],
     description: '케이크 매장 소개 이미지들',
     required: false,
   })
-  readonly detail_images: ImageResponseDto[];
+  readonly detail_images: ImageDto[];
 
-  constructor(data: ImageResponseDto, oldData: Image[]) {
-    this.detail_images = oldData.concat(data);
+  constructor(data: ImageValue, oldData: ImagePersistenceRecord[]) {
+    this.detail_images = [
+      ...oldData.map((image) => ImageDto.fromPersistence(image)),
+      new ImageDto(data),
+    ];
   }
 }

@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 @Schema({ _id: false })
-export class Image {
+export class ImageEmbedded {
   @Prop({ type: String, required: true })
   name: string;
 
@@ -15,4 +15,4 @@ export class Image {
   s3Url: string;
 }
 
-export const ImageSchema = SchemaFactory.createForClass(Image);
+export const ImageEmbeddedSchema = SchemaFactory.createForClass(ImageEmbedded);

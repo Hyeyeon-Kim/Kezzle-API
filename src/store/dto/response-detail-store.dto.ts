@@ -1,5 +1,5 @@
-import { Image } from '../../upload/entities/image.Schema';
 import { ApiProperty } from '@nestjs/swagger';
+import { ImageDto } from 'src/common/image/api/image.dto';
 
 export class DetailStoreResponseDto {
   @ApiProperty({
@@ -14,11 +14,11 @@ export class DetailStoreResponseDto {
   readonly name: string;
 
   @ApiProperty({
-    type: Image,
+    type: ImageDto,
     description: '케이크 매장 로고 사진',
     required: false,
   })
-  readonly logo: Image;
+  readonly logo: ImageDto;
 
   @ApiProperty({
     description: '케이크 매장 주소',
@@ -60,11 +60,11 @@ export class DetailStoreResponseDto {
   readonly phone_number: string;
 
   @ApiProperty({
-    type: Image,
+    type: [ImageDto],
     description: '케이크 매장 소개 사진들',
     required: false,
   })
-  readonly detail_images: Image[];
+  readonly detail_images: ImageDto[];
 
   @ApiProperty({
     description: '케이크 매장 오픈 시간 ',
@@ -121,14 +121,17 @@ export class DetailStoreResponseDto {
   constructor(data: any, userid: string) {
     this._id = data?._id;
     this.name = data?.name;
-    this.logo = data?.logo;
+    this.logo =
+      data?.logo == null ? data?.logo : ImageDto.fromPersistence(data.logo);
     this.store_feature = data?.store_feature;
     this.store_description = data?.store_description;
     this.insta_url = data?.insta_url;
     this.kakako_url = data?.kakako_url;
     this.address = data?.address;
     this.phone_number = data?.phone_number;
-    this.detail_images = data?.detail_images;
+    this.detail_images = (data?.detail_images ?? []).map((image) =>
+      ImageDto.fromPersistence(image),
+    );
     this.operating_time = data?.operating_time;
     this.taste = data?.taste;
     this.is_liked = data?.user_like_ids.includes(userid);
