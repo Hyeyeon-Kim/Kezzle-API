@@ -1,5 +1,16 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { HomeFeedService } from './home-feed.service';
+import fixtures from '../../test/fixtures/type-boundary-read.contract.json';
+
+function normalizeSectionDurations(response: unknown) {
+  const normalized = JSON.parse(JSON.stringify(response));
+  for (const section of Object.values(normalized.sections) as Array<{
+    durationMs: number;
+  }>) {
+    section.durationMs = 0;
+  }
+  return normalized;
+}
 
 describe('HomeFeedService', () => {
   afterEach(() => {
@@ -282,5 +293,32 @@ describe('HomeFeedService', () => {
       { _id: 'curation-1', cakes: [], description: 'fixture curation' },
     ]);
     expect(curationQuery.findFeatured).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the fixture-backed Home cache-hit value shape', async () => {
+    const { service, homeCache } = createService();
+    const cacheValues = fixtures.homeCacheValues as Record<string, unknown>;
+    homeCache.getWithSwr.mockImplementation(({ key }) =>
+      Promise.resolve(cacheValues[key]),
+    );
+
+    const response = await service.getHome({ cake_like_ids: [] } as never);
+
+    expect(normalizeSectionDurations(response)).toEqual(fixtures.home);
+    expect(homeCache.getWithSwr).toHaveBeenCalledTimes(6);
+  });
+
+  it('keeps the fixture-backed Home fallback value shape', async () => {
+    const { service } = createService({
+      anniversaryRecommendations: jest
+        .fn()
+        .mockRejectedValue(new Error('CLIP unavailable')),
+    });
+
+    const response = await service.getHome({ cake_like_ids: [] } as never);
+
+    expect(normalizeSectionDurations(response)).toEqual(
+      fixtures.homeAnniversaryFallback,
+    );
   });
 });

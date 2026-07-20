@@ -1,0 +1,290 @@
+{
+  "newestCakes": {
+    "hasMore": true,
+    "cakes": [
+      {
+        "_id": "cake-newest-1",
+        "image": {
+          "name": "newest.png",
+          "converte_name": "newest-converted.png",
+          "key": "cakes/newest-converted.png",
+          "s3Url": "https://cdn.example.com/cakes/newest-converted.png"
+        },
+        "owner_store_id": "store-1",
+        "hashtag": [],
+        "popular_cal": 0
+      }
+    ]
+  },
+  "popularCakes": {
+    "startDate": "2026-06-20",
+    "endDate": "2026-07-20",
+    "cakes": [
+      {
+        "_id": "cake-popular-1",
+        "image": {
+          "name": "popular.png",
+          "converte_name": "popular-converted.png",
+          "key": "cakes/popular-converted.png",
+          "s3Url": "https://cdn.example.com/cakes/popular-converted.png"
+        },
+        "owner_store_id": "store-1",
+        "hashtag": ["초코"],
+        "popular_cal": 42
+      }
+    ]
+  },
+  "anniversaryCakes": {
+    "hasMore": false,
+    "cakes": [
+      {
+        "_id": "cake-anniversary-1",
+        "image": {
+          "name": "anniversary.png",
+          "converte_name": "anniversary-converted.png",
+          "key": "cakes/anniversary-converted.png",
+          "s3Url": "https://cdn.example.com/cakes/anniversary-converted.png"
+        },
+        "owner_store_id": "store-2",
+        "isLiked": true,
+        "cursor": "anniversary-cursor-1",
+        "hashtag": ["기념일"]
+      }
+    ]
+  },
+  "cakeDetail": {
+    "_id": "cake-detail-1",
+    "image": {
+      "name": "detail.png",
+      "converte_name": "detail-converted.png",
+      "key": "cakes/detail-converted.png",
+      "s3Url": "https://cdn.example.com/cakes/detail-converted.png"
+    },
+    "owner_store_id": "store-1",
+    "isLiked": true,
+    "cursor": "detail-cursor-1",
+    "hashtag": []
+  },
+  "storeDetail": {
+    "_id": "store-detail-1",
+    "name": "Contract Detail Store",
+    "logo": null,
+    "address": "서울시 강남구",
+    "insta_url": "",
+    "kakako_url": "https://pf.kakao.com/legacy-contract",
+    "store_feature": "",
+    "store_description": "",
+    "phone_number": "",
+    "detail_images": [],
+    "operating_time": [],
+    "taste": ["바닐라"],
+    "is_liked": false,
+    "like_cnt": 0,
+    "distance": null,
+    "latitude": 37.5,
+    "longitude": 127.1,
+    "kakao_map_url": ""
+  },
+  "users": [
+    {
+      "firebaseUid": "user-1",
+      "nickname": "contract-buyer",
+      "roles": ["isBuyer"],
+      "cake_like_ids": ["cake-detail-1"]
+    },
+    {
+      "firebaseUid": "seller-1",
+      "nickname": null,
+      "roles": ["isSeller", "isBuyer"],
+      "cake_like_ids": []
+    }
+  ],
+  "userDetail": {
+    "firebaseUid": "user-1",
+    "nickname": "contract-buyer",
+    "roles": ["isBuyer"],
+    "cake_like_ids": ["cake-detail-1"]
+  },
+  "searchResult": {
+    "hasMore": true,
+    "nextPage": 2,
+    "cakes": [
+      {
+        "_id": "cake-search-1",
+        "image": {
+          "name": "search.png",
+          "converte_name": "search-converted.png",
+          "key": "cakes/search-converted.png",
+          "s3Url": "https://cdn.example.com/cakes/search-converted.png"
+        },
+        "owner_store_id": "store-3",
+        "isLiked": false,
+        "cursor": "search-cursor-1",
+        "hashtag": ["레터링"]
+      }
+    ]
+  },
+  "searchRank": {
+    "ranking": [
+      { "_id": "레터링", "count": 17 },
+      { "_id": "생일", "count": 11 }
+    ],
+    "startDate": "2026-07-01",
+    "endDate": "2026-07-20"
+  },
+  "latestSearch": {
+    "keywords": []
+  },
+  "curationDetail": {
+    "description": "기념일을 위한 케이크",
+    "cakes": [
+      {
+        "_id": "cake-curation-1",
+        "image": {
+          "name": "curation.png",
+          "converte_name": "curation-converted.png",
+          "key": "cakes/curation-converted.png",
+          "s3Url": "https://cdn.example.com/cakes/curation-converted.png"
+        },
+        "owner_store_id": "store-4",
+        "hashtag": [],
+        "popular_cal": null
+      }
+    ]
+  },
+  "home": {
+    "anniversary": {
+      "_id": "anniversary-1",
+      "name": "기념일",
+      "dday": "D-1",
+      "ment": "기념일 케이크",
+      "images": []
+    },
+    "recommendCakes": [
+      {
+        "_id": "cake-recommend-1",
+        "image": {
+          "name": "recommend.png",
+          "converte_name": "recommend-converted.png",
+          "key": "cakes/recommend-converted.png",
+          "s3Url": "https://cdn.example.com/cakes/recommend-converted.png"
+        },
+        "owner_store_id": "store-1",
+        "hashtag": [],
+        "popular_cal": null
+      }
+    ],
+    "popularCakes": {
+      "startDate": "2026-06-20",
+      "endDate": "2026-07-20",
+      "cakes": []
+    },
+    "keywordRanks": {
+      "ranking": [],
+      "startDate": "2026-06-20",
+      "endDate": "2026-07-20"
+    },
+    "newestCakes": {
+      "hasMore": false,
+      "cakes": []
+    },
+    "curations": [
+      {
+        "_id": "curation-home-1",
+        "cakes": [],
+        "description": "홈 큐레이션"
+      }
+    ],
+    "degraded": false,
+    "sections": {
+      "recommendCakes": { "status": "success", "durationMs": 0 },
+      "anniversary": { "status": "success", "durationMs": 0 },
+      "popularCakes": { "status": "success", "durationMs": 0 },
+      "keywordRanks": { "status": "success", "durationMs": 0 },
+      "newestCakes": { "status": "success", "durationMs": 0 },
+      "curations": { "status": "success", "durationMs": 0 }
+    }
+  },
+  "homeCacheValues": {
+    "home:similar:seed-cake": [
+      {
+        "_id": "cake-recommend-1",
+        "image": {
+          "name": "recommend.png",
+          "converte_name": "recommend-converted.png",
+          "key": "cakes/recommend-converted.png",
+          "s3Url": "https://cdn.example.com/cakes/recommend-converted.png"
+        },
+        "owner_store_id": "store-1",
+        "hashtag": [],
+        "popular_cal": null
+      }
+    ],
+    "home:anniversary": {
+      "_id": "anniversary-1",
+      "name": "기념일",
+      "dday": "D-1",
+      "ment": "기념일 케이크",
+      "images": []
+    },
+    "home:popular": {
+      "startDate": "2026-06-20",
+      "endDate": "2026-07-20",
+      "cakes": []
+    },
+    "home:keyword-ranks": {
+      "ranking": [],
+      "startDate": "2026-06-20",
+      "endDate": "2026-07-20"
+    },
+    "home:newest:4": {
+      "hasMore": false,
+      "cakes": []
+    },
+    "home:curations": [
+      {
+        "_id": "curation-home-1",
+        "cakes": [],
+        "description": "홈 큐레이션"
+      }
+    ]
+  },
+  "homeAnniversaryFallback": {
+    "anniversary": {
+      "_id": "",
+      "name": "",
+      "dday": "",
+      "ment": "",
+      "images": []
+    },
+    "recommendCakes": [],
+    "popularCakes": {
+      "startDate": "2023-01-01",
+      "endDate": "2023-12-31",
+      "cakes": [{ "_id": "popular-cake" }]
+    },
+    "keywordRanks": {
+      "startDate": "2023-01-01",
+      "endDate": "2023-11-25",
+      "ranking": [{ "_id": "스마일", "count": 10 }]
+    },
+    "newestCakes": {
+      "hasMore": false,
+      "cakes": [{ "_id": "newest-cake" }]
+    },
+    "curations": [],
+    "degraded": true,
+    "sections": {
+      "recommendCakes": { "status": "success", "durationMs": 0 },
+      "anniversary": {
+        "status": "fallback",
+        "reason": "dependency_error",
+        "durationMs": 0
+      },
+      "popularCakes": { "status": "success", "durationMs": 0 },
+      "keywordRanks": { "status": "success", "durationMs": 0 },
+      "newestCakes": { "status": "success", "durationMs": 0 },
+      "curations": { "status": "success", "durationMs": 0 }
+    }
+  }
+}
