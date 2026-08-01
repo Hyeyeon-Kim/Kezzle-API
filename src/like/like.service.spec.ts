@@ -169,6 +169,53 @@ describe('LikeService public port boundary', () => {
       userLikePort.removeCakeLike,
       logService.cakeLikelog,
     );
+    expect(logService.cakeLikelog).toHaveBeenCalledWith(
+      'viewer-user',
+      'cake-1',
+      false,
+    );
+  });
+
+  it('keeps cake add success independent from an observed event create failure', async () => {
+    const eventFailure = Promise.reject(new Error('event create failed'));
+    void eventFailure.catch(() => undefined);
+    const service = buildService({
+      cakeLikePort: {
+        findTargetOrThrow: jest.fn().mockResolvedValue({ likedUserIds: [] }),
+        addUserLike: jest.fn().mockResolvedValue(undefined),
+      },
+      userLikePort: {
+        addCakeLike: jest.fn().mockResolvedValue(undefined),
+      },
+      logService: {
+        cakeLikelog: jest.fn().mockReturnValue(eventFailure),
+      },
+    });
+
+    await expect(
+      service.cakeAddLikeList('cake-1', viewer as any),
+    ).resolves.toBe(true);
+  });
+
+  it('keeps cake remove success independent from an observed event create failure', async () => {
+    const eventFailure = Promise.reject(new Error('event create failed'));
+    void eventFailure.catch(() => undefined);
+    const service = buildService({
+      cakeLikePort: {
+        findTargetOrThrow: jest.fn().mockResolvedValue({ likedUserIds: [] }),
+        removeUserLike: jest.fn().mockResolvedValue(undefined),
+      },
+      userLikePort: {
+        removeCakeLike: jest.fn().mockResolvedValue(undefined),
+      },
+      logService: {
+        cakeLikelog: jest.fn().mockReturnValue(eventFailure),
+      },
+    });
+
+    await expect(
+      service.cakeRemoveLikeList('cake-1', viewer as any),
+    ).resolves.toBe(true);
   });
 
   it('keeps store add dual-write order and duplicate exception', async () => {
