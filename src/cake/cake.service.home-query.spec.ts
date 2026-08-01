@@ -14,7 +14,6 @@ describe('CakeService home query surface', () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
       vitClient as never,
       {} as never,
       {} as never,

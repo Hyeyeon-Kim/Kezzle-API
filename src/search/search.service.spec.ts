@@ -21,16 +21,6 @@ describe('SearchService', () => {
     const searchHistoryReader = {
       findLatest: jest.fn().mockResolvedValue(options?.latest ?? []),
     };
-    const keywordEventReader = {
-      getRanked: jest.fn().mockResolvedValue([{ _id: 'realtime', count: 1 }]),
-    };
-    const keywordRankService = {
-      getRanked: jest.fn().mockResolvedValue({
-        ranking: [{ _id: 'precomputed', count: 2 }],
-        startDate: '2026-06-04',
-        endDate: '2026-07-04',
-      }),
-    };
     const metricsService = {
       searchEventRecordFailures: { inc: jest.fn() },
     };
@@ -38,8 +28,6 @@ describe('SearchService', () => {
       clipClient as never,
       searchEventRecorder as never,
       searchHistoryReader as never,
-      keywordEventReader as never,
-      keywordRankService as never,
       metricsService as never,
     );
     return {
@@ -47,8 +35,6 @@ describe('SearchService', () => {
       clipClient,
       searchEventRecorder,
       searchHistoryReader,
-      keywordEventReader,
-      keywordRankService,
       metricsService,
     };
   }
@@ -82,39 +68,6 @@ describe('SearchService', () => {
     await service.search('chocolate,birthday', 1, 'user-1');
 
     expect(searchEventRecorder.record).not.toHaveBeenCalled();
-  });
-
-  it('serves the default path from the read model without aggregation', async () => {
-    const { service, keywordEventReader, keywordRankService } = createService();
-
-    const result = await service.getRank(undefined, undefined, 4, 400);
-
-    expect(keywordRankService.getRanked).toHaveBeenCalledWith(4, 400);
-    expect(keywordEventReader.getRanked).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      ranking: [{ id: 'precomputed', count: 2 }],
-      startDate: '2026-06-04',
-      endDate: '2026-07-04',
-    });
-  });
-
-  it('keeps the realtime aggregation for explicit date ranges', async () => {
-    const { service, keywordEventReader, keywordRankService } = createService();
-
-    const result = await service.getRank('2024-01-01', '2024-02-01');
-
-    expect(keywordEventReader.getRanked).toHaveBeenCalledWith(
-      '2024-01-01',
-      '2024-02-01',
-      undefined,
-      undefined,
-    );
-    expect(keywordRankService.getRanked).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      ranking: [{ id: 'realtime', count: 1 }],
-      startDate: '2024-01-01',
-      endDate: '2024-02-01',
-    });
   });
 
   it('returns an empty latest-search view when the user has no history', async () => {

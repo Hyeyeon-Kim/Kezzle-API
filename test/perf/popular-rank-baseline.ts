@@ -8,7 +8,7 @@ import {
 import { CakeRankingRepositoryAdapter } from '../../src/cake/cake-ranking.adapter';
 import { CakeRepository } from '../../src/cake/cake.repository';
 import { CakeLikeEventRepository } from '../../src/like/infrastructure/persistence/cake-like-event.repository';
-import { PopularRankService } from '../../src/log/popular-rank.service';
+import { PopularRankService } from '../../src/ranking/popular-rank.service';
 
 type Pipeline = Record<string, unknown>[];
 type RankedCake = {

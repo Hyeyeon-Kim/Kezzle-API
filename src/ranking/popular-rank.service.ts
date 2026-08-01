@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CakeRankingReader } from 'src/cake/cake-ranking.reader';
 import { CakeLikeEventReader } from 'src/like/application/port/cake-like-event.reader';
-import { PopularCakeRank } from './entities/popularCakeRank.shema';
+import { PopularCakeRank } from './infrastructure/persistence/popular-cake-rank.schema';
 import {
   computeRankWindow,
   POPULAR_RANK_WINDOW_DAYS_ENV,

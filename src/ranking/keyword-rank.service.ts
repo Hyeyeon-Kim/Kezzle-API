@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { KeywordEventReader } from 'src/search/application/port/keyword-event.reader';
-import { KeywordRank } from './entities/keywordRank.shema';
+import { KeywordRank } from './infrastructure/persistence/keyword-rank.schema';
 import {
   computeRankWindow,
   KEYWORD_RANK_WINDOW_DAYS_ENV,

@@ -1,10 +1,9 @@
-import { CakePageView, PopularCakesView } from './application/cake-result.view';
+import { CakePageView } from './application/cake-result.view';
 import { CakeView } from './application/cake.view';
 import { CakeResponseDto } from './dto/response-cake.dto';
 import { CakesResponseDto } from './dto/response-cakes.dto';
 import { CakeSimpleResponseDto } from './dto/response-cake-simple.dto';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
-import { PopularCakesResponseDto } from './dto/response-popular-cakes.dto';
 
 export class CakePresenter {
   static detail(cake: CakeView, viewerId: string): CakeResponseDto {
@@ -20,14 +19,6 @@ export class CakePresenter {
 
   static recommendations(cakes: CakeView[]): CakeSimpleResponseDto[] {
     return cakes.map((cake) => new CakeSimpleResponseDto(cake));
-  }
-
-  static popular(result: PopularCakesView): PopularCakesResponseDto {
-    return new PopularCakesResponseDto(
-      result.cakes.map((cake) => new CakeSimpleResponseDto(cake)),
-      result.startDate,
-      result.endDate,
-    );
   }
 
   static anniversary(page: CakePageView, viewerId: string): CakesResponseDto {

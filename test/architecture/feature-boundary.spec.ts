@@ -1,5 +1,5 @@
 import { MODULE_METADATA } from '@nestjs/common/constants';
-import { readdirSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { dirname, join, normalize, relative, sep } from 'path';
 import { CakeCatalogReader } from 'src/cake/cake-catalog.reader';
 import { CakeLikePort } from 'src/cake/cake-like.port';
@@ -8,13 +8,17 @@ import { CakeModule } from 'src/cake/cake.module';
 import { CakeRankingModule } from 'src/cake/cake-ranking.module';
 import { CakeRankingReader } from 'src/cake/cake-ranking.reader';
 import { CakeRankingRepositoryAdapter } from 'src/cake/cake-ranking.adapter';
+import { AppModule } from 'src/app.module';
 import { CatalogQueryModule } from 'src/catalog/catalog-query.module';
 import { LikeModule } from 'src/like/like.module';
 import { CakeLikeEventReader } from 'src/like/application/port/cake-like-event.reader';
 import { CakeLikeEventRecorder } from 'src/like/application/port/cake-like-event-recorder.port';
 import { LikeEventModule } from 'src/like/infrastructure/persistence/like-event.module';
 import { CakeLikeEventRepository } from 'src/like/infrastructure/persistence/cake-like-event.repository';
-import { LogModule } from 'src/log/log.module';
+import { HomeModule } from 'src/home/home.module';
+import { RankingModule } from 'src/ranking/ranking.module';
+import { RankingQueryService } from 'src/ranking/ranking-query.service';
+import { SearchModule } from 'src/search/search.module';
 import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.reader';
 import { StoreCatalogReader } from 'src/store/store-catalog.reader';
 import { StoreLikePort } from 'src/store/store-like.port';
@@ -386,6 +390,7 @@ describe('Feature boundary architecture', () => {
       'curation',
       'home',
       'like',
+      'ranking',
       'search',
       'store',
       'user',
@@ -545,7 +550,10 @@ describe('Feature boundary architecture', () => {
       (source) => source.path === 'like/like.service.ts',
     );
     const likeImports = moduleMetadata(LikeModule, MODULE_METADATA.IMPORTS);
-    const logImports = moduleMetadata(LogModule, MODULE_METADATA.IMPORTS);
+    const rankingImports = moduleMetadata(
+      RankingModule,
+      MODULE_METADATA.IMPORTS,
+    );
     const eventExports = moduleMetadata(
       LikeEventModule,
       MODULE_METADATA.EXPORTS,
@@ -561,8 +569,8 @@ describe('Feature boundary architecture', () => {
       ...directCollectionReads,
     ]).toEqual([]);
     expect(likeService?.content ?? '').not.toMatch(/LogModule|LogService/);
-    expect(likeImports).not.toContain(LogModule);
-    expect(logImports).toEqual(
+    expect(likeImports).not.toContain(RankingModule);
+    expect(rankingImports).toEqual(
       expect.arrayContaining([LikeEventModule, CakeRankingModule]),
     );
     expect(eventExports).toEqual(
@@ -571,5 +579,100 @@ describe('Feature boundary architecture', () => {
     expect(eventExports).not.toContain(CakeLikeEventRepository);
     expect(rankingExports).toContain(CakeRankingReader);
     expect(rankingExports).not.toContain(CakeRankingRepositoryAdapter);
+  });
+
+  it('keeps rank internals, read models, and routes owned by Ranking', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const rankingImportsOutsideOwner = productionSources
+      .filter((source) => !source.path.startsWith('ranking/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter((value) => value.startsWith('ranking/'))
+          .filter((value) => {
+            if (source.path === 'app.module.ts') {
+              return value !== 'ranking/ranking.module';
+            }
+            if (source.path === 'home/home.module.ts') {
+              return value !== 'ranking/ranking.module';
+            }
+            if (source.path.startsWith('home/')) {
+              return ![
+                'ranking/ranking-query.service',
+                'ranking/application/ranking.view',
+              ].includes(value);
+            }
+            return true;
+          })
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const rankWindowImportsOutsideOwner = productionSources
+      .filter((source) => !source.path.startsWith('ranking/'))
+      .filter((source) =>
+        normalizedImports(source).some((value) =>
+          value.endsWith('rank-window'),
+        ),
+      )
+      .map((source) => source.path);
+    const directReadModelCollections = productionSources
+      .filter(
+        (source) =>
+          source.path !==
+            'ranking/infrastructure/persistence/keyword-rank.schema.ts' &&
+          source.path !==
+            'ranking/infrastructure/persistence/popular-cake-rank.schema.ts',
+      )
+      .filter((source) =>
+        /['"](?:keywordranks|popularcakeranks)['"]/.test(source.content),
+      )
+      .map((source) => source.path);
+    const rankingExports = moduleMetadata(
+      RankingModule,
+      MODULE_METADATA.EXPORTS,
+    );
+    const homeImports = moduleMetadata(HomeModule, MODULE_METADATA.IMPORTS);
+    const searchImports = moduleMetadata(SearchModule, MODULE_METADATA.IMPORTS);
+    const cakeImports = moduleMetadata(CakeModule, MODULE_METADATA.IMPORTS);
+    const appImports = moduleMetadata(AppModule, MODULE_METADATA.IMPORTS);
+    const sourceByPath = new Map(
+      productionSources.map((source) => [source.path, source.content]),
+    );
+
+    expect(existsSync(join(srcRoot, 'log'))).toBe(false);
+    expect([
+      ...rankingImportsOutsideOwner,
+      ...rankWindowImportsOutsideOwner,
+      ...directReadModelCollections,
+    ]).toEqual([]);
+    expect(rankingExports).toEqual([RankingQueryService]);
+    expect(homeImports).toContain(RankingModule);
+    expect(searchImports).not.toContain(RankingModule);
+    expect(cakeImports).not.toContain(RankingModule);
+    expect(appImports).toContain(RankingModule);
+    expect(appImports.indexOf(RankingModule)).toBeLessThan(
+      appImports.indexOf(SearchModule),
+    );
+    expect(appImports.indexOf(RankingModule)).toBeLessThan(
+      appImports.indexOf(CakeModule),
+    );
+    expect(appImports.indexOf(RankingModule)).toBeLessThan(
+      appImports.indexOf(CatalogQueryModule),
+    );
+    expect(sourceByPath.get('ranking/ranking.controller.ts')).toMatch(
+      /Get\('search\/rank'\)/,
+    );
+    expect(sourceByPath.get('ranking/ranking.controller.ts')).toMatch(
+      /Get\('cakes\/popular'\)/,
+    );
+    expect(sourceByPath.get('search/search.controller.ts')).not.toMatch(
+      /Get\('rank'\)/,
+    );
+    expect(sourceByPath.get('cake/cake.controller.ts')).not.toMatch(
+      /Get\('cakes\/popular'\)/,
+    );
+    expect(sourceByPath.get('home/home-feed.service.ts')).not.toMatch(
+      /rank-window|SearchService|\.popular\(/,
+    );
   });
 });

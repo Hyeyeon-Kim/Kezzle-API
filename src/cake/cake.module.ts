@@ -3,7 +3,6 @@ import { CakeService } from './cake.service';
 import { CakeRepositoryModule } from './cake-repository.module';
 import { CakeController } from './cake.controller';
 import { UploadModule } from '../upload/upload.module';
-import { LogModule } from 'src/log/log.module';
 import { AnniversaryModule } from 'src/anniversary/anniversary.module';
 import { CounterModule } from 'src/counter/counter.module';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
@@ -16,7 +15,6 @@ import { CakeLikePort } from './cake-like.port';
 @Module({
   imports: [
     UploadModule,
-    LogModule,
     AnniversaryModule,
     CounterModule,
     AiSearchModule,

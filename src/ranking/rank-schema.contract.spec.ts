@@ -1,10 +1,13 @@
 import mongoose from 'mongoose';
 import fixtures from '../../test/fixtures/log-upload-baseline.contract.json';
-import { KeywordRank, KeywordRankSchema } from './entities/keywordRank.shema';
+import {
+  KeywordRank,
+  KeywordRankSchema,
+} from './infrastructure/persistence/keyword-rank.schema';
 import {
   PopularCakeRank,
   PopularCakeRankSchema,
-} from './entities/popularCakeRank.shema';
+} from './infrastructure/persistence/popular-cake-rank.schema';
 
 describe('Rank schema Phase A collection contract', () => {
   it('keeps keyword and popular read-model collection names', () => {

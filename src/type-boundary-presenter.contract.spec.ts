@@ -2,6 +2,7 @@ import fixtures from '../test/fixtures/type-boundary-read.contract.json';
 import { CakePresenter } from './cake/cake.presenter';
 import { ImageMapper } from './common/image/image.mapper';
 import { CurationPresenter } from './curation/curation.presenter';
+import { RankingPresenter } from './ranking/api/ranking.presenter';
 import { SearchPresenter } from './search/search.presenter';
 import { StorePresenter } from './store/store.presenter';
 import { Roles } from './user/entities/roles.enum';
@@ -19,7 +20,7 @@ const toCakeView = (cake: any, liked = false) => ({
 });
 
 describe('Type-D API presenters', () => {
-  it('keeps Cake detail, page, and popular response fixtures', () => {
+  it('keeps Cake detail and page response fixtures', () => {
     expect(
       CakePresenter.detail(toCakeView(fixtures.cakeDetail, true), 'user-1'),
     ).toEqual(fixtures.cakeDetail);
@@ -29,8 +30,21 @@ describe('Type-D API presenters', () => {
         cakes: fixtures.newestCakes.cakes.map((cake) => toCakeView(cake)),
       }),
     ).toEqual(fixtures.newestCakes);
+  });
+
+  it('keeps Ranking keyword and popular response fixtures', () => {
     expect(
-      CakePresenter.popular({
+      RankingPresenter.keyword({
+        ranking: fixtures.searchRank.ranking.map((item) => ({
+          id: item._id,
+          count: item.count,
+        })),
+        startDate: fixtures.searchRank.startDate,
+        endDate: fixtures.searchRank.endDate,
+      }),
+    ).toEqual(fixtures.searchRank);
+    expect(
+      RankingPresenter.popular({
         startDate: fixtures.popularCakes.startDate,
         endDate: fixtures.popularCakes.endDate,
         cakes: fixtures.popularCakes.cakes.map((cake) => toCakeView(cake)),

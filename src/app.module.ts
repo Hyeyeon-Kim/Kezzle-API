@@ -12,7 +12,7 @@ import { UploadModule } from './upload/upload.module';
 import { SearchModule } from './search/search.module';
 import { CurationModule } from './curation/curation.module';
 import { HomeModule } from './home/home.module';
-import { LogModule } from './log/log.module';
+import { RankingModule } from './ranking/ranking.module';
 import { AnniversaryModule } from './anniversary/anniversary.module';
 import { CounterModule } from './counter/counter.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
@@ -33,6 +33,9 @@ import { CatalogQueryModule } from './catalog/catalog-query.module';
       dbName: process.env.MONGODB_DBNAME_MAIN,
       connectionName: 'kezzle',
     }),
+    // Static rank routes must be discovered before composing modules pull in
+    // Search/Cake parameter-route controllers.
+    RankingModule,
     CatalogQueryModule,
     UserModule,
     CakeModule,
@@ -43,7 +46,6 @@ import { CatalogQueryModule } from './catalog/catalog-query.module';
     SearchModule,
     CurationModule,
     HomeModule,
-    LogModule,
     AnniversaryModule,
     CounterModule,
     MonitoringModule,

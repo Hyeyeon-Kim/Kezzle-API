@@ -15,9 +15,7 @@ import { LikePresenter } from 'src/like/api/like.presenter';
 import { LikeController } from 'src/like/like.controller';
 import { LikeService } from 'src/like/like.service';
 import { CakeLikeEventRecorder } from 'src/like/application/port/cake-like-event-recorder.port';
-import { KeywordRankService } from 'src/log/keyword-rank.service';
 import { MetricsService } from 'src/metrics/metrics.service';
-import { KeywordEventReader } from 'src/search/application/port/keyword-event.reader';
 import { SearchEventRecorder } from 'src/search/application/port/search-event-recorder.port';
 import { SearchHistoryReader } from 'src/search/application/port/search-history.reader';
 import { SearchController } from 'src/search/search.controller';
@@ -90,9 +88,7 @@ describe('Log event create failure HTTP contract', () => {
         { provide: CakeLikeEventRecorder, useValue: cakeLikeEventRecorder },
         { provide: SearchEventRecorder, useValue: searchEventRecorder },
         { provide: SearchHistoryReader, useValue: {} },
-        { provide: KeywordEventReader, useValue: {} },
         { provide: MetricsService, useValue: metricsService },
-        { provide: KeywordRankService, useValue: {} },
         { provide: CakeLikePort, useValue: cakeLikePort },
         { provide: UserLikePort, useValue: userLikePort },
         { provide: StoreLikePort, useValue: {} },

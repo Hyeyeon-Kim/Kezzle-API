@@ -6,10 +6,7 @@ import {
 import { AnniversaryService } from 'src/anniversary/anniversary.service';
 import { AnniversaryRecommendationView } from 'src/anniversary/application/anniversary.view';
 import { CakeService } from 'src/cake/cake.service';
-import {
-  CakePageView,
-  PopularCakesView,
-} from 'src/cake/application/cake-result.view';
+import { CakePageView } from 'src/cake/application/cake-result.view';
 import { CakeView } from 'src/cake/application/cake.view';
 import { CurationQueryService } from 'src/curation/curation-query.service';
 import { CurationView } from 'src/curation/application/curation.view';
@@ -18,16 +15,14 @@ import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
 import { homeCacheKey } from 'src/home-cache/home-cache.constants';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 import {
-  computeRankWindow,
-  KEYWORD_RANK_WINDOW_DAYS_ENV,
-  POPULAR_RANK_WINDOW_DAYS_ENV,
-} from 'src/log/rank-window';
-import {
   HomeSectionName,
   MonitoringService,
 } from 'src/monitoring/monitoring.service';
-import { SearchService } from 'src/search/search.service';
-import { SearchRankView } from 'src/search/application/search.view';
+import {
+  KeywordRankingView,
+  PopularRankingView,
+} from 'src/ranking/application/ranking.view';
+import { RankingQueryService } from 'src/ranking/ranking-query.service';
 import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import {
   HomeSectionMetadataView,
@@ -62,7 +57,7 @@ export class HomeFeedService {
   constructor(
     private readonly cakeService: CakeService,
     private readonly anniversaryService: AnniversaryService,
-    private readonly searchService: SearchService,
+    private readonly rankingQuery: RankingQueryService,
     private readonly curationQuery: CurationQueryService,
     private readonly homeMetrics: HomeResilienceMetricsService,
     private readonly homeCache: HomeCacheService,
@@ -100,18 +95,8 @@ export class HomeFeedService {
     try {
       const recommendFallback: CakeView[] = [];
       const anniversaryFallback = this.emptyAnniversary();
-      const popularWindow = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
-      const popularFallback: PopularCakesView = {
-        cakes: [],
-        startDate: popularWindow.startDate,
-        endDate: popularWindow.endDate,
-      };
-      const keywordWindow = computeRankWindow(KEYWORD_RANK_WINDOW_DAYS_ENV);
-      const keywordRanksFallback: SearchRankView = {
-        ranking: [],
-        startDate: keywordWindow.startDate,
-        endDate: keywordWindow.endDate,
-      };
+      const popularFallback = this.rankingQuery.getPopularFallback();
+      const keywordRanksFallback = this.rankingQuery.getKeywordFallback();
       const newestCakesFallback: CakePageView = {
         cakes: [],
         hasMore: false,
@@ -122,8 +107,8 @@ export class HomeFeedService {
       let anniversaryResult:
         | HomeSectionResult<AnniversaryRecommendationView>
         | undefined;
-      let popularResult: HomeSectionResult<PopularCakesView> | undefined;
-      let keywordRanksResult: HomeSectionResult<SearchRankView> | undefined;
+      let popularResult: HomeSectionResult<PopularRankingView> | undefined;
+      let keywordRanksResult: HomeSectionResult<KeywordRankingView> | undefined;
       let newestCakesResult: HomeSectionResult<CakePageView> | undefined;
       let curationsResult: HomeSectionResult<CurationView[]> | undefined;
 
@@ -230,7 +215,11 @@ export class HomeFeedService {
                 ...homeCachePolicy('popular'),
                 refresh: () => {
                   this.homeMetrics.countDb(2);
-                  return this.cakeService.popular(NaN, 3, popularTimeout);
+                  return this.rankingQuery.getPopularCakes(
+                    NaN,
+                    3,
+                    popularTimeout,
+                  );
                 },
               }),
             deadline.signal,
@@ -263,7 +252,7 @@ export class HomeFeedService {
                 ...homeCachePolicy('keywordRanks'),
                 refresh: () => {
                   this.homeMetrics.countDb(2);
-                  return this.searchService.getRank(
+                  return this.rankingQuery.getKeywordRank(
                     undefined,
                     undefined,
                     4,

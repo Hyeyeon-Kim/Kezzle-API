@@ -6,7 +6,6 @@ import { UploadService } from 'src/upload/upload.service';
 import { ObjectId } from 'mongodb';
 import * as XLSX from 'xlsx'; // TODO:나중에 이거 바꿔야함
 import { CakeImportRow } from './application/cake-import-row';
-import { PopularRankService } from 'src/log/popular-rank.service';
 import { AnniversaryService } from 'src/anniversary/anniversary.service';
 import { CounterService } from 'src/counter/counter.service';
 import { VitClient } from 'src/ai-search/vit-client';
@@ -14,14 +13,13 @@ import { ClipClient } from 'src/ai-search/clip-client';
 import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.reader';
 import { CakeRepository } from './cake.repository';
 import { CakeExternalMapper } from './cake-external.mapper';
-import { CakePageView, PopularCakesView } from './application/cake-result.view';
+import { CakePageView } from './application/cake-result.view';
 import { CakeView } from './application/cake.view';
 
 @Injectable()
 export class CakeService {
   constructor(
     private readonly uploadService: UploadService,
-    private readonly popularRankService: PopularRankService,
     private readonly anniversaryService: AnniversaryService,
     private readonly counterService: CounterService,
     private readonly vitClient: VitClient,
@@ -192,23 +190,6 @@ export class CakeService {
     }
     console.log(cnt + '개의 파일 업로드 성공');
     return cnt + '개의 파일 업로드 성공';
-  }
-
-  async popular(
-    after,
-    limit: number,
-    maxTimeMs?: number,
-  ): Promise<PopularCakesView> {
-    // 요청 path 에서 cakelikelogs 실시간 집계를 제거하고 사전 계산 read model 을 조회한다.
-    // 날짜는 read model 배치가 실제로 집계한 rolling window 구간이다.
-    const { cakes, startDate, endDate } =
-      await this.popularRankService.getRanked(after, limit, maxTimeMs);
-
-    return {
-      cakes: cakes.map((cake) => CakeExternalMapper.toView(cake)),
-      startDate,
-      endDate,
-    };
   }
 
   async anniversary(anniId: string, page: number): Promise<CakePageView> {

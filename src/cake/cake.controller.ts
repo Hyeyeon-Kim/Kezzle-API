@@ -72,17 +72,6 @@ export class CakeController {
   }
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
-  @Get('cakes/popular')
-  async cakePopular(
-    @Query('after') after: string,
-    @Query('limit') limit: string,
-  ) {
-    return CakePresenter.popular(
-      await this.cakeService.popular(parseFloat(after), parseInt(limit)),
-    );
-  }
-
-  @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
   @Get('cakes/anniversary/:id')
   async cakeAnniversary(
     @Param('id') anni: string,

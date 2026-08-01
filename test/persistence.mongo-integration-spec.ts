@@ -18,6 +18,17 @@ import {
   CakeLikeLog,
   CakeLikeLogSchema,
 } from 'src/like/infrastructure/persistence/cake-like-event.schema';
+import {
+  KeywordRank,
+  KeywordRankSchema,
+} from 'src/ranking/infrastructure/persistence/keyword-rank.schema';
+import {
+  PopularCakeRank,
+  PopularCakeRankSchema,
+} from 'src/ranking/infrastructure/persistence/popular-cake-rank.schema';
+import { KeywordRankService } from 'src/ranking/keyword-rank.service';
+import { PopularRankService } from 'src/ranking/popular-rank.service';
+import { RankingQueryService } from 'src/ranking/ranking-query.service';
 import { User, UserSchema } from 'src/user/entities/user.schema';
 import fixtures from './fixtures/legacy-persistence.contract.json';
 
@@ -33,6 +44,8 @@ describe('Persistence Mongo integration contract', () => {
   let curationModel: Model<Curation>;
   let keywordLogModel: Model<KeywordLog>;
   let cakeLikeLogModel: Model<CakeLikeLog>;
+  let keywordRankModel: Model<KeywordRank>;
+  let popularCakeRankModel: Model<PopularCakeRank>;
 
   beforeAll(async () => {
     if (!process.env.MONGODB_URL) {
@@ -57,6 +70,14 @@ describe('Persistence Mongo integration contract', () => {
       'ContractCakeLikeLog',
       CakeLikeLogSchema,
     );
+    keywordRankModel = connection.model(
+      'ContractKeywordRank',
+      KeywordRankSchema,
+    );
+    popularCakeRankModel = connection.model(
+      'ContractPopularCakeRank',
+      PopularCakeRankSchema,
+    );
   });
 
   beforeEach(async () => {
@@ -67,6 +88,8 @@ describe('Persistence Mongo integration contract', () => {
       curationModel.deleteMany({}),
       keywordLogModel.deleteMany({}),
       cakeLikeLogModel.deleteMany({}),
+      keywordRankModel.deleteMany({}),
+      popularCakeRankModel.deleteMany({}),
     ]);
   });
 
@@ -219,5 +242,67 @@ describe('Persistence Mongo integration contract', () => {
     });
     expect(inserted.createdAt).toBeInstanceOf(Date);
     expect(inserted.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it('reuses legacy keyword and popular rank read models without migration', async () => {
+    const cakeId = '65a000000000000000000002';
+    const computedAt = new Date('2026-07-31T12:00:00.000Z');
+    await keywordRankModel.collection.insertOne({
+      rank: 1,
+      searchWord: 'legacy-rank',
+      count: 8,
+      computedAt,
+      isEmptyBatch: false,
+    });
+    await popularCakeRankModel.collection.insertOne({
+      rank: 1,
+      cakeId: new ObjectId(cakeId),
+      total: 12.5,
+      image: {
+        name: 'legacy.png',
+        converte_name: 'legacy-converted.png',
+        key: 'cakes/legacy-converted.png',
+        s3Url: 'https://cdn.example.com/legacy.png',
+      },
+      owner_store_id: 'store-legacy',
+      tag_ins: [],
+      computedAt,
+      isEmptyBatch: false,
+    });
+
+    const keywordRankService = new KeywordRankService(keywordRankModel, {
+      getRanked: jest.fn(),
+    } as never);
+    const popularRankService = new PopularRankService(
+      popularCakeRankModel,
+      { getNetCounts: jest.fn() } as never,
+      { findByIds: jest.fn() } as never,
+    );
+    const query = new RankingQueryService(
+      keywordRankService,
+      popularRankService,
+      { getRanked: jest.fn() } as never,
+    );
+
+    const [keyword, popular] = await Promise.all([
+      query.getKeywordRank(undefined, undefined, 10),
+      query.getPopularCakes(NaN, 20),
+    ]);
+
+    expect(keywordRankModel.collection.collectionName).toBe('keywordranks');
+    expect(popularCakeRankModel.collection.collectionName).toBe(
+      'popularcakeranks',
+    );
+    expect(keyword.ranking).toEqual([{ id: 'legacy-rank', count: 8 }]);
+    expect(popular.cakes).toEqual([
+      expect.objectContaining({
+        id: cakeId,
+        ownerStoreId: 'store-legacy',
+        tags: [],
+        calculatedLikes: 12.5,
+      }),
+    ]);
+    expect(keyword.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(popular.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

@@ -30,7 +30,6 @@ const buildService = ({
   new CakeService(
     uploadService as any,
     {} as any,
-    {} as any,
     counterService as any,
     {} as any,
     {} as any,
