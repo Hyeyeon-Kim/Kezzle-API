@@ -278,6 +278,22 @@ describe('HomeFeedService', () => {
     expect(keys.some((key) => /^home:(?!v2:)/.test(key))).toBe(false);
   });
 
+  it('skips recommendation cache and VIT when no seed cake exists', async () => {
+    const { service, cakeService, homeCache } = createService();
+    cakeService.findRecommendationSeed.mockResolvedValueOnce(null);
+
+    const response = await service.getHome({ cake_like_ids: [] } as never);
+
+    expect(response.recommendCakes).toEqual([]);
+    expect(response.sections.recommendCakes.status).toBe('success');
+    expect(cakeService.findAllByRecommend).not.toHaveBeenCalled();
+    expect(
+      homeCache.getWithSwr.mock.calls.some(([options]) =>
+        options.key.startsWith('home:v2:similar:'),
+      ),
+    ).toBe(false);
+  });
+
   it('maps curation query results without triggering a refresh', async () => {
     const { service, curationQuery } = createService();
     curationQuery.findFeatured.mockResolvedValue([

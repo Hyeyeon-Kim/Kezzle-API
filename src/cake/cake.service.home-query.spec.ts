@@ -48,6 +48,19 @@ describe('CakeService home query surface', () => {
     expect(cakeRepository.sampleOne).toHaveBeenCalledWith(undefined);
   });
 
+  it('returns null when there is no valid recommendation seed', async () => {
+    const { service, cakeRepository, vitClient } = createService();
+    cakeRepository.findById.mockResolvedValueOnce(null);
+    cakeRepository.sampleOne.mockResolvedValueOnce(null);
+
+    const seed = await service.findRecommendationSeed({
+      cakeLikeIds: ['deleted-cake'],
+    } as never);
+
+    expect(seed).toBeNull();
+    expect(vitClient.similarSearch).not.toHaveBeenCalled();
+  });
+
   it('loads recommendations without owning Home cache policy', async () => {
     const { service, vitClient } = createService();
 

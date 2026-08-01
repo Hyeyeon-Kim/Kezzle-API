@@ -52,16 +52,17 @@ export class CakeService {
   async findRecommendationSeed(
     user: AuthenticatedUser | undefined,
     maxTimeMs?: number,
-  ) {
+  ): Promise<string | null> {
     const likedCakeIds = user?.cakeLikeIds ?? [];
     const randomIndex = Math.floor(Math.random() * likedCakeIds.length);
-    let userLikedCakeId: string = likedCakeIds[randomIndex];
+    const userLikedCakeId: string = likedCakeIds[randomIndex];
 
     if (
       userLikedCakeId === undefined ||
       (await this.cakeRepository.findById(userLikedCakeId, maxTimeMs)) === null
     ) {
-      userLikedCakeId = (await this.cakeRepository.sampleOne(maxTimeMs)).id;
+      const sampledCake = await this.cakeRepository.sampleOne(maxTimeMs);
+      return sampledCake?.id ?? null;
     }
 
     return userLikedCakeId;
@@ -173,7 +174,7 @@ export class CakeService {
           image,
           ownerStoreId: storeid,
           cursor: cursorValue,
-          likeText: String(content.fav),
+          likeText: content.fav == null ? undefined : String(content.fav),
           tags: s,
           content: content.content,
           faissId,

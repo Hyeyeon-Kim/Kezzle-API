@@ -169,4 +169,68 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
     );
     consoleLog.mockRestore();
   });
+
+  it('preserves a blank favorite and stringifies only numeric favorites', async () => {
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation();
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        ['img', 'fav', 'content', 'hash'],
+        ['blank-fav.jpg', null, 'blank favorite', '#blank'],
+        ['numeric-fav.jpg', 12, 'numeric favorite', '#numeric'],
+      ]),
+      'cakes',
+    );
+    const excelBuffer = XLSX.write(workbook, {
+      type: 'buffer',
+      bookType: 'xlsx',
+    });
+    const imageFiles = [
+      { originalname: 'blank-fav.jpg' },
+      { originalname: 'numeric-fav.jpg' },
+    ];
+    const cakeRepository = {
+      create: jest.fn().mockResolvedValue(cake),
+    };
+    const service = buildService({
+      uploadService: {
+        create: jest.fn().mockResolvedValue({ s3Url: 'cake.jpg' }),
+      },
+      counterService: {
+        getNextSequenceValue: jest
+          .fn()
+          .mockResolvedValueOnce(1)
+          .mockResolvedValueOnce(2),
+      },
+      storeWriteContext: {
+        findByIdOrThrow: jest.fn().mockResolvedValue(storeContext),
+      },
+      cakeRepository,
+    });
+
+    await service.createCake(
+      'store-1',
+      user('owner-1', [Roles.SELLER]) as any,
+      { excel: [{ buffer: excelBuffer }], image: imageFiles },
+    );
+
+    expect(cakeRepository.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        likeText: undefined,
+        content: 'blank favorite',
+        tags: ['blank'],
+      }),
+    );
+    expect(cakeRepository.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        likeText: '12',
+        content: 'numeric favorite',
+        tags: ['numeric'],
+      }),
+    );
+    consoleLog.mockRestore();
+  });
 });

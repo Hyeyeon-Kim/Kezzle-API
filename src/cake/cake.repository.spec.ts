@@ -77,6 +77,15 @@ describe('CakeRepository', () => {
         isDeleted: false,
       });
     });
+
+    it('returns null when no non-deleted cake can be sampled', async () => {
+      const cakeModel = {
+        aggregate: jest.fn().mockResolvedValue([]),
+      };
+      const repo = new CakeRepository(cakeModel as any);
+
+      await expect(repo.sampleOne()).resolves.toBeNull();
+    });
   });
 
   describe('findInStoresByCursor', () => {

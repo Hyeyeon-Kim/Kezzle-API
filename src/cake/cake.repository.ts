@@ -38,7 +38,7 @@ export class CakeRepository {
     return CakePersistenceMapper.toView(cake);
   }
 
-  async sampleOne(maxTimeMs?: number): Promise<CakeView> {
+  async sampleOne(maxTimeMs?: number): Promise<CakeView | null> {
     const aggregate = this.cakeModel.aggregate([
       { $match: { is_delete: false } },
       { $sample: { size: 1 } },
@@ -47,7 +47,8 @@ export class CakeRepository {
       aggregate.option({ maxTimeMS: maxTimeMs });
     }
     const result = await aggregate;
-    return CakePersistenceMapper.toView(result[0]);
+    const sampledCake = result[0];
+    return sampledCake ? CakePersistenceMapper.toView(sampledCake) : null;
   }
 
   /** findAll: 위치 내 store들의 cake를 cursor 오름차순으로. limit개까지. */

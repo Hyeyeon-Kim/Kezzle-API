@@ -140,6 +140,9 @@ export class HomeFeedService {
                 user,
                 recommendTimeout,
               );
+              if (seedCakeId === null) {
+                return recommendFallback;
+              }
               return this.homeCache.getWithSwr({
                 key: homeCacheKey(`similar:${seedCakeId}`),
                 ...homeCachePolicy('recommend'),
