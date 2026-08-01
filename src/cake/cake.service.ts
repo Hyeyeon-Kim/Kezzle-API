@@ -1,24 +1,21 @@
-import { CakesResponseDto } from './dto/response-cakes.dto';
 import { Injectable } from '@nestjs/common';
-import { UpdateCakeDto } from './dto/update-cake.dto';
-import { CakeResponseDto } from './dto/response-cake.dto';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UploadService } from 'src/upload/upload.service';
 import { ObjectId } from 'mongodb';
 import * as XLSX from 'xlsx'; // TODO:나중에 이거 바꿔야함
-import ICake from './interface/cake.interface';
+import { CakeImportRow } from './application/cake-import-row';
 import { PopularRankService } from 'src/log/popular-rank.service';
-import { PopularCakesResponseDto } from './dto/response-popular-cakes.dto';
 import { AnniversaryService } from 'src/anniversary/anniversary.service';
-import { CakeSimpleResponseDto } from './dto/response-cake-simple.dto';
 import { CounterService } from 'src/counter/counter.service';
-import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
 import { VitClient } from 'src/ai-search/vit-client';
 import { ClipClient } from 'src/ai-search/clip-client';
 import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.reader';
 import { CakeRepository } from './cake.repository';
+import { CakeExternalMapper } from './cake-external.mapper';
+import { CakePageView, PopularCakesView } from './application/cake-result.view';
+import { CakeView } from './application/cake.view';
 
 @Injectable()
 export class CakeService {
@@ -49,23 +46,23 @@ export class CakeService {
       cakes = cakes.slice(0, cakes.length - 1);
     }
 
-    const cakeResponse = cakes.map((cake) => new CakeSimpleResponseDto(cake));
-
-    return new CakesSimpleResponseDto(cakeResponse, hasMore);
+    return { cakes, hasMore };
   }
 
-  async findRecommendationSeed(user: IUser | undefined, maxTimeMs?: number) {
-    const likedCakeIds = user?.cake_like_ids ?? [];
+  async findRecommendationSeed(
+    user: AuthenticatedUser | undefined,
+    maxTimeMs?: number,
+  ): Promise<string | null> {
+    const likedCakeIds = user?.cakeLikeIds ?? [];
     const randomIndex = Math.floor(Math.random() * likedCakeIds.length);
-    let userLikedCakeId: string = likedCakeIds[randomIndex];
+    const userLikedCakeId: string = likedCakeIds[randomIndex];
 
     if (
       userLikedCakeId === undefined ||
       (await this.cakeRepository.findById(userLikedCakeId, maxTimeMs)) === null
     ) {
-      userLikedCakeId = (
-        await this.cakeRepository.sampleOne(maxTimeMs)
-      )._id.toString();
+      const sampledCake = await this.cakeRepository.sampleOne(maxTimeMs);
+      return sampledCake?.id ?? null;
     }
 
     return userLikedCakeId;
@@ -74,21 +71,20 @@ export class CakeService {
   async findAllByRecommend(
     seedCakeId: string,
     signal?: AbortSignal,
-  ): Promise<CakeSimpleResponseDto[]> {
+  ): Promise<CakeView[]> {
     const cakes = await this.vitClient.similarSearch(seedCakeId, 6, signal);
 
-    return cakes.map((cake) => new CakeSimpleResponseDto(cake));
+    return cakes.map((cake) => CakeExternalMapper.toView(cake));
   }
 
-  async findOne(cakeid: string, user: IUser): Promise<CakeResponseDto> {
-    const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
-    return new CakeResponseDto(cake, user.firebaseUid);
+  async findOne(cakeid: string): Promise<CakeView> {
+    return this.cakeRepository.findByIdOrThrow(cakeid);
   }
 
-  async changeContent(cakeid: string, user: IUser, file) {
+  async changeContent(cakeid: string, user: AuthenticatedUser, file) {
     const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
     const store = await this.storeWriteContext.findByIdOrThrow(
-      cake.owner_store_id,
+      cake.ownerStoreId,
     );
 
     if (
@@ -102,16 +98,14 @@ export class CakeService {
 
     await this.uploadService.remove(path, cake.image.s3Url);
 
-    const updatedata = new UpdateCakeDto(
-      await this.uploadService.create(path, file),
-    );
-    return await this.cakeRepository.updateOneById(cakeid, updatedata);
+    const image = await this.uploadService.create(path, file);
+    return this.cakeRepository.updateOneById(cakeid, { image });
   }
 
-  async removeContent(cakeid: string, user: IUser) {
+  async removeContent(cakeid: string, user: AuthenticatedUser) {
     const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
     const store = await this.storeWriteContext.findByIdOrThrow(
-      cake.owner_store_id,
+      cake.ownerStoreId,
     );
     if (
       // store.owner_user_id !== user.firebaseUid &&
@@ -125,18 +119,18 @@ export class CakeService {
     await this.uploadService.remove(path, cake.image.s3Url);
 
     return await this.cakeRepository.updateOneById(cakeid, {
-      is_delete: true,
+      isDeleted: true,
     });
   }
 
-  async createCake(storeid, user: IUser, files) {
+  async createCake(storeid, user: AuthenticatedUser, files) {
     const workbook = await XLSX.read(files.excel[0].buffer, { type: 'buffer' });
     // 첫번째 sheet 의 이름을 조회합니다.
     const sheetName = await workbook.SheetNames[0];
     // 첫번째 sheet 를 사용합니다.
     const sheet = await workbook.Sheets[sheetName];
     // sheet 의 정보를 json array 로 변환합니다.
-    const rows: ICake[] = await XLSX.utils.sheet_to_json(sheet, {
+    const rows: CakeImportRow[] = await XLSX.utils.sheet_to_json(sheet, {
       // cell 에 값이 비어있으면 '' 을 기본값으로 설정합니다.
       defval: null,
     });
@@ -177,20 +171,20 @@ export class CakeService {
           .filter((item) => item !== '');
 
         await this.cakeRepository.create({
-          image: image,
-          owner_store_id: storeid,
+          image,
+          ownerStoreId: storeid,
           cursor: cursorValue,
-          like_ins: content.fav,
-          tag_ins: s,
-          content_ins: content.content,
-          faiss_id: faissId,
+          likeText: content.fav == null ? undefined : String(content.fav),
+          tags: s,
+          content: content.content,
+          faissId,
         });
       } else {
         await this.cakeRepository.create({
-          image: image,
-          owner_store_id: storeid,
+          image,
+          ownerStoreId: storeid,
           cursor: cursorValue,
-          faiss_id: faissId,
+          faissId,
         });
       }
       cnt++;
@@ -200,25 +194,32 @@ export class CakeService {
     return cnt + '개의 파일 업로드 성공';
   }
 
-  async popular(after, limit: number, maxTimeMs?: number) {
+  async popular(
+    after,
+    limit: number,
+    maxTimeMs?: number,
+  ): Promise<PopularCakesView> {
     // 요청 path 에서 cakelikelogs 실시간 집계를 제거하고 사전 계산 read model 을 조회한다.
     // 날짜는 read model 배치가 실제로 집계한 rolling window 구간이다.
     const { cakes, startDate, endDate } =
       await this.popularRankService.getRanked(after, limit, maxTimeMs);
 
-    const cakeResponse = cakes.map((cake) => new CakeSimpleResponseDto(cake));
-    return new PopularCakesResponseDto(cakeResponse, startDate, endDate);
+    return {
+      cakes: cakes.map((cake) => CakeExternalMapper.toView(cake)),
+      startDate,
+      endDate,
+    };
   }
 
-  async anniversary(anniId: string, user: IUser, page: number) {
+  async anniversary(anniId: string, page: number): Promise<CakePageView> {
     if (Number.isNaN(page)) page = 0;
     const anniversary =
       await this.anniversaryService.getAnniversaryWord(anniId);
     const keyword = anniversary.keyword.join(', ');
     const { result } = await this.clipClient.koSearchPage(keyword, 20, page);
-    const cakeResponse = result.map(
-      (cake) => new CakeResponseDto(cake, user.firebaseUid),
-    );
-    return new CakesResponseDto(cakeResponse, false);
+    return {
+      cakes: result.map((cake) => CakeExternalMapper.toView(cake)),
+      hasMore: false,
+    };
   }
 }

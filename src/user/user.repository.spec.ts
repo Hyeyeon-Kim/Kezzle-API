@@ -4,15 +4,26 @@ import { UserRepository } from './user.repository';
 describe('UserRepository', () => {
   describe('findByFirebaseUidOrThrow', () => {
     it('returns user found by firebaseUid', async () => {
-      const user = { firebaseUid: 'user-1' };
+      const user = {
+        firebaseUid: 'user-1',
+        oauth_provider: 'password',
+        roles: [],
+        cake_like_ids: [],
+        store_like_ids: [],
+      };
       const userModel = {
         findOne: jest.fn().mockResolvedValue(user),
       };
       const repo = new UserRepository(userModel as any);
 
-      await expect(repo.findByFirebaseUidOrThrow('user-1')).resolves.toBe(
-        user,
-      );
+      await expect(
+        repo.findByFirebaseUidOrThrow('user-1'),
+      ).resolves.toMatchObject({
+        firebaseUid: 'user-1',
+        oauthProvider: 'password',
+        cakeLikeIds: [],
+        storeLikeIds: [],
+      });
       expect(userModel.findOne).toHaveBeenCalledWith({
         firebaseUid: 'user-1',
       });
@@ -24,9 +35,9 @@ describe('UserRepository', () => {
       };
       const repo = new UserRepository(userModel as any);
 
-      await expect(repo.findByFirebaseUidOrThrow('missing')).rejects.toBeInstanceOf(
-        UserNotFoundException,
-      );
+      await expect(
+        repo.findByFirebaseUidOrThrow('missing'),
+      ).rejects.toBeInstanceOf(UserNotFoundException);
     });
   });
 

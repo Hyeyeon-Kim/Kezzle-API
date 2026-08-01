@@ -1,7 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-
-export type KeywordRankDocument = KeywordRank & Document;
 
 // 홈 keywordRanks 섹션용 사전 계산 read model.
 // keywordlogs 실시간 집계 결과(상위 N건)를 갱신 시점에 통째로 적재한다.

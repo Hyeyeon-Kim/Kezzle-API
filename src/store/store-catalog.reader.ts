@@ -1,7 +1,9 @@
+import { ImageValue } from 'src/common/image/application/image.value';
+
 export interface CatalogStoreView {
   readonly id: string;
   readonly name: string;
-  readonly logo: unknown;
+  readonly logo?: ImageValue | null;
   readonly address: string;
   readonly likedUserIds: readonly string[];
   readonly distance: number;

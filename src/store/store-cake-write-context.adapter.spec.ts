@@ -1,11 +1,11 @@
 import { StoreCakeWriteContextRepositoryAdapter } from './store-cake-write-context.adapter';
 
 describe('StoreCakeWriteContextRepositoryAdapter', () => {
-  it('maps a Store document to the minimal pure write context', async () => {
+  it('maps a pure Store view to the minimal write context', async () => {
     const storeRepository = {
       findByIdOrThrow: jest.fn().mockResolvedValue({
-        _id: { toString: () => 'store-1' },
-        owner_user_id: 'owner-1',
+        id: 'store-1',
+        ownerUserId: 'owner-1',
         name: 'Store Name',
         address: 'not exposed',
       }),

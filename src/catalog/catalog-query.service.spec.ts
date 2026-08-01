@@ -1,7 +1,4 @@
-import { CatalogPresenter } from './catalog.presenter';
 import { CatalogQueryService } from './catalog-query.service';
-
-const user = { firebaseUid: 'viewer-user', roles: [] };
 
 const cake = (id: string, storeId = 'store-1') => ({
   id,
@@ -22,11 +19,7 @@ const store = (id: string) => ({
 });
 
 const buildService = (cakeReader = {}, storeReader = {}) =>
-  new CatalogQueryService(
-    cakeReader as any,
-    storeReader as any,
-    new CatalogPresenter(),
-  );
+  new CatalogQueryService(cakeReader as any, storeReader as any);
 
 describe('CatalogQueryService', () => {
   it('queries each reader once and sets hasMore for cursor cake results', async () => {
@@ -40,14 +33,7 @@ describe('CatalogQueryService', () => {
     };
     const service = buildService(cakeReader, storeReader);
 
-    const result = await service.findAllCakes(
-      user as any,
-      37.5,
-      127.1,
-      3000,
-      'cursor-0',
-      2,
-    );
+    const result = await service.findAllCakes(37.5, 127.1, 3000, 'cursor-0', 2);
 
     expect(storeReader.findIdsByGeoNear).toHaveBeenCalledTimes(1);
     expect(storeReader.findIdsByGeoNear).toHaveBeenCalledWith(
@@ -75,7 +61,6 @@ describe('CatalogQueryService', () => {
     const service = buildService(cakeReader, storeReader);
 
     const result = await service.findAllCakesByLocation(
-      user as any,
       37.5,
       127.1,
       3000,
@@ -105,12 +90,7 @@ describe('CatalogQueryService', () => {
     };
     const service = buildService(cakeReader, storeReader);
 
-    const result = await service.findStoreCakes(
-      'store-1',
-      user as any,
-      'after-id',
-      2,
-    );
+    const result = await service.findStoreCakes('store-1', 'after-id', 2);
 
     expect(storeReader.ensureExists).toHaveBeenCalledTimes(1);
     expect(storeReader.ensureExists).toHaveBeenCalledWith('store-1');
@@ -139,14 +119,7 @@ describe('CatalogQueryService', () => {
     };
     const service = buildService(cakeReader, storeReader);
 
-    const result = await service.findAllStores(
-      user as any,
-      37.5,
-      127.1,
-      3000,
-      0,
-      2,
-    );
+    const result = await service.findAllStores(37.5, 127.1, 3000, 0, 2);
 
     expect(storeReader.findByGeoNear).toHaveBeenCalledTimes(1);
     expect(storeReader.findByGeoNear).toHaveBeenCalledWith(
@@ -163,7 +136,7 @@ describe('CatalogQueryService', () => {
     ]);
     expect(result.hasMore).toBe(true);
     expect(result.stores).toHaveLength(2);
-    expect(result.stores[0].cakes).toHaveLength(1);
+    expect(result.cakesByStoreId.get('store-1')).toHaveLength(1);
   });
 
   it('keeps an empty store page and one empty batch boundary call', async () => {
@@ -173,14 +146,7 @@ describe('CatalogQueryService', () => {
     };
     const service = buildService(cakeReader, storeReader);
 
-    const result = await service.findAllStores(
-      user as any,
-      37.5,
-      127.1,
-      3000,
-      0,
-      20,
-    );
+    const result = await service.findAllStores(37.5, 127.1, 3000, 0, 20);
 
     expect(cakeReader.findRecentByStoreIds).toHaveBeenCalledTimes(1);
     expect(cakeReader.findRecentByStoreIds).toHaveBeenCalledWith([]);

@@ -1,5 +1,4 @@
 import similarCakes from '../../test/fixtures/similar-cakes.mock.json';
-import { CatalogPresenter } from './catalog.presenter';
 import { SimilarCakeCatalogQueryService } from './similar-cake-catalog-query.service';
 
 const buildMetricsService = () => ({
@@ -28,7 +27,6 @@ const buildService = (storeReader, vitClient, metricsService) =>
     storeReader as any,
     vitClient as any,
     metricsService as any,
-    new CatalogPresenter(),
   );
 
 describe('SimilarCakeCatalogQueryService', () => {
@@ -89,7 +87,7 @@ describe('SimilarCakeCatalogQueryService', () => {
     );
 
     expect(response.cakes).toHaveLength(5);
-    expect(response.cakes.map((cake) => cake.owner_store_id)).not.toContain(
+    expect(response.cakes.map((cake) => cake.ownerStoreId)).not.toContain(
       'mock-store-4',
     );
   });

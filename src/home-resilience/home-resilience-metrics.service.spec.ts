@@ -62,11 +62,7 @@ describe('HomeResilienceMetricsService cache metrics', () => {
       service.countAiError('vit', 2);
     });
 
-    expect(monitoring.countAiCall).toHaveBeenCalledWith(
-      'clip',
-      'requested',
-      1,
-    );
+    expect(monitoring.countAiCall).toHaveBeenCalledWith('clip', 'requested', 1);
     expect(monitoring.countAiCall).toHaveBeenCalledWith('vit', 'error', 2);
   });
 });

@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { HydratedDocument, Model, PipelineStage } from 'mongoose';
+import { FilterQuery, Model, PipelineStage } from 'mongoose';
 import { ObjectId } from 'mongodb';
 import { Cake } from './entities/cake.schema';
 import { CakeNotFoundException } from './exceptions/cake-not-found.exception';
+import { CakeView } from './application/cake.view';
+import { CreateCakeData, UpdateCakeData } from './application/cake.command';
+import { CakePersistenceMapper } from './cake.persistence-mapper';
+import { WriteResult } from 'src/common/application/write-result';
 
 @Injectable()
 export class CakeRepository {
@@ -12,19 +16,17 @@ export class CakeRepository {
     private readonly cakeModel: Model<Cake>,
   ) {}
 
-  async findById(
-    id: string,
-    maxTimeMs?: number,
-  ): Promise<HydratedDocument<Cake> | null> {
+  async findById(id: string, maxTimeMs?: number): Promise<CakeView | null> {
     const query = this.cakeModel.findOne({ _id: id, is_delete: false });
     if (maxTimeMs !== undefined) {
       query.maxTimeMS(maxTimeMs);
     }
-    return query;
+    const cake = await query;
+    return cake ? CakePersistenceMapper.toView(cake) : null;
   }
 
-  async findByIdOrThrow(id: string): Promise<HydratedDocument<Cake>> {
-    let cake: HydratedDocument<Cake> | null;
+  async findByIdOrThrow(id: string): Promise<CakeView> {
+    let cake: Cake | null;
     try {
       cake = await this.cakeModel.findById(id);
     } catch {
@@ -33,10 +35,10 @@ export class CakeRepository {
     if (!cake) {
       throw new CakeNotFoundException(id);
     }
-    return cake;
+    return CakePersistenceMapper.toView(cake);
   }
 
-  async sampleOne(maxTimeMs?: number): Promise<any> {
+  async sampleOne(maxTimeMs?: number): Promise<CakeView | null> {
     const aggregate = this.cakeModel.aggregate([
       { $match: { is_delete: false } },
       { $sample: { size: 1 } },
@@ -45,7 +47,8 @@ export class CakeRepository {
       aggregate.option({ maxTimeMS: maxTimeMs });
     }
     const result = await aggregate;
-    return result[0];
+    const sampledCake = result[0];
+    return sampledCake ? CakePersistenceMapper.toView(sampledCake) : null;
   }
 
   /** findAll: 위치 내 store들의 cake를 cursor 오름차순으로. limit개까지. */
@@ -53,7 +56,7 @@ export class CakeRepository {
     storeIds: string[],
     after: string,
     limit: number,
-  ): Promise<any[]> {
+  ): Promise<CakeView[]> {
     const match: PipelineStage.Match['$match'] = {
       is_delete: false,
       owner_store_id: { $in: storeIds },
@@ -61,9 +64,10 @@ export class CakeRepository {
     if (after !== undefined && after.trim() !== '') {
       match.cursor = { $gt: after };
     }
-    return this.cakeModel
+    const cakes = await this.cakeModel
       .aggregate([{ $sort: { cursor: 1 } }, { $match: match }])
       .limit(limit);
+    return cakes.map((cake) => CakePersistenceMapper.toView(cake));
   }
 
   /** findAllByLocation: 위치 내 store들의 cake를 _id(ObjectId) 기준 페이지네이션. limit개까지. */
@@ -71,7 +75,7 @@ export class CakeRepository {
     storeIds: string[],
     after: string,
     limit: number,
-  ): Promise<any[]> {
+  ): Promise<CakeView[]> {
     const match: PipelineStage.Match['$match'] = {
       is_delete: false,
       owner_store_id: { $in: storeIds },
@@ -79,7 +83,10 @@ export class CakeRepository {
     if (after !== undefined && after.trim() !== '') {
       match._id = { $gt: new ObjectId(after) };
     }
-    return this.cakeModel.aggregate([{ $match: match }]).limit(limit);
+    const cakes = await this.cakeModel
+      .aggregate([{ $match: match }])
+      .limit(limit);
+    return cakes.map((cake) => CakePersistenceMapper.toView(cake));
   }
 
   /** findAllByNewest: 최신순(_id desc), after 있으면 _id(ObjectId) 미만. limit개까지. */
@@ -87,7 +94,7 @@ export class CakeRepository {
     after: string,
     limit: number,
     maxTimeMs?: number,
-  ): Promise<any[]> {
+  ): Promise<CakeView[]> {
     const match: PipelineStage.Match['$match'] = { is_delete: false };
     if (after !== undefined) {
       match._id = { $lt: new ObjectId(after) };
@@ -98,46 +105,55 @@ export class CakeRepository {
     if (maxTimeMs !== undefined) {
       aggregate.option({ maxTimeMS: maxTimeMs });
     }
-    return aggregate;
+    const cakes = await aggregate;
+    return cakes.map((cake) => CakePersistenceMapper.toView(cake));
   }
 
   /** findCake: 특정 store의 cake, after 있으면 _id(raw) 초과. limit개까지. */
   async findByStoreIdAfter(
     storeId: string,
-    after: any,
+    after: string,
     limit: number,
-  ): Promise<HydratedDocument<Cake>[]> {
-    const filter: Record<string, any> = {
+  ): Promise<CakeView[]> {
+    const filter: FilterQuery<Cake> = {
       is_delete: false,
       owner_store_id: storeId,
     };
     if (after !== undefined) {
       filter._id = { $gt: after };
     }
-    return this.cakeModel.find(filter).limit(limit);
+    const cakes = await this.cakeModel.find(filter).limit(limit);
+    return cakes.map((cake) => CakePersistenceMapper.toView(cake));
   }
 
-  async create(doc: Partial<Cake>): Promise<Cake> {
-    return this.cakeModel.create(doc);
+  async create(data: CreateCakeData): Promise<CakeView> {
+    const cake = await this.cakeModel.create(
+      CakePersistenceMapper.toCreatePersistence(data),
+    );
+    return CakePersistenceMapper.toView(cake);
   }
 
-  async updateOneById(id: string, set: Record<string, any>) {
-    return this.cakeModel.updateOne({ _id: id }, { $set: set });
-  }
-
-  async findByIds(ids: string[]): Promise<HydratedDocument<Cake>[]> {
-    return this.cakeModel.find({ _id: { $in: ids } });
-  }
-
-  async addUserLike(cakeid: string, userId: string) {
+  async updateOneById(id: string, data: UpdateCakeData): Promise<WriteResult> {
     return this.cakeModel.updateOne(
+      { _id: id },
+      { $set: CakePersistenceMapper.toUpdatePersistence(data) },
+    );
+  }
+
+  async findByIds(ids: string[]): Promise<CakeView[]> {
+    const cakes = await this.cakeModel.find({ _id: { $in: ids } });
+    return cakes.map((cake) => CakePersistenceMapper.toView(cake));
+  }
+
+  async addUserLike(cakeid: string, userId: string): Promise<void> {
+    await this.cakeModel.updateOne(
       { _id: cakeid },
       { $addToSet: { user_like_ids: [userId] } },
     );
   }
 
-  async removeUserLike(cakeid: string, userId: string) {
-    return this.cakeModel.updateOne(
+  async removeUserLike(cakeid: string, userId: string): Promise<void> {
+    await this.cakeModel.updateOne(
       { _id: cakeid },
       { $pull: { user_like_ids: userId } },
     );
@@ -151,7 +167,7 @@ export class CakeRepository {
   async findRecentByStoreIds(
     storeIds: string[],
     perStoreLimit = 20,
-  ): Promise<Map<string, any[]>> {
+  ): Promise<Map<string, CakeView[]>> {
     if (storeIds.length === 0) {
       return new Map();
     }
@@ -178,6 +194,11 @@ export class CakeRepository {
       },
     ]);
 
-    return new Map(groups.map((g) => [g._id, g.cakes]));
+    return new Map(
+      groups.map((group) => [
+        group._id,
+        group.cakes.map((cake) => CakePersistenceMapper.toView(cake)),
+      ]),
+    );
   }
 }

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Image } from '../../upload/entities/image.Schema';
+import { ImageDto } from 'src/common/image/api/image.dto';
 
 export class CakeResponseDto {
   @ApiProperty({
@@ -8,8 +8,8 @@ export class CakeResponseDto {
   })
   readonly _id: string;
 
-  @ApiProperty({ type: Image, description: 'Image' })
-  readonly image: Image;
+  @ApiProperty({ type: ImageDto, description: 'Image' })
+  readonly image: ImageDto;
 
   @ApiProperty({ type: String, description: '케이크 소유 매장 ID(ObjectId)' })
   readonly owner_store_id: string;
@@ -35,11 +35,15 @@ export class CakeResponseDto {
   readonly hashtag: string[];
 
   constructor(data: any, userid: string) {
-    this._id = data?._id;
-    this.image = data?.image;
-    this.owner_store_id = data?.owner_store_id;
-    this.isLiked = data?.user_like_ids.includes(userid);
+    this._id = data?.id ?? data?._id;
+    this.image = data?.image ? new ImageDto(data.image) : data?.image;
+    this.owner_store_id = data?.ownerStoreId ?? data?.owner_store_id;
+    const likedUserIds = data?.likedUserIds ?? data?.user_like_ids ?? [];
+    this.isLiked =
+      data?.likedUserIds === undefined && data?.user_like_ids === undefined
+        ? data?.isLiked ?? false
+        : likedUserIds.includes(userid);
     this.cursor = data?.cursor;
-    this.hashtag = data?.tag_ins;
+    this.hashtag = data?.tags ?? data?.hashtag ?? data?.tag_ins;
   }
 }

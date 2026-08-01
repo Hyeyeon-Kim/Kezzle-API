@@ -60,9 +60,9 @@ describe('FirebaseAuthGuard home resilience auth bypass scope', () => {
     expect(request.user).toMatchObject({
       firebaseUid: 'load-test-user',
       nickname: 'home-resilience',
-      oauth_provider: 'local',
-      cake_like_ids: ['cake-1', 'cake-2'],
-      store_like_ids: [],
+      oauthProvider: 'local',
+      cakeLikeIds: ['cake-1', 'cake-2'],
+      storeLikeIds: [],
     });
     expect(request.user.roles).toContain(Roles.BUYER);
   });

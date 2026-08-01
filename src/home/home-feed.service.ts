@@ -4,14 +4,18 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { AnniversaryService } from 'src/anniversary/anniversary.service';
-import { AnniversaryDto } from 'src/anniversary/dto/response-anniversary.dto';
+import { AnniversaryRecommendationView } from 'src/anniversary/application/anniversary.view';
 import { CakeService } from 'src/cake/cake.service';
-import { CakeSimpleResponseDto } from 'src/cake/dto/response-cake-simple.dto';
-import { CakesSimpleResponseDto } from 'src/cake/dto/response-cakes-simple.dto';
-import { PopularCakesResponseDto } from 'src/cake/dto/response-popular-cakes.dto';
+import {
+  CakePageView,
+  PopularCakesView,
+} from 'src/cake/application/cake-result.view';
+import { CakeView } from 'src/cake/application/cake.view';
 import { CurationQueryService } from 'src/curation/curation-query.service';
+import { CurationView } from 'src/curation/application/curation.view';
 import { HomeCacheService } from 'src/home-cache/home-cache.service';
 import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
+import { homeCacheKey } from 'src/home-cache/home-cache.constants';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 import {
   computeRankWindow,
@@ -23,11 +27,13 @@ import {
   MonitoringService,
 } from 'src/monitoring/monitoring.service';
 import { SearchService } from 'src/search/search.service';
-import { RankResponseDto } from 'src/search/dto/response-search-rank.dto';
-import IUser from 'src/user/interfaces/user.interface';
-import { HomeCurationItemDto } from './dto/home-curation.dto';
-import { HomeResponseDto } from './dto/home-response.dto';
-import { HomeSectionsMetadataDto } from './dto/home-section-metadata.dto';
+import { SearchRankView } from 'src/search/application/search.view';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
+import {
+  HomeSectionMetadataView,
+  HomeSectionsView,
+  HomeView,
+} from './application/home.view';
 import {
   executeHomeSection,
   HomeSectionFallbackReason,
@@ -63,7 +69,7 @@ export class HomeFeedService {
     private readonly monitoring: MonitoringService,
   ) {}
 
-  async getHome(user: IUser | undefined): Promise<HomeResponseDto> {
+  async getHome(user: AuthenticatedUser | undefined): Promise<HomeView> {
     const startedAt = process.hrtime.bigint();
     return this.homeMetrics.run(async () => {
       try {
@@ -85,38 +91,41 @@ export class HomeFeedService {
     });
   }
 
-  private async buildHome(user: IUser | undefined): Promise<HomeResponseDto> {
+  private async buildHome(
+    user: AuthenticatedUser | undefined,
+  ): Promise<HomeView> {
     const deadline = startHomeDeadline(this.getHomeHardDeadlineMs());
     const startedAt = process.hrtime.bigint();
 
     try {
-      const recommendFallback: CakeSimpleResponseDto[] = [];
+      const recommendFallback: CakeView[] = [];
       const anniversaryFallback = this.emptyAnniversary();
       const popularWindow = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
-      const popularFallback = new PopularCakesResponseDto(
-        [],
-        popularWindow.startDate,
-        popularWindow.endDate,
-      );
+      const popularFallback: PopularCakesView = {
+        cakes: [],
+        startDate: popularWindow.startDate,
+        endDate: popularWindow.endDate,
+      };
       const keywordWindow = computeRankWindow(KEYWORD_RANK_WINDOW_DAYS_ENV);
-      const keywordRanksFallback = new RankResponseDto(
-        [],
-        keywordWindow.startDate,
-        keywordWindow.endDate,
-      );
-      const newestCakesFallback = new CakesSimpleResponseDto([], false);
-      const curationsFallback: HomeCurationItemDto[] = [];
+      const keywordRanksFallback: SearchRankView = {
+        ranking: [],
+        startDate: keywordWindow.startDate,
+        endDate: keywordWindow.endDate,
+      };
+      const newestCakesFallback: CakePageView = {
+        cakes: [],
+        hasMore: false,
+      };
+      const curationsFallback: CurationView[] = [];
 
-      let recommendResult:
-        | HomeSectionResult<CakeSimpleResponseDto[]>
+      let recommendResult: HomeSectionResult<CakeView[]> | undefined;
+      let anniversaryResult:
+        | HomeSectionResult<AnniversaryRecommendationView>
         | undefined;
-      let anniversaryResult: HomeSectionResult<AnniversaryDto> | undefined;
-      let popularResult: HomeSectionResult<PopularCakesResponseDto> | undefined;
-      let keywordRanksResult: HomeSectionResult<RankResponseDto> | undefined;
-      let newestCakesResult:
-        | HomeSectionResult<CakesSimpleResponseDto>
-        | undefined;
-      let curationsResult: HomeSectionResult<HomeCurationItemDto[]> | undefined;
+      let popularResult: HomeSectionResult<PopularCakesView> | undefined;
+      let keywordRanksResult: HomeSectionResult<SearchRankView> | undefined;
+      let newestCakesResult: HomeSectionResult<CakePageView> | undefined;
+      let curationsResult: HomeSectionResult<CurationView[]> | undefined;
 
       const recommendTimeout = this.getSectionTimeout('recommendCakes');
       const recommendSection = this.homeMetrics
@@ -131,8 +140,11 @@ export class HomeFeedService {
                 user,
                 recommendTimeout,
               );
+              if (seedCakeId === null) {
+                return recommendFallback;
+              }
               return this.homeCache.getWithSwr({
-                key: `home:similar:${seedCakeId}`,
+                key: homeCacheKey(`similar:${seedCakeId}`),
                 ...homeCachePolicy('recommend'),
                 refresh: async () => {
                   this.homeMetrics.countAi('vit');
@@ -171,7 +183,7 @@ export class HomeFeedService {
             anniversaryFallback,
             (signal) =>
               this.homeCache.getWithSwr({
-                key: 'home:anniversary',
+                key: homeCacheKey('anniversary'),
                 ...homeCachePolicy('anniversary'),
                 refresh: async () => {
                   this.homeMetrics.countDb();
@@ -214,7 +226,7 @@ export class HomeFeedService {
             popularFallback,
             () =>
               this.homeCache.getWithSwr({
-                key: 'home:popular',
+                key: homeCacheKey('popular'),
                 ...homeCachePolicy('popular'),
                 refresh: () => {
                   this.homeMetrics.countDb(2);
@@ -247,7 +259,7 @@ export class HomeFeedService {
             keywordRanksFallback,
             () =>
               this.homeCache.getWithSwr({
-                key: 'home:keyword-ranks',
+                key: homeCacheKey('keyword-ranks'),
                 ...homeCachePolicy('keywordRanks'),
                 refresh: () => {
                   this.homeMetrics.countDb(2);
@@ -285,7 +297,7 @@ export class HomeFeedService {
             newestCakesFallback,
             () =>
               this.homeCache.getWithSwr({
-                key: 'home:newest:4',
+                key: homeCacheKey('newest:4'),
                 ...homeCachePolicy('newest'),
                 refresh: () => {
                   this.homeMetrics.countDb();
@@ -322,7 +334,7 @@ export class HomeFeedService {
             curationsFallback,
             () =>
               this.homeCache.getWithSwr({
-                key: 'home:curations',
+                key: homeCacheKey('curations'),
                 ...homeCachePolicy('curations'),
                 refresh: async () => {
                   this.homeMetrics.countDb();
@@ -330,9 +342,7 @@ export class HomeFeedService {
                     4,
                     curationsTimeout,
                   );
-                  return curations.map(
-                    (curation) => new HomeCurationItemDto(curation),
-                  );
+                  return curations;
                 },
               }),
             deadline.signal,
@@ -416,16 +426,16 @@ export class HomeFeedService {
         this.monitoring.countHomeDegraded();
       }
 
-      return new HomeResponseDto(
-        results.anniversary.data,
-        results.recommendCakes.data,
-        results.popularCakes.data,
-        results.keywordRanks.data,
-        results.newestCakes.data,
-        results.curations.data,
+      return {
+        anniversary: results.anniversary.data,
+        recommendCakes: results.recommendCakes.data,
+        popularCakes: results.popularCakes.data,
+        keywordRanks: results.keywordRanks.data,
+        newestCakes: results.newestCakes.data,
+        curations: results.curations.data,
         degraded,
-        new HomeSectionsMetadataDto(results),
-      );
+        sections: this.sectionMetadata(results),
+      };
     } finally {
       deadline.clear();
     }
@@ -503,8 +513,38 @@ export class HomeFeedService {
       : config.defaultMs;
   }
 
-  private emptyAnniversary(): AnniversaryDto {
-    return { _id: '', name: '', dday: '', ment: '', images: [] };
+  private emptyAnniversary(): AnniversaryRecommendationView {
+    return { id: '', name: '', dday: '', mention: '', images: [] };
+  }
+
+  private sectionMetadata(results: {
+    recommendCakes: HomeSectionResult<unknown>;
+    anniversary: HomeSectionResult<unknown>;
+    popularCakes: HomeSectionResult<unknown>;
+    keywordRanks: HomeSectionResult<unknown>;
+    newestCakes: HomeSectionResult<unknown>;
+    curations: HomeSectionResult<unknown>;
+  }): HomeSectionsView {
+    return {
+      recommendCakes: this.sectionMetadataItem(results.recommendCakes),
+      anniversary: this.sectionMetadataItem(results.anniversary),
+      popularCakes: this.sectionMetadataItem(results.popularCakes),
+      keywordRanks: this.sectionMetadataItem(results.keywordRanks),
+      newestCakes: this.sectionMetadataItem(results.newestCakes),
+      curations: this.sectionMetadataItem(results.curations),
+    };
+  }
+
+  private sectionMetadataItem(
+    result: HomeSectionResult<unknown>,
+  ): HomeSectionMetadataView {
+    return result.status === 'fallback'
+      ? {
+          status: result.status,
+          reason: result.reason,
+          durationMs: result.durationMs,
+        }
+      : { status: result.status, durationMs: result.durationMs };
   }
 
   private logSectionFallback(

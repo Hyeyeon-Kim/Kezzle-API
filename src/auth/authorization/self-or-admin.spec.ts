@@ -1,16 +1,16 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Roles } from 'src/user/entities/roles.enum';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { assertSelfOrAdmin } from './self-or-admin';
 
 describe('assertSelfOrAdmin', () => {
-  const user: IUser = {
+  const user: AuthenticatedUser = {
     firebaseUid: 'user-1',
     nickname: 'user',
-    oauth_provider: 'firebase',
+    oauthProvider: 'firebase',
     roles: [Roles.BUYER],
-    cake_like_ids: [],
-    store_like_ids: [],
+    cakeLikeIds: [],
+    storeLikeIds: [],
   };
 
   it('allows a user to access their own resource', () => {

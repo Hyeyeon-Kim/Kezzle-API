@@ -1,6 +1,6 @@
 import { MODULE_METADATA } from '@nestjs/common/constants';
 import { readdirSync, readFileSync } from 'fs';
-import { join, relative, sep } from 'path';
+import { dirname, join, normalize, relative, sep } from 'path';
 import { CakeCatalogReader } from 'src/cake/cake-catalog.reader';
 import { CakeLikePort } from 'src/cake/cake-like.port';
 import { CakeRepositoryModule } from 'src/cake/cake-repository.module';
@@ -59,6 +59,59 @@ function moduleMetadata(module: object, key: string): unknown[] {
   return Reflect.getMetadata(key, module) ?? [];
 }
 
+function normalizeImportPath(sourcePath: string, specifier: string): string {
+  if (specifier.startsWith('src/')) {
+    return specifier.slice('src/'.length);
+  }
+  if (specifier.startsWith('.')) {
+    return normalize(join(dirname(sourcePath), specifier))
+      .split(sep)
+      .join('/');
+  }
+  return specifier;
+}
+
+function normalizedImports(source: SourceFile): string[] {
+  return importSpecifiers(source.content).map((specifier) =>
+    normalizeImportPath(source.path, specifier),
+  );
+}
+
+function isApiDtoPath(path: string): boolean {
+  return /(^|\/)(api\/)?dto(\/|$)/.test(path) || /\.dto(?:\.ts)?$/.test(path);
+}
+
+function isPersistenceSchemaPath(path: string): boolean {
+  return (
+    /(^|\/)entities\/.*\.(?:schema|shema)$/.test(path) ||
+    /(^|\/)persistence\/.*\.schema$/.test(path)
+  );
+}
+
+function isPersistenceSource(path: string): boolean {
+  return (
+    /(^|\/)(entities|persistence)\//.test(path) ||
+    path.endsWith('.repository.ts') ||
+    isPersistenceMapperPath(path)
+  );
+}
+
+function isPersistenceMapperPath(path: string): boolean {
+  return (
+    /\.persistence-mapper(?:\.ts)?$/.test(path) ||
+    /(^|\/)image\.mapper(?:\.ts)?$/.test(path)
+  );
+}
+
+function isApplicationBoundarySource(path: string): boolean {
+  return (
+    path.includes('/application/') ||
+    path.endsWith('.service.ts') ||
+    path.endsWith('.reader.ts') ||
+    path.endsWith('.port.ts')
+  );
+}
+
 describe('Feature boundary architecture', () => {
   const sourceFiles = readSourceFiles();
 
@@ -96,6 +149,248 @@ describe('Feature boundary architecture', () => {
 
       return forbiddenImports.map((value) => `${source.path}: ${value}`);
     });
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps Type-D feature services independent from API DTOs', () => {
+    const targetFeatures = /^(cake|store|user|search|anniversary|curation)\//;
+    const violations = sourceFiles
+      .filter(
+        (source) =>
+          targetFeatures.test(source.path) &&
+          source.path.endsWith('.service.ts'),
+      )
+      .flatMap((source) => {
+        const dtoImports = importSpecifiers(source.content).filter((value) =>
+          /(^|\/)dto(\/|$)/.test(value),
+        );
+        const dtoConstruction = /new\s+[A-Za-z0-9_]+Dto\s*\(/.test(
+          source.content,
+        )
+          ? ['DTO construction']
+          : [];
+        return [...dtoImports, ...dtoConstruction].map(
+          (value) => `${source.path}: ${value}`,
+        );
+      });
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps Search, Curation, and Home independent from Cake API DTOs', () => {
+    const violations = sourceFiles
+      .filter((source) => /^(search|curation|home)\//.test(source.path))
+      .flatMap((source) =>
+        importSpecifiers(source.content)
+          .filter((value) => value.startsWith('src/cake/dto'))
+          .map((value) => `${source.path}: ${value}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps Curation Mongoose access inside its repository', () => {
+    const violations = sourceFiles
+      .filter(
+        (source) =>
+          source.path.startsWith('curation/') &&
+          source.path.endsWith('.service.ts'),
+      )
+      .flatMap((source) =>
+        importSpecifiers(source.content)
+          .filter(
+            (value) =>
+              value === 'mongoose' ||
+              value === '@nestjs/mongoose' ||
+              value.includes('/entities/curation.schema'),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps Type-E composite services independent from API DTOs and presenters', () => {
+    const violations = sourceFiles
+      .filter(
+        (source) =>
+          /^(home|catalog|like)\//.test(source.path) &&
+          source.path.endsWith('.service.ts'),
+      )
+      .flatMap((source) => {
+        const forbiddenImports = importSpecifiers(source.content).filter(
+          (value) => /(^|\/)dto(\/|$)|presenter/.test(value),
+        );
+        const dtoConstruction = /new\s+[A-Za-z0-9_]+Dto\s*\(/.test(
+          source.content,
+        )
+          ? ['DTO construction']
+          : [];
+        return [...forbiddenImports, ...dtoConstruction].map(
+          (value) => `${source.path}: ${value}`,
+        );
+      });
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps Home application code independent from feature API DTOs', () => {
+    const violations = sourceFiles
+      .filter(
+        (source) =>
+          source.path.startsWith('home/') &&
+          !source.path.startsWith('home/api/'),
+      )
+      .flatMap((source) =>
+        importSpecifiers(source.content)
+          .map((value) => normalizeImportPath(source.path, value))
+          .filter((value) => /^(cake|anniversary|search)\/.*dto/.test(value))
+          .map((value) => `${source.path}: ${value}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps Home, Catalog, and Like API DTOs under their endpoint owner', () => {
+    const misplacedDtos = sourceFiles
+      .filter((source) => /^(home|catalog|like)\/dto\//.test(source.path))
+      .map((source) => source.path);
+    const crossFeatureImports = sourceFiles.flatMap((source) =>
+      importSpecifiers(source.content)
+        .map((value) => normalizeImportPath(source.path, value))
+        .filter((value) => /^(home|catalog|like)\/api\/dto\//.test(value))
+        .filter((value) => value.split('/')[0] !== source.path.split('/')[0])
+        .map((value) => `${source.path}: ${value}`),
+    );
+
+    expect([...misplacedDtos, ...crossFeatureImports]).toEqual([]);
+  });
+
+  it('keeps the final type boundary baseline at 0 / 0 / 0 / 0', () => {
+    const persistenceToDto = sourceFiles
+      .filter((source) => isPersistenceSource(source.path))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(isApiDtoPath)
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const dtoToPersistence = sourceFiles
+      .filter((source) => isApiDtoPath(source.path))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(
+            (value) =>
+              isPersistenceSchemaPath(value) ||
+              isPersistenceMapperPath(value) ||
+              value === 'mongoose' ||
+              value === '@nestjs/mongoose',
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const applicationToDocument = sourceFiles
+      .filter((source) => isApplicationBoundarySource(source.path))
+      .filter((source) =>
+        /\b(?:Document|HydratedDocument)\b/.test(source.content),
+      )
+      .map((source) => source.path);
+    const serviceToDto = sourceFiles
+      .filter(
+        (source) =>
+          source.path.endsWith('.service.ts') ||
+          source.path.endsWith('.reader.ts') ||
+          source.path.endsWith('.port.ts'),
+      )
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(isApiDtoPath)
+          .map((value) => `${source.path}: ${value}`),
+      );
+
+    expect({
+      persistenceToDto,
+      dtoToPersistence,
+      applicationToDocument,
+      serviceToDto,
+    }).toEqual({
+      persistenceToDto: [],
+      dtoToPersistence: [],
+      applicationToDocument: [],
+      serviceToDto: [],
+    });
+  });
+
+  it('keeps application types independent from persistence and API frameworks', () => {
+    const violations = sourceFiles
+      .filter((source) => source.path.includes('/application/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(
+            (value) =>
+              isApiDtoPath(value) ||
+              isPersistenceSchemaPath(value) ||
+              value === 'mongoose' ||
+              value === '@nestjs/mongoose' ||
+              value === '@nestjs/swagger' ||
+              value === 'class-validator' ||
+              value === 'class-transformer',
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps persistence mapper inputs explicit', () => {
+    const violations = sourceFiles
+      .filter((source) => isPersistenceMapperPath(source.path))
+      .filter((source) => /\bsource\??\s*:\s*any\b/.test(source.content))
+      .map((source) => source.path);
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps repository Promise return types free from persistence models', () => {
+    const persistenceType =
+      /\b(?:Document|HydratedDocument|Cake|Store|User|Curation|Anniversary)\b/;
+    const violations = sourceFiles
+      .filter((source) => source.path.endsWith('.repository.ts'))
+      .flatMap((source) =>
+        [...source.content.matchAll(/Promise<([^;\n]+)>/g)]
+          .map((match) => match[1])
+          .filter((returnType) => persistenceType.test(returnType))
+          .map((returnType) => `${source.path}: Promise<${returnType}>`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('forbids API DTO imports across feature owners', () => {
+    const featureOwners = new Set([
+      'anniversary',
+      'cake',
+      'catalog',
+      'curation',
+      'home',
+      'like',
+      'search',
+      'store',
+      'user',
+    ]);
+    const violations = sourceFiles
+      .filter((source) => !source.path.endsWith('.spec.ts'))
+      .flatMap((source) => {
+        const sourceOwner = source.path.split('/')[0];
+        return normalizedImports(source)
+          .filter(isApiDtoPath)
+          .filter((value) => {
+            const targetOwner = value.split('/')[0];
+            return (
+              featureOwners.has(targetOwner) && targetOwner !== sourceOwner
+            );
+          })
+          .map((value) => `${source.path}: ${value}`);
+      });
 
     expect(violations).toEqual([]);
   });

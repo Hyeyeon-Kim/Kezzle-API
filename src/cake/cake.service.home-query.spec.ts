@@ -3,8 +3,8 @@ import { CakeService } from './cake.service';
 describe('CakeService home query surface', () => {
   function createService() {
     const cakeRepository = {
-      findById: jest.fn().mockResolvedValue({ _id: 'cake-1' }),
-      sampleOne: jest.fn().mockResolvedValue({ _id: 'random-cake' }),
+      findById: jest.fn().mockResolvedValue({ id: 'cake-1' }),
+      sampleOne: jest.fn().mockResolvedValue({ id: 'random-cake' }),
       findNewest: jest.fn().mockResolvedValue([]),
     };
     const vitClient = {
@@ -28,7 +28,7 @@ describe('CakeService home query surface', () => {
     const { service, cakeRepository } = createService();
 
     const seed = await service.findRecommendationSeed({
-      cake_like_ids: ['cake-1'],
+      cakeLikeIds: ['cake-1'],
     } as never);
 
     expect(seed).toBe('cake-1');
@@ -41,11 +41,24 @@ describe('CakeService home query surface', () => {
     cakeRepository.findById.mockResolvedValueOnce(null);
 
     const seed = await service.findRecommendationSeed({
-      cake_like_ids: ['cake-1'],
+      cakeLikeIds: ['cake-1'],
     } as never);
 
     expect(seed).toBe('random-cake');
     expect(cakeRepository.sampleOne).toHaveBeenCalledWith(undefined);
+  });
+
+  it('returns null when there is no valid recommendation seed', async () => {
+    const { service, cakeRepository, vitClient } = createService();
+    cakeRepository.findById.mockResolvedValueOnce(null);
+    cakeRepository.sampleOne.mockResolvedValueOnce(null);
+
+    const seed = await service.findRecommendationSeed({
+      cakeLikeIds: ['deleted-cake'],
+    } as never);
+
+    expect(seed).toBeNull();
+    expect(vitClient.similarSearch).not.toHaveBeenCalled();
   });
 
   it('loads recommendations without owning Home cache policy', async () => {

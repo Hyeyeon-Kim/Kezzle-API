@@ -1,35 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Anniversary } from './entities/anniversary.schema';
-import { Model } from 'mongoose';
-import { AnniversaryDto } from './dto/response-anniversary.dto';
 import { ClipClient } from 'src/ai-search/clip-client';
+import {
+  AnniversaryRecommendationView,
+  AnniversaryView,
+} from './application/anniversary.view';
+import { AnniversaryRepository } from './anniversary.repository';
 
 @Injectable()
 export class AnniversaryService {
   constructor(
-    @InjectModel(Anniversary.name, 'kezzle')
-    private readonly AnniversaryModel: Model<Anniversary>,
+    private readonly anniversaryRepository: AnniversaryRepository,
     private readonly clipClient: ClipClient,
   ) {}
 
   async getAnniversaryWord(id: string) {
-    return await this.AnniversaryModel.findById(id);
+    return this.anniversaryRepository.findById(id);
   }
 
   async findNextAnniversary(maxTimeMs?: number) {
-    const nowDate = new Date();
-    const query = this.AnniversaryModel.find({
-      date: { $gte: nowDate },
-    })
-      .sort({
-        date: 1,
-      })
-      .limit(1);
-    if (maxTimeMs !== undefined) {
-      query.maxTimeMS(maxTimeMs);
-    }
-    const [anniversary] = await query;
+    const anniversary = await this.anniversaryRepository.findNext(maxTimeMs);
     if (!anniversary) {
       throw new NotFoundException('Upcoming anniversary not found');
     }
@@ -37,9 +26,9 @@ export class AnniversaryService {
   }
 
   async getAnniversaryRecommendations(
-    anniversary: Anniversary,
+    anniversary: AnniversaryView,
     signal?: AbortSignal,
-  ) {
+  ): Promise<AnniversaryRecommendationView> {
     const keyword = anniversary.keyword.join(', ');
     const cakes = await this.clipClient.koSearch(keyword, 6, signal);
 
@@ -51,6 +40,12 @@ export class AnniversaryService {
     const day =
       Math.abs(now.getTime() - anniversary.date.getTime()) /
       (1000 * 60 * 60 * 24);
-    return new AnniversaryDto(anniversary, images, Math.floor(day));
+    return {
+      id: anniversary.id,
+      name: anniversary.name,
+      dday: `D-${Math.floor(day)}`,
+      mention: anniversary.mention,
+      images,
+    };
   }
 }

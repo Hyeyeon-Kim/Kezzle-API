@@ -1,5 +1,5 @@
-import { Image } from '../../upload/entities/image.Schema';
 import { ApiProperty } from '@nestjs/swagger';
+import { ImageDto } from 'src/common/image/api/image.dto';
 
 export class DetailStoreResponseDto {
   @ApiProperty({
@@ -14,11 +14,11 @@ export class DetailStoreResponseDto {
   readonly name: string;
 
   @ApiProperty({
-    type: Image,
+    type: ImageDto,
     description: '케이크 매장 로고 사진',
     required: false,
   })
-  readonly logo: Image;
+  readonly logo: ImageDto;
 
   @ApiProperty({
     description: '케이크 매장 주소',
@@ -60,11 +60,11 @@ export class DetailStoreResponseDto {
   readonly phone_number: string;
 
   @ApiProperty({
-    type: Image,
+    type: [ImageDto],
     description: '케이크 매장 소개 사진들',
     required: false,
   })
-  readonly detail_images: Image[];
+  readonly detail_images: ImageDto[];
 
   @ApiProperty({
     description: '케이크 매장 오픈 시간 ',
@@ -119,23 +119,32 @@ export class DetailStoreResponseDto {
   readonly kakao_map_url: string;
 
   constructor(data: any, userid: string) {
-    this._id = data?._id;
+    this._id = data?.id ?? data?._id;
     this.name = data?.name;
-    this.logo = data?.logo;
-    this.store_feature = data?.store_feature;
-    this.store_description = data?.store_description;
-    this.insta_url = data?.insta_url;
-    this.kakako_url = data?.kakako_url;
+    this.logo = data?.logo == null ? data?.logo : new ImageDto(data.logo);
+    this.store_feature = data?.feature ?? data?.store_feature;
+    this.store_description = data?.description ?? data?.store_description;
+    this.insta_url = data?.instagramUrl ?? data?.insta_url;
+    this.kakako_url = data?.kakaoChannelUrl ?? data?.kakako_url;
     this.address = data?.address;
-    this.phone_number = data?.phone_number;
-    this.detail_images = data?.detail_images;
-    this.operating_time = data?.operating_time;
+    this.phone_number = data?.phoneNumber ?? data?.phone_number;
+    this.detail_images = (data?.detailImages ?? data?.detail_images ?? []).map(
+      (image) => new ImageDto(image),
+    );
+    this.operating_time = data?.operatingTime ?? data?.operating_time;
     this.taste = data?.taste;
-    this.is_liked = data?.user_like_ids.includes(userid);
-    this.like_cnt = data?.user_like_ids.length;
-    this.longitude = data?.location.coordinates[0];
-    this.latitude = data?.location.coordinates[1];
-    this.kakao_map_url = data?.kakao_map_url;
+    const likedUserIds = data?.likedUserIds ?? data?.user_like_ids ?? [];
+    this.is_liked = likedUserIds.includes(userid);
+    this.like_cnt = likedUserIds.length;
+    this.longitude =
+      data?.location?.longitude ??
+      data?.location?.coordinates?.[0] ??
+      data?.longitude;
+    this.latitude =
+      data?.location?.latitude ??
+      data?.location?.coordinates?.[1] ??
+      data?.latitude;
+    this.kakao_map_url = data?.kakaoMapUrl ?? data?.kakao_map_url;
     this.distance = data?.distance;
   }
 }

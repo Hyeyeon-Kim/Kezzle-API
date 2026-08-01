@@ -1,9 +1,9 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Roles } from 'src/user/entities/roles.enum';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 
 export function assertSelfOrAdmin(
-  user: IUser,
+  user: AuthenticatedUser,
   targetFirebaseUid: string,
 ): void {
   if (

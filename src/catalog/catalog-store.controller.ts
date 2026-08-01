@@ -9,14 +9,18 @@ import {
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
 import { Roles } from 'src/user/entities/roles.enum';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { CatalogQueryService } from './catalog-query.service';
-import { CatalogStoresResponseDto } from './dto/catalog-store-response.dto';
+import { CatalogPresenter } from './api/catalog.presenter';
+import { CatalogStoresResponseDto } from './api/dto/catalog-store-response.dto';
 
 @ApiTags('stores')
 @Controller('stores')
 export class CatalogStoreController {
-  constructor(private readonly catalogQuery: CatalogQueryService) {}
+  constructor(
+    private readonly catalogQuery: CatalogQueryService,
+    private readonly catalogPresenter: CatalogPresenter,
+  ) {}
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
   @Get()
@@ -57,20 +61,21 @@ export class CatalogStoreController {
     type: CatalogStoresResponseDto,
   })
   getAll(
-    @GetUser() user: IUser,
+    @GetUser() user: AuthenticatedUser,
     @Query('latitude') latitude,
     @Query('longitude') longitude,
     @Query('dist') distance,
     @Query('after') after,
     @Query('count') limit,
   ) {
-    return this.catalogQuery.findAllStores(
-      user,
-      parseFloat(latitude),
-      parseFloat(longitude),
-      parseInt(distance),
-      parseFloat(after),
-      parseInt(limit),
-    );
+    return this.catalogQuery
+      .findAllStores(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        parseInt(distance),
+        parseFloat(after),
+        parseInt(limit),
+      )
+      .then((page) => this.catalogPresenter.storePage(page, user.firebaseUid));
   }
 }

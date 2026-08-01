@@ -68,3 +68,28 @@ Measured after closing Cake/Store/User repository-module exports and adding the 
 | `forwardRef` imports                                                                   |         0 |         0 |
 
 `npm run test:architecture` scans these forbidden imports and verifies Nest module metadata: repository modules remain internal imports, are not re-exported, and only the public Catalog/Like/write-context ports cross the feature boundary.
+
+## Type-F final result
+
+Measured after completing the Persistence/Application/API type boundary work:
+
+```bash
+rg -n "dto/" src --glob '**/entities/*.ts' --glob '**/*.repository.ts'
+rg -n "entities/.*[Ss]chema" src --glob '**/api/dto/*.ts' --glob '**/dto/*.ts'
+rg -n "Document|HydratedDocument" src \
+  --glob '**/application/**/*.ts' --glob '**/*.service.ts' \
+  --glob '**/*reader.ts' --glob '**/*port.ts'
+rg -n "from ['\"][^'\"]*dto" src \
+  --glob '**/*.service.ts' --glob '**/*reader.ts' --glob '**/*port.ts'
+```
+
+| Boundary | Initial | Type-F |
+| --- | ---: | ---: |
+| Persistence schema/repository → API DTO | 2 | 0 |
+| API DTO → persistence schema/document | 4 | 0 |
+| application/service/port/reader → `Document` | 12 | 0 |
+| service/port/reader → API DTO | 36 | 0 |
+
+The Jest architecture gate resolves both `src/...` and relative imports to source-relative paths before applying the final rules. It classifies root `*.persistence-mapper.ts` and the shared Image mapper as persistence sources, rejects `source: any` mapper inputs and persistence model repository returns, and also rejects cross-feature API DTO imports, persistence/API framework imports from application types, and `forwardRef`.
+
+`npm run test:architecture` runs the source scan, Nest module metadata checks, and the Type-D/Type-E presenter contract specs together.

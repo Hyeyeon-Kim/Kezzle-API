@@ -11,17 +11,21 @@ import {
 } from '@nestjs/swagger';
 import { LikeService } from './like.service';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { Roles } from 'src/user/entities/roles.enum';
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { assertSelfOrAdmin } from 'src/auth/authorization/self-or-admin';
-import { LikedCakeResponseDto } from './dto/liked-cake-response.dto';
-import { LikedStoreResponseDto } from './dto/liked-store-response.dto';
+import { LikedCakeResponseDto } from './api/dto/liked-cake-response.dto';
+import { LikedStoreResponseDto } from './api/dto/liked-store-response.dto';
+import { LikePresenter } from './api/like.presenter';
 
 @ApiTags('likes')
 @Controller()
 export class LikeController {
-  constructor(private readonly likeService: LikeService) {}
+  constructor(
+    private readonly likeService: LikeService,
+    private readonly likePresenter: LikePresenter,
+  ) {}
 
   @RolesAllowed(Roles.BUYER, Roles.ADMIN)
   @Get('users/:id/liked-cakes')
@@ -34,10 +38,12 @@ export class LikeController {
   @ApiNoContentResponse({ description: '정보 없음.' })
   getCake(
     @Param('id') userId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<LikedCakeResponseDto[]> {
     assertSelfOrAdmin(userDto, userId);
-    return this.likeService.findUserLikeCake(userId);
+    return this.likeService
+      .findUserLikeCake(userId)
+      .then((cakes) => this.likePresenter.cakes(cakes, userId));
   }
 
   @RolesAllowed(Roles.BUYER, Roles.ADMIN)
@@ -53,10 +59,14 @@ export class LikeController {
   @ApiNoContentResponse({ description: '정보 없음.' })
   getStore(
     @Param('id') userId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<LikedStoreResponseDto[]> {
     assertSelfOrAdmin(userDto, userId);
-    return this.likeService.findUserLikeStore(userId, userDto);
+    return this.likeService
+      .findUserLikeStore(userId)
+      .then((stores) =>
+        this.likePresenter.stores(stores, userId, userDto.firebaseUid),
+      );
   }
 
   @RolesAllowed(Roles.BUYER)
@@ -76,7 +86,7 @@ export class LikeController {
   })
   likeCake(
     @Param('id') cakeId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<boolean> {
     return this.likeService.cakeAddLikeList(cakeId, userDto);
   }
@@ -95,7 +105,7 @@ export class LikeController {
   @ApiNotFoundResponse({ description: '케이크를 찾을 수 없습니다.' })
   notLikeCake(
     @Param('id') cakeId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<boolean> {
     return this.likeService.cakeRemoveLikeList(cakeId, userDto);
   }
@@ -117,7 +127,7 @@ export class LikeController {
   })
   likeStore(
     @Param('id') storeId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<boolean> {
     return this.likeService.storeAddLikeList(storeId, userDto);
   }
@@ -136,7 +146,7 @@ export class LikeController {
   @ApiNotFoundResponse({ description: '매장을 찾을 수 없습니다.' })
   notLikeStore(
     @Param('id') storeId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<boolean> {
     return this.likeService.storeRemoveLikeList(storeId, userDto);
   }

@@ -1,11 +1,9 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { Curation, CurationDocument } from './entities/curation.schema';
 import { CurationService } from './curation.service';
 import { MonitoringService } from 'src/monitoring/monitoring.service';
+import { CurationRepository } from './curation.repository';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_REFRESH_INTERVAL_MS = 600000;
@@ -39,8 +37,7 @@ export class CurationRefreshService implements OnApplicationBootstrap {
   private readonly claimTtlMs: number;
 
   constructor(
-    @InjectModel(Curation.name, 'kezzle')
-    private readonly curationModel: Model<CurationDocument>,
+    private readonly curationRepository: CurationRepository,
     private readonly curationService: CurationService,
     private readonly monitoring: MonitoringService,
     private readonly config: ConfigService,
@@ -116,27 +113,25 @@ export class CurationRefreshService implements OnApplicationBootstrap {
     this.running = true;
     try {
       const staleBefore = new Date(Date.now() - this.staleMs);
-      const staleCurations = await this.curationModel
-        .find({ updatedAt: { $lt: staleBefore } })
-        .select('_id updatedAt')
-        .lean();
+      const staleCurations =
+        await this.curationRepository.findStale(staleBefore);
       result.stale = staleCurations.length;
 
       // CLIP 부하 스파이크를 만들지 않도록 순차로 갱신한다.
       for (const curation of staleCurations) {
-        const claimed = await this.claim(curation._id, curation.updatedAt);
+        const claimed = await this.claim(curation.id, curation.updatedAt);
         if (!claimed) {
           result.skipped += 1;
           continue;
         }
         try {
-          await this.curationService.updateCuration(curation._id.toString());
+          await this.curationService.updateCuration(curation.id);
           result.refreshed += 1;
         } catch (error) {
           // 실패한 큐레이션은 기존 데이터가 유지되고 다음 주기에 자연 재시도된다.
           result.failed += 1;
           this.logger.warn(
-            `curation refresh failed: id=${curation._id} error=${this.errorName(
+            `curation refresh failed: id=${curation.id} error=${this.errorName(
               error,
             )}`,
           );
@@ -162,29 +157,14 @@ export class CurationRefreshService implements OnApplicationBootstrap {
   }
 
   // 같은 curation 을 다른 실행(다른 인스턴스 포함)이 이미 claim 했으면 null 을 반환한다.
-  private claim(id: Types.ObjectId, expectedUpdatedAt?: Date) {
+  private claim(id: string, expectedUpdatedAt?: Date) {
     const now = new Date();
-    return this.curationModel
-      .findOneAndUpdate(
-        {
-          _id: id,
-          updatedAt: expectedUpdatedAt,
-          $or: [
-            { refreshClaimedAt: { $exists: false } },
-            { refreshClaimedAt: null },
-            {
-              refreshClaimedAt: {
-                $lt: new Date(now.getTime() - this.claimTtlMs),
-              },
-            },
-          ],
-        },
-        { $set: { refreshClaimedAt: now } },
-        // timestamps 자동 갱신을 끄지 않으면 claim 만으로 updatedAt 이 바뀌어
-        // 실제 갱신 없이 stale 판정이 풀린다.
-        { timestamps: false },
-      )
-      .lean();
+    return this.curationRepository.claimRefresh(
+      id,
+      expectedUpdatedAt,
+      new Date(now.getTime() - this.claimTtlMs),
+      now,
+    );
   }
 
   private errorName(error: unknown): string {

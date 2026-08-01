@@ -1,12 +1,14 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import IUser from '../interfaces/user.interface';
+import { AuthenticatedUser } from '../application/authenticated-user';
 
 /**
  * Returns user
  */
 export const GetUser = createParamDecorator(
   (data: string, ctx: ExecutionContext) => {
-    const request: { user: IUser } = ctx.switchToHttp().getRequest();
+    const request: { user: AuthenticatedUser } = ctx
+      .switchToHttp()
+      .getRequest();
     return request.user;
   },
 );

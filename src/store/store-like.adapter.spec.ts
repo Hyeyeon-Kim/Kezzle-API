@@ -6,11 +6,11 @@ describe('StoreLikeRepositoryAdapter', () => {
     const adapter = new StoreLikeRepositoryAdapter({
       findByUserLike: jest.fn().mockResolvedValue([
         {
-          _id: { toString: () => 'store-1' },
+          id: 'store-1',
           name: 'Store 1',
           logo: {},
           address: 'Seoul',
-          user_like_ids: ['user-1'],
+          likedUserIds: ['user-1'],
         },
       ]),
     } as any);

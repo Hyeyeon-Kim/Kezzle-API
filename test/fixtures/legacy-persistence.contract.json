@@ -1,0 +1,90 @@
+{
+  "cake": {
+    "_id": "65a000000000000000000001",
+    "image": {
+      "name": "legacy-cake.png",
+      "converte_name": "legacy-cake-converted.png",
+      "key": "legacy/cakes/legacy-cake-converted.png",
+      "s3Url": "https://cdn.example.com/legacy/cakes/legacy-cake-converted.png"
+    },
+    "cursor": "legacy-cursor-1",
+    "user_like_ids": ["user-1"],
+    "owner_store_id": "store-1",
+    "like_ins": "12",
+    "tag_ins": ["레거시", "초코"],
+    "content_ins": "legacy cake content",
+    "cal_likes": 12,
+    "faiss_id": 101,
+    "is_delete": false,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-02T00:00:00.000Z",
+    "__v": 0
+  },
+  "store": {
+    "_id": "65a000000000000000000002",
+    "name": "Legacy Store",
+    "logo": {
+      "name": "logo.png",
+      "converte_name": "logo-converted.png",
+      "key": "legacy/stores/logo-converted.png",
+      "s3Url": "https://cdn.example.com/legacy/stores/logo-converted.png"
+    },
+    "store_feature": "legacy feature",
+    "store_description": "legacy description",
+    "insta_url": "https://instagram.com/legacy",
+    "kakako_url": "https://pf.kakao.com/legacy",
+    "kakao_map_url": "https://map.kakao.com/legacy",
+    "location": { "type": "Point", "coordinates": [127.1, 37.5] },
+    "address": "서울시 강남구",
+    "phone_number": "02-0000-0000",
+    "owner_user_id": "seller-1",
+    "detail_images": [
+      {
+        "name": "detail.png",
+        "converte_name": "detail-converted.png",
+        "key": "legacy/stores/detail-converted.png",
+        "s3Url": "https://cdn.example.com/legacy/stores/detail-converted.png"
+      }
+    ],
+    "operating_time": ["10:00-18:00"],
+    "user_like_ids": [],
+    "taste": ["바닐라"],
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-02T00:00:00.000Z"
+  },
+  "user": {
+    "_id": "65a000000000000000000003",
+    "firebaseUid": "legacy-user-1",
+    "nickname": "legacy user",
+    "oauth_provider": "password",
+    "roles": ["isSeller", "isBuyer"],
+    "cake_like_ids": ["cake-1"],
+    "store_like_ids": [],
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-02T00:00:00.000Z"
+  },
+  "curation": {
+    "_id": "65a000000000000000000004",
+    "cakes": [
+      {
+        "id": "legacy-cake-snapshot-1",
+        "image": {
+          "s3Url": "https://cdn.example.com/legacy/snapshot.png"
+        },
+        "owner_store_id": "store-1",
+        "cursor": "legacy-snapshot-cursor",
+        "tag_ins": ["레거시"],
+        "user_like_ids": ["legacy-user-1"],
+        "score": 0.125,
+        "legacy_extra": "must-stay"
+      }
+    ],
+    "key": "레거시 큐레이션",
+    "description": "legacy curation description",
+    "note": "legacy note",
+    "updatedAt": "2024-01-02T00:00:00.000Z",
+    "refreshClaimedAt": "2024-01-02T00:01:00.000Z",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "__v": 0
+  }
+}

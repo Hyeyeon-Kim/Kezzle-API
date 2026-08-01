@@ -8,7 +8,7 @@ import {
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ImageRequestDto } from 'src/upload/dto/Image-request.dto';
+import { ImageDto } from 'src/common/image/api/image.dto';
 
 export class CreateStoreDto {
   @IsNotEmpty()
@@ -20,11 +20,11 @@ export class CreateStoreDto {
 
   @IsOptional()
   @ApiProperty({
-    type: ImageRequestDto,
+    type: ImageDto,
     description: '케이크 매장 로고 사진',
     required: false,
   })
-  readonly logo: ImageRequestDto;
+  readonly logo: ImageDto;
 
   @IsOptional()
   @IsString()
@@ -91,14 +91,14 @@ export class CreateStoreDto {
 
   @IsOptional()
   @IsArray()
-  @Type(() => ImageRequestDto)
+  @Type(() => ImageDto)
   @ValidateNested({ each: true })
   @ApiProperty({
-    type: [ImageRequestDto],
+    type: [ImageDto],
     description: '가게 관련 이미지들',
     required: false,
   })
-  readonly detailImages?: ImageRequestDto[];
+  readonly detailImages?: ImageDto[];
 
   @IsArray()
   @ApiProperty({

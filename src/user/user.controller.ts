@@ -24,11 +24,12 @@ import { Roles } from './entities/roles.enum';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/response-user.dto';
-import { User } from './entities/user.schema';
 import { GetUser } from './decorators/get-user.decorator';
-import IUser from './interfaces/user.interface';
+import { AuthenticatedUser } from './application/authenticated-user';
+import { CreateUserResponseDto } from './dto/response-create-user.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { assertSelfOrAdmin } from 'src/auth/authorization/self-or-admin';
+import { UserPresenter } from './user.presenter';
 
 const userIdParams = {
   name: 'id',
@@ -49,8 +50,8 @@ export class UserController {
       '유저 목록을 요청합니다.' + '\n\n' + 'Admin 권한이 필요합니다.',
   })
   @ApiNoContentResponse({ description: '정보 없음.' })
-  getAll(): Promise<UserResponseDto[]> {
-    return this.userService.findAll();
+  async getAll(): Promise<UserResponseDto[]> {
+    return UserPresenter.list(await this.userService.findAll());
   }
 
   @Post()
@@ -65,11 +66,16 @@ export class UserController {
   @ApiBadRequestResponse({
     description: 'request body의 조건이 잘못됨.',
   })
-  create(
+  async create(
     @Headers('authorization') authorization: string,
     @Body() createUserDto: CreateUserDto,
-  ): Promise<User> {
-    return this.userService.create(authorization, createUserDto);
+  ): Promise<CreateUserResponseDto> {
+    return UserPresenter.created(
+      await this.userService.create({
+        token: authorization,
+        nickname: createUserDto.nickname,
+      }),
+    );
   }
 
   @Get(':id')
@@ -88,10 +94,12 @@ export class UserController {
   @ApiNotFoundResponse({ description: '유저를 찾을 수 없습니다.' })
   getOne(
     @Param('id') userId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<UserResponseDto> {
     assertSelfOrAdmin(userDto, userId);
-    return this.userService.findOneByFirebase(userId);
+    return this.userService
+      .findOneByFirebase(userId)
+      .then((user) => UserPresenter.detail(user));
   }
 
   @Patch(':id')
@@ -111,10 +119,12 @@ export class UserController {
   modify(
     @Param('id') userId: string,
     @Body() updateData: UpdateUserDto,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ) {
     assertSelfOrAdmin(userDto, userId);
-    return this.userService.changeContent(userId, updateData);
+    return this.userService.changeContent(userId, {
+      nickname: updateData.nickname,
+    });
   }
 
   @Delete(':id')
@@ -130,7 +140,7 @@ export class UserController {
     description: '유저 정보 삭제 성공',
   })
   @ApiNotFoundResponse({ description: '유저를 찾을 수 없습니다.' })
-  delete(@Param('id') userId: string, @GetUser() userDto: IUser) {
+  delete(@Param('id') userId: string, @GetUser() userDto: AuthenticatedUser) {
     assertSelfOrAdmin(userDto, userId);
     return this.userService.removeContent(userId);
   }

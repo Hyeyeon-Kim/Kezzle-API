@@ -6,8 +6,8 @@ describe('UserLikeRepositoryAdapter', () => {
     const adapter = new UserLikeRepositoryAdapter({
       findByFirebaseUidOrThrow: jest.fn().mockResolvedValue({
         firebaseUid: 'user-1',
-        cake_like_ids: ['cake-1'],
-        store_like_ids: ['store-1'],
+        cakeLikeIds: ['cake-1'],
+        storeLikeIds: ['store-1'],
       }),
     } as any);
 

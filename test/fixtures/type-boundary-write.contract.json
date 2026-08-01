@@ -1,0 +1,62 @@
+{
+  "cakeCreate": "1개의 파일 업로드 성공",
+  "storeCreate": {
+    "_id": "store-created-1",
+    "name": "Created Store",
+    "store_feature": "",
+    "store_description": "",
+    "insta_url": "",
+    "kakako_url": "",
+    "kakao_map_url": "",
+    "location": {
+      "type": "Point",
+      "coordinates": [127.1, 37.5]
+    },
+    "address": "Seoul",
+    "phone_number": "",
+    "owner_user_id": "seller-1",
+    "detail_images": [],
+    "operating_time": ["10:00-18:00"],
+    "user_like_ids": [],
+    "taste": ["vanilla"],
+    "createdAt": "2026-07-16T00:00:00.000Z",
+    "updatedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "userCreate": {
+    "_id": "user-created-1",
+    "firebaseUid": "firebase-created-1",
+    "nickname": "Created User",
+    "oauth_provider": "password",
+    "roles": ["isBuyer"],
+    "cake_like_ids": [],
+    "store_like_ids": [],
+    "createdAt": "2026-07-16T00:00:00.000Z",
+    "updatedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "curationCreate": {
+    "_id": "curation-created-1",
+    "cakes": [
+      {
+        "legacy_extra": "kept",
+        "id": "cake-created-1",
+        "image": {
+          "name": "cake.png",
+          "converte_name": "cake-converted.png",
+          "key": "cakes/cake-converted.png",
+          "s3Url": "https://cdn.example.com/cakes/cake-converted.png"
+        },
+        "owner_store_id": "store-created-1",
+        "cursor": "cursor-created-1",
+        "tag_ins": ["birthday"],
+        "user_like_ids": [],
+        "score": 0.9
+      }
+    ],
+    "key": "birthday",
+    "description": "Birthday curation",
+    "note": "created",
+    "createdAt": "2026-07-16T00:00:00.000Z",
+    "updatedAt": "2026-07-16T00:00:00.000Z",
+    "__v": 0
+  }
+}

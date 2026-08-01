@@ -4,14 +4,14 @@ import {
   computeRankWindow,
   KEYWORD_RANK_WINDOW_DAYS_ENV,
 } from './../log/rank-window';
-import { CakesResponseDto } from 'src/cake/dto/response-cakes.dto';
-import IUser from 'src/user/interfaces/user.interface';
 import { Injectable } from '@nestjs/common';
-import { RankResponseDto } from './dto/response-search-rank.dto';
-import { LatestResponseDto } from './dto/response-latest-search.dto';
-import { CakeResponseDto } from 'src/cake/dto/response-cake.dto';
-import { CakesSearchResponseDto } from 'src/cake/dto/response-search-cake.dto';
 import { ClipClient } from 'src/ai-search/clip-client';
+import { CakeExternalMapper } from 'src/cake/cake-external.mapper';
+import {
+  LatestSearchView,
+  SearchRankView,
+  SearchResultView,
+} from './application/search.view';
 
 @Injectable()
 export class SearchService {
@@ -21,8 +21,12 @@ export class SearchService {
     private readonly keywordRankService: KeywordRankService,
   ) {}
 
-  async search(keywords: string, page: number, user: IUser) {
-    if (!keywords) return new CakesResponseDto([], false);
+  async search(
+    keywords: string,
+    page: number,
+    userId: string,
+  ): Promise<SearchResultView> {
+    if (!keywords) return { cakes: [], hasMore: false };
 
     const { result, nextPage, isLastPage } = await this.clipClient.koSearchPage(
       keywords,
@@ -35,14 +39,15 @@ export class SearchService {
       for (let i = 0; i < keywordArr.length; i++) {
         const word = keywordArr[i];
         const arr = [...keywordArr.slice(0, i), ...keywordArr.slice(i + 1)];
-        this.logService.searchlog(user.firebaseUid, word, arr);
+        this.logService.searchlog(userId, word, arr);
       }
     }
 
-    const cakeResponse = result.map(
-      (cake) => new CakeResponseDto(cake, user.firebaseUid),
-    );
-    return new CakesSearchResponseDto(cakeResponse, nextPage, isLastPage);
+    return {
+      cakes: result.map((cake) => CakeExternalMapper.toView(cake)),
+      nextPage,
+      hasMore: !isLastPage,
+    };
   }
 
   async getRank(
@@ -50,18 +55,21 @@ export class SearchService {
     endDate?: string,
     limit?: number,
     maxTimeMs?: number,
-  ) {
+  ): Promise<SearchRankView> {
     // 날짜 지정이 없는 기본 경로(홈 포함)는 사전 집계 read model 을 읽는다.
     if (startDate == null && endDate == null) {
       const ranked = await this.keywordRankService.getRanked(
         limit ?? 10,
         maxTimeMs,
       );
-      return new RankResponseDto(
-        ranked.ranking,
-        ranked.startDate,
-        ranked.endDate,
-      );
+      return {
+        ranking: ranked.ranking.map((item) => ({
+          id: item._id,
+          count: item.count,
+        })),
+        startDate: ranked.startDate,
+        endDate: ranked.endDate,
+      };
     }
 
     // 명시적 날짜가 있는 관리용 경로는 기존 실시간 집계를 유지한다.
@@ -74,15 +82,21 @@ export class SearchService {
       limit,
       maxTimeMs,
     );
-    return new RankResponseDto(result, start, end);
+    return {
+      ranking: result.map((item) => ({ id: item._id, count: item.count })),
+      startDate: start,
+      endDate: end,
+    };
   }
 
-  async getLatest(userId: string) {
-    const latest = this.logService.getLatestWord(userId);
+  async getLatest(userId: string): Promise<LatestSearchView> {
+    const latest = await this.logService.getLatestWord(userId);
     const keyword = new Set<string>();
-    for (let i = 0; i < 10; i++) keyword.add(latest[i].searchWord);
+    for (const entry of latest.slice(0, 10)) {
+      if (entry?.searchWord) keyword.add(entry.searchWord);
+    }
 
     const result = Array.from(keyword);
-    return new LatestResponseDto(result);
+    return { keywords: result };
   }
 }

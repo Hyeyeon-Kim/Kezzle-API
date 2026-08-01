@@ -8,6 +8,7 @@ import { MonitoringModule } from 'src/monitoring/monitoring.module';
 import { SearchModule } from 'src/search/search.module';
 import { HomeController } from './home.controller';
 import { HomeFeedService } from './home-feed.service';
+import { HomePresenter } from './api/home.presenter';
 
 @Module({
   imports: [
@@ -20,6 +21,6 @@ import { HomeFeedService } from './home-feed.service';
     MonitoringModule,
   ],
   controllers: [HomeController],
-  providers: [HomeFeedService],
+  providers: [HomeFeedService, HomePresenter],
 })
 export class HomeModule {}

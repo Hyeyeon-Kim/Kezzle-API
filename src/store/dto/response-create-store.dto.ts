@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { LocationDto } from './response-location.dto';
+import { StoreView } from '../application/store.view';
+import { ImageDto } from 'src/common/image/api/image.dto';
 
 export class CreateStoreResponseDto {
   @ApiProperty({ description: '생성된 매장 ID(ObjectId)' })
@@ -55,4 +57,40 @@ export class CreateStoreResponseDto {
 
   @ApiProperty({ type: String, format: 'date-time' })
   readonly updatedAt: Date;
+
+  constructor(store: StoreView) {
+    const source = store as any;
+    this._id = source.id ?? source._id;
+    this.name = store.name;
+    this.logo = store.logo == null ? store.logo : new ImageDto(store.logo);
+    this.store_feature = source.feature ?? source.store_feature;
+    this.store_description = source.description ?? source.store_description;
+    this.insta_url = source.instagramUrl ?? source.insta_url;
+    this.kakako_url = source.kakaoChannelUrl ?? source.kakako_url;
+    this.kakao_map_url = source.kakaoMapUrl ?? source.kakao_map_url;
+    this.location = source.location?.coordinates
+      ? source.location
+      : ({
+          type: 'Point',
+          coordinates: [source.location?.longitude, source.location?.latitude],
+        } as never);
+    this.address = store.address;
+    this.phone_number = source.phoneNumber ?? source.phone_number;
+    this.owner_user_id = source.ownerUserId ?? source.owner_user_id;
+    const detailImages = (
+      source.detailImages ??
+      source.detail_images ??
+      []
+    ).map((image) => new ImageDto(image));
+    this.detail_images = detailImages;
+    this.operating_time = [
+      ...(source.operatingTime ?? source.operating_time ?? []),
+    ];
+    this.user_like_ids = [
+      ...(source.likedUserIds ?? source.user_like_ids ?? []),
+    ];
+    this.taste = [...(source.taste ?? [])];
+    this.createdAt = store.createdAt;
+    this.updatedAt = store.updatedAt;
+  }
 }

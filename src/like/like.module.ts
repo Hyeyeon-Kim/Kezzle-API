@@ -6,7 +6,7 @@ import { CakeModule } from 'src/cake/cake.module';
 import { StoreModule } from 'src/store/store.module';
 import { UserModule } from 'src/user/user.module';
 import { CatalogQueryModule } from 'src/catalog/catalog-query.module';
-import { LikePresenter } from './like.presenter';
+import { LikePresenter } from './api/like.presenter';
 
 @Module({
   imports: [CakeModule, StoreModule, UserModule, CatalogQueryModule, LogModule],

@@ -6,15 +6,19 @@ describe('UserController ownership', () => {
   const user = {
     firebaseUid: 'user-1',
     nickname: 'user',
-    oauth_provider: 'firebase',
+    oauthProvider: 'firebase',
     roles: [Roles.BUYER],
-    cake_like_ids: [],
-    store_like_ids: [],
+    cakeLikeIds: [],
+    storeLikeIds: [],
   };
 
   function createController() {
     const service = {
-      findOneByFirebase: jest.fn(),
+      findOneByFirebase: jest.fn().mockResolvedValue({
+        firebaseUid: 'user-2',
+        roles: [],
+        cakeLikeIds: [],
+      }),
       changeContent: jest.fn(),
       removeContent: jest.fn(),
     };

@@ -4,15 +4,19 @@ import { AllowHomeResilienceAuthBypass } from 'src/auth/decorators/home-resilien
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { Roles } from 'src/user/entities/roles.enum';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
-import IUser from 'src/user/interfaces/user.interface';
-import { HomeResponseDto } from './dto/home-response.dto';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
+import { HomePresenter } from './api/home.presenter';
+import { HomeResponseDto } from './api/dto/home-response.dto';
 import { HomeFeedService } from './home-feed.service';
 
 @ApiTags('curation')
 @ApiBearerAuth()
 @Controller('curation')
 export class HomeController {
-  constructor(private readonly homeFeedService: HomeFeedService) {}
+  constructor(
+    private readonly homeFeedService: HomeFeedService,
+    private readonly homePresenter: HomePresenter,
+  ) {}
 
   @ApiOkResponse({
     description: '홈 화면 정보들을 반환합니다.',
@@ -21,7 +25,9 @@ export class HomeController {
   @Get()
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
   @AllowHomeResilienceAuthBypass()
-  getHome(@GetUser() user: IUser) {
-    return this.homeFeedService.getHome(user);
+  getHome(@GetUser() user: AuthenticatedUser) {
+    return this.homeFeedService
+      .getHome(user)
+      .then((home) => this.homePresenter.response(home));
   }
 }

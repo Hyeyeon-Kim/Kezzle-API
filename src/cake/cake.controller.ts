@@ -25,13 +25,14 @@ import { CakeService } from './cake.service';
 import { Roles } from 'src/user/entities/roles.enum';
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { CakeResponseDto } from './dto/response-cake.dto';
 import {
   FileFieldsInterceptor,
   FileInterceptor,
 } from '@nestjs/platform-express';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
+import { CakePresenter } from './cake.presenter';
 
 const cakeIdParams = {
   name: 'id',
@@ -65,23 +66,33 @@ export class CakeController {
     @Query('after') after,
     @Query('count') limit,
   ): Promise<CakesSimpleResponseDto> {
-    return await this.cakeService.findAllByNewest(after, parseInt(limit));
+    return CakePresenter.simpleList(
+      await this.cakeService.findAllByNewest(after, parseInt(limit)),
+    );
   }
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
   @Get('cakes/popular')
-  cakePopular(@Query('after') after: string, @Query('limit') limit: string) {
-    return this.cakeService.popular(parseFloat(after), parseInt(limit));
+  async cakePopular(
+    @Query('after') after: string,
+    @Query('limit') limit: string,
+  ) {
+    return CakePresenter.popular(
+      await this.cakeService.popular(parseFloat(after), parseInt(limit)),
+    );
   }
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
   @Get('cakes/anniversary/:id')
-  cakeAnniversary(
+  async cakeAnniversary(
     @Param('id') anni: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
     @Query('page') page: string,
   ) {
-    return this.cakeService.anniversary(anni, userDto, parseInt(page));
+    return CakePresenter.anniversary(
+      await this.cakeService.anniversary(anni, parseInt(page)),
+      userDto.firebaseUid,
+    );
   }
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
@@ -99,11 +110,14 @@ export class CakeController {
     type: CakeResponseDto,
   })
   @ApiNotFoundResponse({ description: '케이크를 찾을 수 없습니다.' })
-  getOne(
+  async getOne(
     @Param('id') cakeId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ): Promise<CakeResponseDto> {
-    return this.cakeService.findOne(cakeId, userDto);
+    return CakePresenter.detail(
+      await this.cakeService.findOne(cakeId),
+      userDto.firebaseUid,
+    );
   }
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER)
@@ -125,7 +139,7 @@ export class CakeController {
   modify(
     @Param('id') cakeId: string,
     @UploadedFile() file,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
   ) {
     return this.cakeService.changeContent(cakeId, userDto, file);
   }
@@ -144,7 +158,7 @@ export class CakeController {
     description: '케이크 정보 삭제 성공',
   })
   @ApiNotFoundResponse({ description: '케이크를 찾을 수 없습니다.' })
-  delete(@Param('id') cakeId: string, @GetUser() userDto: IUser) {
+  delete(@Param('id') cakeId: string, @GetUser() userDto: AuthenticatedUser) {
     return this.cakeService.removeContent(cakeId, userDto);
   }
 
@@ -170,7 +184,7 @@ export class CakeController {
   })
   createCake(
     @Param('id') storeId: string,
-    @GetUser() userDto: IUser,
+    @GetUser() userDto: AuthenticatedUser,
     @UploadedFiles() files,
   ) {
     return this.cakeService.createCake(storeId, userDto, files);

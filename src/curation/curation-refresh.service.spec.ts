@@ -3,7 +3,7 @@ import { CurationRefreshService } from './curation-refresh.service';
 describe('CurationRefreshService', () => {
   function staleCuration(id: string) {
     return {
-      _id: { toString: () => id },
+      id,
       updatedAt: new Date('2026-07-01T00:00:00.000Z'),
     };
   }
@@ -13,18 +13,16 @@ describe('CurationRefreshService', () => {
     claimResults?: (object | null)[];
     env?: Record<string, string>;
   }) {
-    const findQuery = {
-      select: jest.fn().mockReturnThis(),
-      lean: jest.fn().mockResolvedValue(options?.stale ?? []),
-    };
     const claimQueue = [...(options?.claimResults ?? [])];
-    const curationModel = {
-      find: jest.fn(() => findQuery),
-      findOneAndUpdate: jest.fn(() => ({
-        lean: jest
-          .fn()
-          .mockResolvedValue(claimQueue.length > 0 ? claimQueue.shift() : {}),
-      })),
+    const curationRepository = {
+      findStale: jest.fn().mockResolvedValue(options?.stale ?? []),
+      claimRefresh: jest
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(
+            claimQueue.length > 0 ? claimQueue.shift() != null : true,
+          ),
+        ),
     };
     const curationService = {
       updateCuration: jest.fn().mockResolvedValue(undefined),
@@ -41,7 +39,7 @@ describe('CurationRefreshService', () => {
       addInterval: jest.fn(),
     };
     const service = new CurationRefreshService(
-      curationModel as never,
+      curationRepository as never,
       curationService as never,
       monitoring as never,
       config as never,
@@ -49,24 +47,21 @@ describe('CurationRefreshService', () => {
     );
     return {
       service,
-      curationModel,
+      curationRepository,
       curationService,
-      findQuery,
       monitoring,
       schedulerRegistry,
     };
   }
 
   it('refreshes each claimed stale curation exactly once', async () => {
-    const { service, curationService, curationModel } = createMocks({
+    const { service, curationService, curationRepository } = createMocks({
       stale: [staleCuration('cur-1'), staleCuration('cur-2')],
     });
 
     const result = await service.runOnce();
 
-    expect(curationModel.find).toHaveBeenCalledWith({
-      updatedAt: { $lt: expect.any(Date) },
-    });
+    expect(curationRepository.findStale).toHaveBeenCalledWith(expect.any(Date));
     expect(curationService.updateCuration).toHaveBeenCalledTimes(2);
     expect(curationService.updateCuration).toHaveBeenCalledWith('cur-1');
     expect(curationService.updateCuration).toHaveBeenCalledWith('cur-2');
@@ -74,17 +69,18 @@ describe('CurationRefreshService', () => {
   });
 
   it('claims without touching timestamps and skips already claimed curations', async () => {
-    const { service, curationService, curationModel } = createMocks({
+    const { service, curationService, curationRepository } = createMocks({
       stale: [staleCuration('cur-1'), staleCuration('cur-2')],
       claimResults: [null, {}],
     });
 
     const result = await service.runOnce();
 
-    expect(curationModel.findOneAndUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ updatedAt: expect.any(Date) }),
-      { $set: { refreshClaimedAt: expect.any(Date) } },
-      { timestamps: false },
+    expect(curationRepository.claimRefresh).toHaveBeenCalledWith(
+      'cur-1',
+      expect.any(Date),
+      expect.any(Date),
+      expect.any(Date),
     );
     expect(curationService.updateCuration).toHaveBeenCalledTimes(1);
     expect(curationService.updateCuration).toHaveBeenCalledWith('cur-2');
@@ -150,7 +146,7 @@ describe('CurationRefreshService', () => {
 
   it('uses the configured stale threshold when querying stale curations', async () => {
     const staleMs = 60_000;
-    const { service, curationModel } = createMocks({
+    const { service, curationRepository } = createMocks({
       env: { CURATION_STALE_MS: String(staleMs) },
     });
 
@@ -158,16 +154,15 @@ describe('CurationRefreshService', () => {
     await service.runOnce();
     const after = Date.now();
 
-    const findMock = curationModel.find as jest.Mock;
-    const cutoff = findMock.mock.calls[0][0]['updatedAt']['$lt'] as Date;
+    const cutoff = curationRepository.findStale.mock.calls[0][0] as Date;
     expect(cutoff.getTime()).toBeGreaterThanOrEqual(before - staleMs);
     expect(cutoff.getTime()).toBeLessThanOrEqual(after - staleMs);
   });
 
   it('does not run two executions concurrently', async () => {
-    const { service, findQuery } = createMocks();
+    const { service, curationRepository } = createMocks();
     let release: (value: unknown[]) => void = () => undefined;
-    findQuery.lean.mockReturnValue(
+    curationRepository.findStale.mockReturnValue(
       new Promise((resolve) => {
         release = resolve;
       }),

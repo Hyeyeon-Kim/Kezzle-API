@@ -1,7 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document } from 'mongoose';
-
-export type PopularCakeRankDocument = PopularCakeRank & Document;
+import mongoose from 'mongoose';
 
 // 홈 Popular 섹션용 사전 계산 read model.
 // cakelikelogs 실시간 집계 결과(상위 N건)를 갱신 시점에 통째로 적재한다.

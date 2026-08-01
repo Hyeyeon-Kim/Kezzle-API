@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ImageResponseDto } from 'src/upload/dto/Image-response.dto';
+import { ImageDto } from 'src/common/image/api/image.dto';
 
 export class CakeSimpleResponseDto {
   @ApiProperty({
@@ -8,8 +8,8 @@ export class CakeSimpleResponseDto {
   })
   readonly _id: string;
 
-  @ApiProperty({ type: ImageResponseDto, description: 'Image' })
-  readonly image: ImageResponseDto;
+  @ApiProperty({ type: ImageDto, description: 'Image' })
+  readonly image: ImageDto;
 
   @ApiProperty({ type: String, description: '케이크 소유 매장 ID(ObjectId)' })
   readonly owner_store_id: string;
@@ -30,9 +30,14 @@ export class CakeSimpleResponseDto {
 
   constructor(data: any) {
     this._id = data?.id === undefined ? data?._id : data?.id;
-    this.image = data?.image;
-    this.owner_store_id = data?.owner_store_id;
-    this.hashtag = data?.tag_ins;
-    this.popular_cal = data?.total;
+    this.image = data?.image ? new ImageDto(data.image) : data?.image;
+    this.owner_store_id = data?.ownerStoreId ?? data?.owner_store_id;
+    this.hashtag = data?.tags ?? data?.hashtag ?? data?.tag_ins;
+    this.popular_cal =
+      data != null && 'calculatedLikes' in data
+        ? data.calculatedLikes
+        : data != null && 'popular_cal' in data
+        ? data.popular_cal
+        : data?.total;
   }
 }

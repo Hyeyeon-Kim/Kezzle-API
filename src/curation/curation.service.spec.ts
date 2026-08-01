@@ -2,14 +2,14 @@ import { CurationService } from './curation.service';
 
 describe('CurationService', () => {
   function createService() {
-    const curationModel = {
-      findById: jest.fn().mockResolvedValue({
-        _id: 'cur-1',
+    const curationRepository = {
+      findByIdOrThrow: jest.fn().mockResolvedValue({
+        id: 'cur-1',
         key: 'birthday',
         description: 'birthday cakes',
       }),
       create: jest.fn().mockResolvedValue({ _id: 'cur-1' }),
-      updateOne: jest.fn().mockResolvedValue(undefined),
+      updateCakes: jest.fn().mockResolvedValue(undefined),
     };
     const clipClient = {
       koSearch: jest.fn().mockResolvedValue([{ _id: 'clip-cake' }]),
@@ -18,23 +18,26 @@ describe('CurationService', () => {
 
     return {
       service: new CurationService(
-        curationModel as never,
+        curationRepository as never,
         clipClient as never,
       ),
-      curationModel,
+      curationRepository,
       clipClient,
     };
   }
 
   it('bumps the curation via updateOne even when content is unchanged', async () => {
-    const { service, curationModel } = createService();
+    const { service, curationRepository } = createService();
 
     await service.updateCuration('cur-1');
 
-    expect(curationModel.updateOne).toHaveBeenCalledWith(
-      { _id: 'cur-1' },
-      { $set: { cakes: [{ _id: 'clip-cake' }] } },
-    );
+    expect(curationRepository.updateCakes).toHaveBeenCalledWith('cur-1', [
+      expect.objectContaining({
+        id: 'clip-cake',
+        tags: [],
+        likedUserIds: [],
+      }),
+    ]);
   });
 
   it('contains no Home orchestration entry point', () => {

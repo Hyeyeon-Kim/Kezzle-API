@@ -13,17 +13,17 @@ export class StoreLikeRepositoryAdapter implements StoreLikePort {
   async findByUserLike(userId: string): Promise<StoreLikeView[]> {
     const stores = await this.storeRepository.findByUserLike(userId);
     return stores.map((store) => ({
-      id: store?._id?.toString() ?? store?.id?.toString(),
-      name: store?.name,
-      logo: store?.logo,
-      address: store?.address,
-      likedUserIds: [...(store?.user_like_ids ?? [])],
+      id: store.id,
+      name: store.name,
+      logo: store.logo,
+      address: store.address,
+      likedUserIds: [...store.likedUserIds],
     }));
   }
 
   async findTargetOrThrow(storeId: string): Promise<StoreLikeTarget> {
     const store = await this.storeRepository.findByIdOrThrow(storeId);
-    return { likedUserIds: [...(store?.user_like_ids ?? [])] };
+    return { likedUserIds: [...store.likedUserIds] };
   }
 
   async addUserLike(storeId: string, userId: string): Promise<void> {

@@ -7,13 +7,6 @@ import {
 import { StoreRepository } from './store.repository';
 import { StoresNotFoundException } from './exceptions/stores-not-found.exception';
 
-const CATALOG_SUMMARY_PROJECTION = {
-  name: 1 as const,
-  address: 1 as const,
-  taste: 1 as const,
-  location: 1 as const,
-};
-
 @Injectable()
 export class StoreCatalogRepositoryAdapter implements StoreCatalogReader {
   constructor(private readonly storeRepository: StoreRepository) {}
@@ -39,12 +32,12 @@ export class StoreCatalogRepositoryAdapter implements StoreCatalogReader {
         throw new StoresNotFoundException();
       });
     return stores.map((store) => ({
-      id: store?._id?.toString() ?? store?.id?.toString(),
-      name: store?.name,
-      logo: store?.logo,
-      address: store?.address,
-      likedUserIds: [...(store?.user_like_ids ?? [])],
-      distance: store?.dist,
+      id: store.id,
+      name: store.name,
+      logo: store.logo,
+      address: store.address,
+      likedUserIds: [...store.likedUserIds],
+      distance: store.distance,
     }));
   }
 
@@ -55,17 +48,14 @@ export class StoreCatalogRepositoryAdapter implements StoreCatalogReader {
   async findSummariesByIds(
     storeIds: string[],
   ): Promise<CatalogStoreSummaryView[]> {
-    const stores = await this.storeRepository.findByIdsWithProjection(
-      storeIds,
-      CATALOG_SUMMARY_PROJECTION,
-    );
-    return stores.map((store: any) => ({
-      id: store?._id?.toString() ?? store?.id?.toString(),
-      name: store?.name,
-      address: store?.address,
-      taste: [...(store?.taste ?? [])],
-      longitude: store?.location?.coordinates?.[0],
-      latitude: store?.location?.coordinates?.[1],
+    const stores = await this.storeRepository.findSummariesByIds(storeIds);
+    return stores.map((store) => ({
+      id: store.id,
+      name: store.name,
+      address: store.address,
+      taste: [...store.taste],
+      longitude: store.longitude,
+      latitude: store.latitude,
     }));
   }
 }

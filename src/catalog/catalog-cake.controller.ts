@@ -11,9 +11,10 @@ import {
 import { RolesAllowed } from 'src/auth/decorators/roles.decorator';
 import { GetUser } from 'src/user/decorators/get-user.decorator';
 import { Roles } from 'src/user/entities/roles.enum';
-import IUser from 'src/user/interfaces/user.interface';
+import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { CatalogQueryService } from './catalog-query.service';
-import { CatalogCakesResponseDto } from './dto/catalog-cake-response.dto';
+import { CatalogPresenter } from './api/catalog.presenter';
+import { CatalogCakesResponseDto } from './api/dto/catalog-cake-response.dto';
 import { SimilarCakeCatalogQueryService } from './similar-cake-catalog-query.service';
 
 @ApiTags('cakes')
@@ -23,6 +24,7 @@ export class CatalogCakeController {
   constructor(
     private readonly catalogQuery: CatalogQueryService,
     private readonly similarCakeQuery: SimilarCakeCatalogQueryService,
+    private readonly catalogPresenter: CatalogPresenter,
   ) {}
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
@@ -62,21 +64,22 @@ export class CatalogCakeController {
     type: CatalogCakesResponseDto,
   })
   getAll(
-    @GetUser() user: IUser,
+    @GetUser() user: AuthenticatedUser,
     @Query('latitude') latitude,
     @Query('longitude') longitude,
     @Query('dist') distance,
     @Query('after') after,
     @Query('count') limit,
   ) {
-    return this.catalogQuery.findAllCakes(
-      user,
-      parseFloat(latitude),
-      parseFloat(longitude),
-      parseInt(distance),
-      after,
-      parseInt(limit),
-    );
+    return this.catalogQuery
+      .findAllCakes(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        parseInt(distance),
+        after,
+        parseInt(limit),
+      )
+      .then((page) => this.catalogPresenter.cakePage(page, user.firebaseUid));
   }
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
@@ -116,21 +119,22 @@ export class CatalogCakeController {
     type: CatalogCakesResponseDto,
   })
   getAllByLocation(
-    @GetUser() user: IUser,
+    @GetUser() user: AuthenticatedUser,
     @Query('latitude') latitude,
     @Query('longitude') longitude,
     @Query('dist') distance,
     @Query('after') after,
     @Query('count') limit,
   ) {
-    return this.catalogQuery.findAllCakesByLocation(
-      user,
-      parseFloat(latitude),
-      parseFloat(longitude),
-      parseInt(distance),
-      after,
-      parseInt(limit),
-    );
+    return this.catalogQuery
+      .findAllCakesByLocation(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        parseInt(distance),
+        after,
+        parseInt(limit),
+      )
+      .then((page) => this.catalogPresenter.cakePage(page, user.firebaseUid));
   }
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
@@ -142,13 +146,15 @@ export class CatalogCakeController {
     @Query('dist') distance,
     @Query('size') size,
   ) {
-    return this.similarCakeQuery.execute(
-      cakeId,
-      parseFloat(longitude),
-      parseFloat(latitude),
-      parseInt(distance),
-      parseInt(size),
-    );
+    return this.similarCakeQuery
+      .execute(
+        cakeId,
+        parseFloat(longitude),
+        parseFloat(latitude),
+        parseInt(distance),
+        parseInt(size),
+      )
+      .then((page) => this.catalogPresenter.similarCakes(page));
   }
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)
@@ -162,15 +168,12 @@ export class CatalogCakeController {
   @ApiNotFoundResponse({ description: '케이크를 찾을 수 없습니다.' })
   getStoreCake(
     @Param('id') storeId: string,
-    @GetUser() user: IUser,
+    @GetUser() user: AuthenticatedUser,
     @Query('after') after,
     @Query('count') limit,
   ) {
-    return this.catalogQuery.findStoreCakes(
-      storeId,
-      user,
-      after,
-      parseInt(limit),
-    );
+    return this.catalogQuery
+      .findStoreCakes(storeId, after, parseInt(limit))
+      .then((page) => this.catalogPresenter.cakePage(page, user.firebaseUid));
   }
 }
