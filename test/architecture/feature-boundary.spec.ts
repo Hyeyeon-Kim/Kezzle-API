@@ -5,8 +5,16 @@ import { CakeCatalogReader } from 'src/cake/cake-catalog.reader';
 import { CakeLikePort } from 'src/cake/cake-like.port';
 import { CakeRepositoryModule } from 'src/cake/cake-repository.module';
 import { CakeModule } from 'src/cake/cake.module';
+import { CakeRankingModule } from 'src/cake/cake-ranking.module';
+import { CakeRankingReader } from 'src/cake/cake-ranking.reader';
+import { CakeRankingRepositoryAdapter } from 'src/cake/cake-ranking.adapter';
 import { CatalogQueryModule } from 'src/catalog/catalog-query.module';
 import { LikeModule } from 'src/like/like.module';
+import { CakeLikeEventReader } from 'src/like/application/port/cake-like-event.reader';
+import { CakeLikeEventRecorder } from 'src/like/application/port/cake-like-event-recorder.port';
+import { LikeEventModule } from 'src/like/infrastructure/persistence/like-event.module';
+import { CakeLikeEventRepository } from 'src/like/infrastructure/persistence/cake-like-event.repository';
+import { LogModule } from 'src/log/log.module';
 import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.reader';
 import { StoreCatalogReader } from 'src/store/store-catalog.reader';
 import { StoreLikePort } from 'src/store/store-like.port';
@@ -484,7 +492,7 @@ describe('Feature boundary architecture', () => {
     expect([...persistenceViolations, ...recorderOrHistoryViolations]).toEqual(
       [],
     );
-    expect(logService?.content).not.toMatch(
+    expect(logService?.content ?? '').not.toMatch(
       /KeywordLog|searchlog|getLatestWord|getRankWord/,
     );
     expect(eventModuleExports).toEqual(
@@ -495,5 +503,73 @@ describe('Feature boundary architecture', () => {
       ]),
     );
     expect(eventModuleExports).not.toContain(SearchEventRepository);
+  });
+
+  it('keeps cake-like event writes owned by Like and ranking Cake reads batched', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const persistenceViolations = productionSources
+      .filter((source) => !source.path.startsWith('like/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter((value) =>
+            /^like\/infrastructure\/persistence\/cake-like-event\.(?:schema|repository)/.test(
+              value,
+            ),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const recorderViolations = productionSources
+      .filter((source) => !source.path.startsWith('like/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter((value) =>
+            /^like\/application\/port\/cake-like-event-recorder\.port/.test(
+              value,
+            ),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const directCollectionReads = productionSources
+      .filter(
+        (source) =>
+          source.path !==
+            'like/infrastructure/persistence/cake-like-event.schema.ts' &&
+          source.path !==
+            'like/infrastructure/persistence/cake-like-event.repository.ts',
+      )
+      .filter((source) => /['"]cakelikelogs['"]/.test(source.content))
+      .map((source) => source.path);
+    const likeService = productionSources.find(
+      (source) => source.path === 'like/like.service.ts',
+    );
+    const likeImports = moduleMetadata(LikeModule, MODULE_METADATA.IMPORTS);
+    const logImports = moduleMetadata(LogModule, MODULE_METADATA.IMPORTS);
+    const eventExports = moduleMetadata(
+      LikeEventModule,
+      MODULE_METADATA.EXPORTS,
+    );
+    const rankingExports = moduleMetadata(
+      CakeRankingModule,
+      MODULE_METADATA.EXPORTS,
+    );
+
+    expect([
+      ...persistenceViolations,
+      ...recorderViolations,
+      ...directCollectionReads,
+    ]).toEqual([]);
+    expect(likeService?.content ?? '').not.toMatch(/LogModule|LogService/);
+    expect(likeImports).not.toContain(LogModule);
+    expect(logImports).toEqual(
+      expect.arrayContaining([LikeEventModule, CakeRankingModule]),
+    );
+    expect(eventExports).toEqual(
+      expect.arrayContaining([CakeLikeEventRecorder, CakeLikeEventReader]),
+    );
+    expect(eventExports).not.toContain(CakeLikeEventRepository);
+    expect(rankingExports).toContain(CakeRankingReader);
+    expect(rankingExports).not.toContain(CakeRankingRepositoryAdapter);
   });
 });

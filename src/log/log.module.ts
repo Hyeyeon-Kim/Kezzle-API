@@ -1,23 +1,21 @@
 import { Module } from '@nestjs/common';
-import { LogService } from './log.service';
 import { PopularRankService } from './popular-rank.service';
 import { KeywordRankService } from './keyword-rank.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import { CakeLikeLog, CakeLikeLogSchema } from './entities/cakeLikeLog.shema';
 import {
   PopularCakeRank,
   PopularCakeRankSchema,
 } from './entities/popularCakeRank.shema';
 import { KeywordRank, KeywordRankSchema } from './entities/keywordRank.shema';
 import { SearchEventModule } from 'src/search/infrastructure/persistence/search-event.module';
+import { LikeEventModule } from 'src/like/infrastructure/persistence/like-event.module';
+import { CakeRankingModule } from 'src/cake/cake-ranking.module';
 
 @Module({
   imports: [
     SearchEventModule,
-    MongooseModule.forFeature(
-      [{ name: CakeLikeLog.name, schema: CakeLikeLogSchema }],
-      'kezzle',
-    ),
+    LikeEventModule,
+    CakeRankingModule,
     MongooseModule.forFeature(
       [{ name: PopularCakeRank.name, schema: PopularCakeRankSchema }],
       'kezzle',
@@ -27,7 +25,7 @@ import { SearchEventModule } from 'src/search/infrastructure/persistence/search-
       'kezzle',
     ),
   ],
-  providers: [LogService, PopularRankService, KeywordRankService],
-  exports: [LogService, PopularRankService, KeywordRankService],
+  providers: [PopularRankService, KeywordRankService],
+  exports: [PopularRankService, KeywordRankService],
 })
 export class LogModule {}

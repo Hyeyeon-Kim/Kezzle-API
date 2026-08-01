@@ -14,8 +14,8 @@ import { LikedStoreCatalogReader } from 'src/catalog/liked-store-catalog.reader'
 import { LikePresenter } from 'src/like/api/like.presenter';
 import { LikeController } from 'src/like/like.controller';
 import { LikeService } from 'src/like/like.service';
+import { CakeLikeEventRecorder } from 'src/like/application/port/cake-like-event-recorder.port';
 import { KeywordRankService } from 'src/log/keyword-rank.service';
-import { LogService } from 'src/log/log.service';
 import { MetricsService } from 'src/metrics/metrics.service';
 import { KeywordEventReader } from 'src/search/application/port/keyword-event.reader';
 import { SearchEventRecorder } from 'src/search/application/port/search-event-recorder.port';
@@ -50,14 +50,15 @@ function observedEventFailure(): Promise<never> {
 describe('Log event create failure HTTP contract', () => {
   let app: INestApplication;
 
-  const logService = {
-    cakeLikelog: jest.fn().mockImplementation(observedEventFailure),
+  const cakeLikeEventRecorder = {
+    record: jest.fn().mockImplementation(observedEventFailure),
   };
   const searchEventRecorder = {
     record: jest.fn().mockImplementation(observedEventFailure),
   };
   const metricsService = {
     searchEventRecordFailures: { inc: jest.fn() },
+    cakeLikeEventRecordFailures: { inc: jest.fn() },
   };
   const cakeLikePort = {
     findTargetOrThrow: jest.fn().mockResolvedValue({ likedUserIds: [] }),
@@ -86,7 +87,7 @@ describe('Log event create failure HTTP contract', () => {
             }),
           },
         },
-        { provide: LogService, useValue: logService },
+        { provide: CakeLikeEventRecorder, useValue: cakeLikeEventRecorder },
         { provide: SearchEventRecorder, useValue: searchEventRecorder },
         { provide: SearchHistoryReader, useValue: {} },
         { provide: KeywordEventReader, useValue: {} },
@@ -137,9 +138,12 @@ describe('Log event create failure HTTP contract', () => {
       .delete('/cakes/cake-1/likes')
       .expect(200, 'true');
 
-    expect(logService.cakeLikelog.mock.calls).toEqual([
+    expect(cakeLikeEventRecorder.record.mock.calls).toEqual([
       ['buyer-1', 'cake-1', true],
       ['buyer-1', 'cake-1', false],
     ]);
+    expect(
+      metricsService.cakeLikeEventRecordFailures.inc,
+    ).toHaveBeenCalledTimes(2);
   });
 });

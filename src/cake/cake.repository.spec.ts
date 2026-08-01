@@ -238,6 +238,57 @@ describe('CakeRepository', () => {
     });
   });
 
+  describe('findRankingByIds', () => {
+    it('uses one projected batch query and excludes deleted cakes', async () => {
+      const lean = jest.fn().mockResolvedValue([
+        {
+          _id: 'cake-1',
+          like_ins: '10',
+          owner_store_id: 'store-1',
+          tag_ins: ['birthday'],
+          image: { s3Url: 'cake.jpg' },
+        },
+      ]);
+      const cakeModel = {
+        find: jest.fn().mockReturnValue({ lean }),
+      };
+      const repo = new CakeRepository(cakeModel as never);
+
+      const result = await repo.findRankingByIds(['cake-1', 'cake-2']);
+
+      expect(cakeModel.find).toHaveBeenCalledTimes(1);
+      expect(cakeModel.find).toHaveBeenCalledWith(
+        {
+          _id: { $in: ['cake-1', 'cake-2'] },
+          is_delete: { $ne: true },
+        },
+        {
+          image: 1,
+          owner_store_id: 1,
+          like_ins: 1,
+          tag_ins: 1,
+        },
+      );
+      expect(result).toEqual([
+        expect.objectContaining({
+          id: 'cake-1',
+          likeText: '10',
+          ownerStoreId: 'store-1',
+          tags: ['birthday'],
+          isDeleted: false,
+        }),
+      ]);
+    });
+
+    it('does not query Mongo when the event cake batch is empty', async () => {
+      const cakeModel = { find: jest.fn() };
+      const repo = new CakeRepository(cakeModel as never);
+
+      await expect(repo.findRankingByIds([])).resolves.toEqual([]);
+      expect(cakeModel.find).not.toHaveBeenCalled();
+    });
+  });
+
   describe('updateOneById', () => {
     it('wraps set fields in $set and filters by _id', async () => {
       const updateResult = { modifiedCount: 1 };

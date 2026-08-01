@@ -15,6 +15,7 @@ export class MetricsService {
   readonly storeQueryDuration: Histogram;
   readonly aiApiErrors: Counter<'reason' | 'model' | 'endpoint'>;
   readonly searchEventRecordFailures: Counter;
+  readonly cakeLikeEventRecordFailures: Counter;
 
   constructor() {
     this.registry = new Registry();
@@ -54,6 +55,12 @@ export class MetricsService {
     this.searchEventRecordFailures = new Counter({
       name: 'search_event_record_failures_total',
       help: 'Total search event persistence failures',
+      registers: [this.registry],
+    });
+
+    this.cakeLikeEventRecordFailures = new Counter({
+      name: 'cake_like_event_record_failures_total',
+      help: 'Total cake-like event persistence failures',
       registers: [this.registry],
     });
   }

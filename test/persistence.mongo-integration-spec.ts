@@ -1,4 +1,5 @@
 import { Connection, Model, createConnection } from 'mongoose';
+import { ObjectId } from 'mongodb';
 import { Cake, CakeSchema } from 'src/cake/entities/cake.schema';
 import { CurationPersistenceMapper } from 'src/curation/curation.persistence-mapper';
 import { CurationRepository } from 'src/curation/curation.repository';
@@ -12,6 +13,11 @@ import {
   KeywordLog,
   KeywordLogSchema,
 } from 'src/search/infrastructure/persistence/search-event.schema';
+import { CakeLikeEventRepository } from 'src/like/infrastructure/persistence/cake-like-event.repository';
+import {
+  CakeLikeLog,
+  CakeLikeLogSchema,
+} from 'src/like/infrastructure/persistence/cake-like-event.schema';
 import { User, UserSchema } from 'src/user/entities/user.schema';
 import fixtures from './fixtures/legacy-persistence.contract.json';
 
@@ -26,6 +32,7 @@ describe('Persistence Mongo integration contract', () => {
   let userModel: Model<User>;
   let curationModel: Model<Curation>;
   let keywordLogModel: Model<KeywordLog>;
+  let cakeLikeLogModel: Model<CakeLikeLog>;
 
   beforeAll(async () => {
     if (!process.env.MONGODB_URL) {
@@ -46,6 +53,10 @@ describe('Persistence Mongo integration contract', () => {
       'curations',
     );
     keywordLogModel = connection.model('ContractKeywordLog', KeywordLogSchema);
+    cakeLikeLogModel = connection.model(
+      'ContractCakeLikeLog',
+      CakeLikeLogSchema,
+    );
   });
 
   beforeEach(async () => {
@@ -55,6 +66,7 @@ describe('Persistence Mongo integration contract', () => {
       userModel.deleteMany({}),
       curationModel.deleteMany({}),
       keywordLogModel.deleteMany({}),
+      cakeLikeLogModel.deleteMany({}),
     ]);
   });
 
@@ -174,6 +186,36 @@ describe('Persistence Mongo integration contract', () => {
       userId: 'legacy-user',
       searchWord: 'new-keyword',
       relatedWord: ['chocolate'],
+    });
+    expect(inserted.createdAt).toBeInstanceOf(Date);
+    expect(inserted.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it('reads and writes legacy cakelikelogs documents without migration', async () => {
+    const cakeId = '65a000000000000000000001';
+    const createdAt = new Date('2026-07-31T12:00:00.000Z');
+    await cakeLikeLogModel.collection.insertOne({
+      userId: 'legacy-user',
+      cakeId: new ObjectId(cakeId),
+      type: true,
+      createdAt,
+      updatedAt: createdAt,
+    });
+    const repository = new CakeLikeEventRepository(cakeLikeLogModel);
+
+    const counts = await repository.getNetCounts(
+      '2026-07-31T00:00:00.000Z',
+      '2026-08-01T00:00:00.000Z',
+    );
+    await repository.record('legacy-user', cakeId, false);
+    const inserted = await cakeLikeLogModel.findOne({ type: false }).lean();
+
+    expect(cakeLikeLogModel.collection.collectionName).toBe('cakelikelogs');
+    expect(counts).toEqual([{ cakeId, appLike: 1 }]);
+    expect(inserted).toMatchObject({
+      userId: 'legacy-user',
+      cakeId: new ObjectId(cakeId),
+      type: false,
     });
     expect(inserted.createdAt).toBeInstanceOf(Date);
     expect(inserted.updatedAt).toBeInstanceOf(Date);

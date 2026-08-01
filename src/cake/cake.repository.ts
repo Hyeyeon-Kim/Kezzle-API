@@ -145,6 +145,23 @@ export class CakeRepository {
     return cakes.map((cake) => CakePersistenceMapper.toView(cake));
   }
 
+  async findRankingByIds(ids: string[]): Promise<CakeView[]> {
+    if (ids.length === 0) return [];
+
+    const cakes = await this.cakeModel
+      .find(
+        { _id: { $in: ids }, is_delete: { $ne: true } },
+        {
+          image: 1,
+          owner_store_id: 1,
+          like_ins: 1,
+          tag_ins: 1,
+        },
+      )
+      .lean();
+    return cakes.map((cake) => CakePersistenceMapper.toView(cake));
+  }
+
   async addUserLike(cakeid: string, userId: string): Promise<void> {
     await this.cakeModel.updateOne(
       { _id: cakeid },

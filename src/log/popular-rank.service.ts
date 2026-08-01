@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { CakeRankingReader } from 'src/cake/cake-ranking.reader';
+import { CakeLikeEventReader } from 'src/like/application/port/cake-like-event.reader';
 import { PopularCakeRank } from './entities/popularCakeRank.shema';
-import { LogService } from './log.service';
 import {
   computeRankWindow,
   POPULAR_RANK_WINDOW_DAYS_ENV,
@@ -29,7 +30,8 @@ export class PopularRankService {
   constructor(
     @InjectModel(PopularCakeRank.name, 'kezzle')
     private readonly rankModel: Model<PopularCakeRank>,
-    private readonly logService: LogService,
+    private readonly cakeLikeEventReader: CakeLikeEventReader,
+    private readonly cakeRankingReader: CakeRankingReader,
   ) {}
 
   /**
@@ -127,18 +129,39 @@ export class PopularRankService {
     if (this.refreshing) return;
     this.refreshing = true;
     try {
-      // 기존 cakelikelogs 집계를 상위 N건만 1회 수행한다(삭제 cake 제외는 getRankCake 에서 처리).
-      // 집계 구간은 갱신 시점 기준 rolling window 다.
       const window = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
-      const ranked = await this.logService.getRankCake(
+      const netCounts = await this.cakeLikeEventReader.getNetCounts(
         window.start.toISOString(),
         window.end.toISOString(),
-        NaN,
-        POPULAR_RANK_TOP_N,
       );
+      const cakes =
+        netCounts.length === 0
+          ? []
+          : await this.cakeRankingReader.findByIds(
+              netCounts.map((event) => event.cakeId),
+            );
+      const appLikesByCakeId = new Map(
+        netCounts.map((event) => [event.cakeId, event.appLike]),
+      );
+      const ranked = cakes
+        .map((cake) => ({
+          _id: cake.id,
+          total:
+            Number(cake.likeText) * 0.2 +
+            (appLikesByCakeId.get(cake.id) ?? 0) * 0.9,
+          image: cake.image,
+          owner_store_id: cake.ownerStoreId,
+          tag_ins: [...cake.tags],
+        }))
+        .sort((left, right) => {
+          if (left.total !== right.total) return right.total - left.total;
+          if (left._id === right._id) return 0;
+          return left._id < right._id ? -1 : 1;
+        })
+        .slice(0, POPULAR_RANK_TOP_N);
 
       const computedAt = new Date();
-      const docs = ranked.map((cake: any, index: number) => ({
+      const docs = ranked.map((cake, index) => ({
         rank: index + 1,
         cakeId: cake._id,
         total: cake.total,
