@@ -3,20 +3,17 @@ import { LogService } from './log.service';
 import { PopularRankService } from './popular-rank.service';
 import { KeywordRankService } from './keyword-rank.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import { KeywordLog, KeywordLogSchema } from './entities/keywordLog.shema';
 import { CakeLikeLog, CakeLikeLogSchema } from './entities/cakeLikeLog.shema';
 import {
   PopularCakeRank,
   PopularCakeRankSchema,
 } from './entities/popularCakeRank.shema';
 import { KeywordRank, KeywordRankSchema } from './entities/keywordRank.shema';
+import { SearchEventModule } from 'src/search/infrastructure/persistence/search-event.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature(
-      [{ name: KeywordLog.name, schema: KeywordLogSchema }],
-      'kezzle',
-    ),
+    SearchEventModule,
     MongooseModule.forFeature(
       [{ name: CakeLikeLog.name, schema: CakeLikeLogSchema }],
       'kezzle',

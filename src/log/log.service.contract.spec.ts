@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import fixtures from '../../test/fixtures/log-upload-baseline.contract.json';
 import { CakeLikeLog, CakeLikeLogSchema } from './entities/cakeLikeLog.shema';
-import { KeywordLog, KeywordLogSchema } from './entities/keywordLog.shema';
 import { KeywordRank, KeywordRankSchema } from './entities/keywordRank.shema';
 import {
   PopularCakeRank,
@@ -21,31 +20,15 @@ function aggregateResult<T>(result: T[]) {
 
 describe('LogService Phase A contract', () => {
   function createService() {
-    const latestQuery = {
-      sort: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockResolvedValue([]),
-    };
-    const keywordAggregate = aggregateResult([]);
     const cakeAggregate = aggregateResult([]);
-    const keywordModel = {
-      create: jest.fn().mockResolvedValue(undefined),
-      find: jest.fn().mockReturnValue(latestQuery),
-      aggregate: jest.fn().mockReturnValue(keywordAggregate),
-    };
     const cakeLikeModel = {
       create: jest.fn().mockResolvedValue(undefined),
       aggregate: jest.fn().mockReturnValue(cakeAggregate),
     };
-    const service = new LogService(
-      keywordModel as never,
-      cakeLikeModel as never,
-    );
+    const service = new LogService(cakeLikeModel as never);
     return {
       service,
-      keywordModel,
       cakeLikeModel,
-      latestQuery,
-      keywordAggregate,
       cakeAggregate,
     };
   }
@@ -53,7 +36,6 @@ describe('LogService Phase A contract', () => {
   it('keeps legacy event and read-model collection names', () => {
     const isolated = new mongoose.Mongoose();
     const models = {
-      searchEvents: isolated.model(KeywordLog.name, KeywordLogSchema),
       cakeLikeEvents: isolated.model(CakeLikeLog.name, CakeLikeLogSchema),
       keywordRanks: isolated.model(KeywordRank.name, KeywordRankSchema),
       popularCakeRanks: isolated.model(
@@ -69,56 +51,23 @@ describe('LogService Phase A contract', () => {
           model.collection.collectionName,
         ]),
       ),
-    ).toEqual(fixtures.collections);
+    ).toEqual({
+      cakeLikeEvents: fixtures.collections.cakeLikeEvents,
+      keywordRanks: fixtures.collections.keywordRanks,
+      popularCakeRanks: fixtures.collections.popularCakeRanks,
+    });
   });
 
-  it('records the legacy search and cake-like event document shapes', async () => {
-    const { service, keywordModel, cakeLikeModel } = createService();
+  it('records the legacy cake-like event document shape', async () => {
+    const { service, cakeLikeModel } = createService();
 
-    await service.searchlog('user-1', 'birthday', ['cream', 'chocolate']);
     await service.cakeLikelog('user-1', '65a000000000000000000001', true);
 
-    expect(keywordModel.create).toHaveBeenCalledWith({
-      userId: 'user-1',
-      searchWord: 'birthday',
-      relatedWord: ['cream', 'chocolate'],
-    });
     expect(cakeLikeModel.create).toHaveBeenCalledWith({
       userId: 'user-1',
       cakeId: expect.any(mongoose.Types.ObjectId),
       type: true,
     });
-  });
-
-  it('queries recent searches newest-first with a ten-row source limit', async () => {
-    const { service, keywordModel, latestQuery } = createService();
-
-    await service.getLatestWord('user-1');
-
-    expect(keywordModel.find).toHaveBeenCalledWith({ userId: 'user-1' });
-    expect(latestQuery.sort).toHaveBeenCalledWith({ createdAt: -1 });
-    expect(latestQuery.limit).toHaveBeenCalledWith(10);
-  });
-
-  it('keeps keyword rank window, count sort, limit, and maxTimeMS', async () => {
-    const { service, keywordModel, keywordAggregate } = createService();
-
-    await service.getRankWord('2026-01-01', '2026-01-31', 4, 400);
-
-    expect(keywordModel.aggregate).toHaveBeenCalledWith([
-      {
-        $match: {
-          createdAt: {
-            $gte: new Date('2026-01-01'),
-            $lte: new Date('2026-01-31'),
-          },
-        },
-      },
-      { $group: { _id: '$searchWord', count: { $sum: 1 } } },
-      { $sort: { count: -1, _id: 1 } },
-    ]);
-    expect(keywordAggregate.limit).toHaveBeenCalledWith(4);
-    expect(keywordAggregate.option).toHaveBeenCalledWith({ maxTimeMS: 400 });
   });
 
   it('keeps popular net-like score, deleted filter, tie-break, and after cursor pipeline', async () => {

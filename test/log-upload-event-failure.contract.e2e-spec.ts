@@ -16,6 +16,10 @@ import { LikeController } from 'src/like/like.controller';
 import { LikeService } from 'src/like/like.service';
 import { KeywordRankService } from 'src/log/keyword-rank.service';
 import { LogService } from 'src/log/log.service';
+import { MetricsService } from 'src/metrics/metrics.service';
+import { KeywordEventReader } from 'src/search/application/port/keyword-event.reader';
+import { SearchEventRecorder } from 'src/search/application/port/search-event-recorder.port';
+import { SearchHistoryReader } from 'src/search/application/port/search-history.reader';
 import { SearchController } from 'src/search/search.controller';
 import { SearchService } from 'src/search/search.service';
 import { StoreLikePort } from 'src/store/store-like.port';
@@ -47,10 +51,13 @@ describe('Log event create failure HTTP contract', () => {
   let app: INestApplication;
 
   const logService = {
-    searchlog: jest.fn().mockImplementation(observedEventFailure),
     cakeLikelog: jest.fn().mockImplementation(observedEventFailure),
-    getLatestWord: jest.fn(),
-    getRankWord: jest.fn(),
+  };
+  const searchEventRecorder = {
+    record: jest.fn().mockImplementation(observedEventFailure),
+  };
+  const metricsService = {
+    searchEventRecordFailures: { inc: jest.fn() },
   };
   const cakeLikePort = {
     findTargetOrThrow: jest.fn().mockResolvedValue({ likedUserIds: [] }),
@@ -80,6 +87,10 @@ describe('Log event create failure HTTP contract', () => {
           },
         },
         { provide: LogService, useValue: logService },
+        { provide: SearchEventRecorder, useValue: searchEventRecorder },
+        { provide: SearchHistoryReader, useValue: {} },
+        { provide: KeywordEventReader, useValue: {} },
+        { provide: MetricsService, useValue: metricsService },
         { provide: KeywordRankService, useValue: {} },
         { provide: CakeLikePort, useValue: cakeLikePort },
         { provide: UserLikePort, useValue: userLikePort },
@@ -108,10 +119,13 @@ describe('Log event create failure HTTP contract', () => {
       .query({ keyword: 'birthday', page: 0 })
       .expect(200);
 
-    expect(logService.searchlog).toHaveBeenCalledWith(
+    expect(searchEventRecorder.record).toHaveBeenCalledWith(
       'buyer-1',
       'birthday',
       [],
+    );
+    expect(metricsService.searchEventRecordFailures.inc).toHaveBeenCalledTimes(
+      1,
     );
   });
 

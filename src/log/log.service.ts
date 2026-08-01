@@ -1,71 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { KeywordLog } from './entities/keywordLog.shema';
 import mongoose, { Model, PipelineStage } from 'mongoose';
 import { CakeLikeLog } from './entities/cakeLikeLog.shema';
 
 @Injectable()
 export class LogService {
   constructor(
-    @InjectModel(KeywordLog.name, 'kezzle')
-    private readonly keywordModel: Model<KeywordLog>,
     @InjectModel(CakeLikeLog.name, 'kezzle')
-    private readonly CakeLikeModel: Model<KeywordLog>,
+    private readonly CakeLikeModel: Model<CakeLikeLog>,
   ) {}
-
-  async searchlog(userId: string, searchWord: string, relatedWord: string[]) {
-    return await this.keywordModel.create({
-      userId: userId,
-      searchWord: searchWord,
-      relatedWord: relatedWord,
-    });
-  }
-
-  async getLatestWord(userId: string) {
-    return await this.keywordModel
-      .find({
-        userId: userId,
-      })
-      .sort({ createdAt: -1 })
-      .limit(10);
-  }
-
-  async getRankWord(
-    startDateStr: string,
-    endDateStr: string,
-    limit: number = 10,
-    maxTimeMs?: number,
-  ) {
-    const startDate = new Date(startDateStr);
-    const endDate = new Date(endDateStr);
-
-    const match: PipelineStage.Match = {
-      $match: {
-        createdAt: {
-          $gte: startDate,
-          $lte: endDate,
-        },
-      },
-    };
-
-    const group: PipelineStage.Group = {
-      $group: {
-        _id: '$searchWord',
-        count: { $sum: 1 },
-      },
-    };
-
-    const sort: PipelineStage.Sort = {
-      $sort: { count: -1, _id: 1 },
-    };
-
-    const pipeline = [match, group, sort];
-    const aggregate = this.keywordModel.aggregate(pipeline).limit(limit);
-    if (maxTimeMs !== undefined) {
-      aggregate.option({ maxTimeMS: maxTimeMs });
-    }
-    return await aggregate;
-  }
 
   async cakeLikelog(userId: string, cakeId: string, type: boolean) {
     return await this.CakeLikeModel.create({

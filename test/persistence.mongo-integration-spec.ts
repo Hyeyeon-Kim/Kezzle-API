@@ -7,6 +7,11 @@ import {
   CurationSchema,
 } from 'src/curation/entities/curation.schema';
 import { Store, StoreSchema } from 'src/store/entities/store.schema';
+import { SearchEventRepository } from 'src/search/infrastructure/persistence/search-event.repository';
+import {
+  KeywordLog,
+  KeywordLogSchema,
+} from 'src/search/infrastructure/persistence/search-event.schema';
 import { User, UserSchema } from 'src/user/entities/user.schema';
 import fixtures from './fixtures/legacy-persistence.contract.json';
 
@@ -20,6 +25,7 @@ describe('Persistence Mongo integration contract', () => {
   let storeModel: Model<Store>;
   let userModel: Model<User>;
   let curationModel: Model<Curation>;
+  let keywordLogModel: Model<KeywordLog>;
 
   beforeAll(async () => {
     if (!process.env.MONGODB_URL) {
@@ -39,6 +45,7 @@ describe('Persistence Mongo integration contract', () => {
       CurationSchema,
       'curations',
     );
+    keywordLogModel = connection.model('ContractKeywordLog', KeywordLogSchema);
   });
 
   beforeEach(async () => {
@@ -47,6 +54,7 @@ describe('Persistence Mongo integration contract', () => {
       storeModel.deleteMany({}),
       userModel.deleteMany({}),
       curationModel.deleteMany({}),
+      keywordLogModel.deleteMany({}),
     ]);
   });
 
@@ -137,5 +145,37 @@ describe('Persistence Mongo integration contract', () => {
       originalUpdatedAt.getTime(),
     );
     expect(updated.cakes[0]).toHaveProperty('legacy_extra', 'must-stay');
+  });
+
+  it('reads and writes legacy keywordlogs documents without migration', async () => {
+    const createdAt = new Date('2026-07-31T12:00:00.000Z');
+    await keywordLogModel.collection.insertOne({
+      userId: 'legacy-user',
+      searchWord: 'legacy-keyword',
+      relatedWord: ['cream'],
+      createdAt,
+      updatedAt: createdAt,
+    });
+    const repository = new SearchEventRepository(keywordLogModel);
+
+    const latest = await repository.findLatest('legacy-user');
+    await repository.record('legacy-user', 'new-keyword', ['chocolate']);
+    const inserted = await keywordLogModel
+      .findOne({ searchWord: 'new-keyword' })
+      .lean();
+
+    expect(keywordLogModel.collection.collectionName).toBe('keywordlogs');
+    expect(latest[0]).toMatchObject({
+      userId: 'legacy-user',
+      searchWord: 'legacy-keyword',
+      relatedWord: ['cream'],
+    });
+    expect(inserted).toMatchObject({
+      userId: 'legacy-user',
+      searchWord: 'new-keyword',
+      relatedWord: ['chocolate'],
+    });
+    expect(inserted.createdAt).toBeInstanceOf(Date);
+    expect(inserted.updatedAt).toBeInstanceOf(Date);
   });
 });

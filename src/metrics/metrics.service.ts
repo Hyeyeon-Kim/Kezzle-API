@@ -14,6 +14,7 @@ export class MetricsService {
   readonly aiApiCallDuration: Histogram<'status' | 'model' | 'endpoint'>;
   readonly storeQueryDuration: Histogram;
   readonly aiApiErrors: Counter<'reason' | 'model' | 'endpoint'>;
+  readonly searchEventRecordFailures: Counter;
 
   constructor() {
     this.registry = new Registry();
@@ -47,6 +48,12 @@ export class MetricsService {
       name: 'ai_api_errors_total',
       help: 'Total AI API errors (VIT/CLIP)',
       labelNames: ['reason', 'model', 'endpoint'],
+      registers: [this.registry],
+    });
+
+    this.searchEventRecordFailures = new Counter({
+      name: 'search_event_record_failures_total',
+      help: 'Total search event persistence failures',
       registers: [this.registry],
     });
   }

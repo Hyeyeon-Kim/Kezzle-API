@@ -15,6 +15,11 @@ import { StoreModule } from 'src/store/store.module';
 import { UserLikePort } from 'src/user/user-like.port';
 import { UserRepositoryModule } from 'src/user/user-repository.module';
 import { UserModule } from 'src/user/user.module';
+import { KeywordEventReader } from 'src/search/application/port/keyword-event.reader';
+import { SearchEventRecorder } from 'src/search/application/port/search-event-recorder.port';
+import { SearchHistoryReader } from 'src/search/application/port/search-history.reader';
+import { SearchEventModule } from 'src/search/infrastructure/persistence/search-event.module';
+import { SearchEventRepository } from 'src/search/infrastructure/persistence/search-event.repository';
 
 type SourceFile = {
   path: string;
@@ -440,5 +445,55 @@ describe('Feature boundary architecture', () => {
     expect(composingImports).not.toContain(CakeRepositoryModule);
     expect(composingImports).not.toContain(StoreRepositoryModule);
     expect(composingImports).not.toContain(UserRepositoryModule);
+  });
+
+  it('keeps keyword event persistence and recent history owned by Search', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const persistenceViolations = productionSources
+      .filter((source) => !source.path.startsWith('search/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter((value) =>
+            /^search\/infrastructure\/persistence\/search-event\.(?:schema|repository)/.test(
+              value,
+            ),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const recorderOrHistoryViolations = productionSources
+      .filter((source) => !source.path.startsWith('search/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter((value) =>
+            /^search\/application\/port\/(?:search-event-recorder\.port|search-history\.reader)/.test(
+              value,
+            ),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const logService = productionSources.find(
+      (source) => source.path === 'log/log.service.ts',
+    );
+    const eventModuleExports = moduleMetadata(
+      SearchEventModule,
+      MODULE_METADATA.EXPORTS,
+    );
+
+    expect([...persistenceViolations, ...recorderOrHistoryViolations]).toEqual(
+      [],
+    );
+    expect(logService?.content).not.toMatch(
+      /KeywordLog|searchlog|getLatestWord|getRankWord/,
+    );
+    expect(eventModuleExports).toEqual(
+      expect.arrayContaining([
+        SearchEventRecorder,
+        SearchHistoryReader,
+        KeywordEventReader,
+      ]),
+    );
+    expect(eventModuleExports).not.toContain(SearchEventRepository);
   });
 });

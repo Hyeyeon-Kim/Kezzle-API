@@ -33,14 +33,14 @@ describe('KeywordRankService', () => {
       insertMany: jest.fn().mockResolvedValue(undefined),
       deleteMany: jest.fn().mockResolvedValue(undefined),
     };
-    const logService = {
-      getRankWord: jest.fn().mockResolvedValue(options?.rankWords ?? []),
+    const keywordEventReader = {
+      getRanked: jest.fn().mockResolvedValue(options?.rankWords ?? []),
     };
     const service = new KeywordRankService(
       rankModel as never,
-      logService as never,
+      keywordEventReader as never,
     );
-    return { service, rankModel, logService, findQuery };
+    return { service, rankModel, keywordEventReader, findQuery };
   }
 
   function freshBatch(overrides?: Record<string, unknown>) {
@@ -55,7 +55,7 @@ describe('KeywordRankService', () => {
 
   it('reads only the latest batch without running the aggregation', async () => {
     const latest = freshBatch();
-    const { service, rankModel, logService, findQuery } = createMocks({
+    const { service, rankModel, keywordEventReader, findQuery } = createMocks({
       latestResults: [latest],
       docs: [
         { searchWord: 'birthday', count: 10 },
@@ -65,7 +65,7 @@ describe('KeywordRankService', () => {
 
     const result = await service.getRanked(4, 400);
 
-    expect(logService.getRankWord).not.toHaveBeenCalled();
+    expect(keywordEventReader.getRanked).not.toHaveBeenCalled();
     expect(rankModel.find).toHaveBeenCalledWith({
       computedAt: latest.computedAt,
       isEmptyBatch: { $ne: true },
@@ -82,7 +82,7 @@ describe('KeywordRankService', () => {
 
   it('builds the read model synchronously on cold start', async () => {
     const built = freshBatch();
-    const { service, rankModel, logService } = createMocks({
+    const { service, rankModel, keywordEventReader } = createMocks({
       latestResults: [null, built],
       docs: [{ searchWord: 'cream', count: 5 }],
       rankWords: [{ _id: 'cream', count: 5 }],
@@ -90,8 +90,8 @@ describe('KeywordRankService', () => {
 
     const result = await service.getRanked(4);
 
-    expect(logService.getRankWord).toHaveBeenCalledTimes(1);
-    const [start, end, topN] = logService.getRankWord.mock.calls[0];
+    expect(keywordEventReader.getRanked).toHaveBeenCalledTimes(1);
+    const [start, end, topN] = keywordEventReader.getRanked.mock.calls[0];
     expect(new Date(end).getTime() - new Date(start).getTime()).toBe(
       30 * DAY_MS,
     );
@@ -113,13 +113,13 @@ describe('KeywordRankService', () => {
 
   it('applies the window days env override', async () => {
     process.env.KEYWORD_RANK_WINDOW_DAYS = '7';
-    const { service, logService } = createMocks({
+    const { service, keywordEventReader } = createMocks({
       latestResults: [null, null],
     });
 
     await service.getRanked(4);
 
-    const [start, end] = logService.getRankWord.mock.calls[0];
+    const [start, end] = keywordEventReader.getRanked.mock.calls[0];
     expect(new Date(end).getTime() - new Date(start).getTime()).toBe(
       7 * DAY_MS,
     );
@@ -151,7 +151,7 @@ describe('KeywordRankService', () => {
 
   it('replaces an older batch with an empty batch marker', async () => {
     const emptyBatch = freshBatch({ isEmptyBatch: true });
-    const { service, rankModel, logService } = createMocks({
+    const { service, rankModel, keywordEventReader } = createMocks({
       latestResults: [emptyBatch],
       rankWords: [],
     });
@@ -170,14 +170,14 @@ describe('KeywordRankService', () => {
       isEmptyBatch: { $ne: true },
     });
     expect(result.ranking).toEqual([]);
-    expect(logService.getRankWord).toHaveBeenCalledTimes(1);
+    expect(keywordEventReader.getRanked).toHaveBeenCalledTimes(1);
   });
 
   it('triggers a single background refresh for a stale batch', async () => {
     const stale = freshBatch({
       computedAt: new Date(Date.now() - 11 * 60 * 1000),
     });
-    const { service, logService } = createMocks({
+    const { service, keywordEventReader } = createMocks({
       latestResults: [stale],
       docs: [{ searchWord: 'birthday', count: 10 }],
       rankWords: [{ _id: 'birthday', count: 12 }],
@@ -186,7 +186,7 @@ describe('KeywordRankService', () => {
     const result = await service.getRanked(4);
     await new Promise(setImmediate);
 
-    expect(logService.getRankWord).toHaveBeenCalledTimes(1);
+    expect(keywordEventReader.getRanked).toHaveBeenCalledTimes(1);
     expect(result.ranking).toEqual([{ _id: 'birthday', count: 10 }]);
   });
 
@@ -194,11 +194,13 @@ describe('KeywordRankService', () => {
     const stale = freshBatch({
       computedAt: new Date(Date.now() - 11 * 60 * 1000),
     });
-    const { service, logService, rankModel } = createMocks({
+    const { service, keywordEventReader, rankModel } = createMocks({
       latestResults: [stale],
       docs: [{ searchWord: 'birthday', count: 10 }],
     });
-    logService.getRankWord.mockRejectedValue(new Error('aggregate failed'));
+    keywordEventReader.getRanked.mockRejectedValue(
+      new Error('aggregate failed'),
+    );
 
     const result = await service.getRanked(4);
     await new Promise(setImmediate);

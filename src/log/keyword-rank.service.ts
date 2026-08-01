@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { KeywordEventReader } from 'src/search/application/port/keyword-event.reader';
 import { KeywordRank } from './entities/keywordRank.shema';
-import { LogService } from './log.service';
 import {
   computeRankWindow,
   KEYWORD_RANK_WINDOW_DAYS_ENV,
@@ -35,7 +35,7 @@ export class KeywordRankService {
   constructor(
     @InjectModel(KeywordRank.name, 'kezzle')
     private readonly rankModel: Model<KeywordRank>,
-    private readonly logService: LogService,
+    private readonly keywordEventReader: KeywordEventReader,
   ) {}
 
   /**
@@ -88,7 +88,7 @@ export class KeywordRankService {
     this.refreshing = true;
     try {
       const window = computeRankWindow(KEYWORD_RANK_WINDOW_DAYS_ENV);
-      const ranked = await this.logService.getRankWord(
+      const ranked = await this.keywordEventReader.getRanked(
         window.start.toISOString(),
         window.end.toISOString(),
         KEYWORD_RANK_TOP_N,

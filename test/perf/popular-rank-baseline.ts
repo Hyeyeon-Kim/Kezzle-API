@@ -105,7 +105,7 @@ async function main(): Promise<void> {
         };
       },
     };
-    const logService = new LogService({} as never, aggregateAdapter as never);
+    const logService = new LogService(aggregateAdapter as never);
 
     const startedAt = process.hrtime.bigint();
     const ranked = await logService.getRankCake(
