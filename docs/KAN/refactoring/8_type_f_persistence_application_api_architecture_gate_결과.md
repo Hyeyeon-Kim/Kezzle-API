@@ -39,6 +39,9 @@ Type-A~E에서 분리한 Persistence/Application/API 의존 방향을 반복 가
 - application/service/port/reader의 `Document`와 `HydratedDocument` 결합 금지
 - service/port/reader의 API DTO import 금지
 - application type의 Mongoose, Swagger, class-validator, class-transformer 의존 금지
+- root `*.persistence-mapper.ts`와 Image persistence mapper를 persistence source로 분류
+- persistence mapper의 `source: any` 입력 금지
+- repository `Promise` 반환 타입의 persistence model/document 노출 금지
 - endpoint 소유 API DTO의 cross-feature import 금지
 - `forwardRef` 금지
 
@@ -75,13 +78,16 @@ Type-A~E에서 분리한 Persistence/Application/API 의존 방향을 반복 가
 
 ```text
 npm test -- --runInBand
-  47 suites, 188 tests passed
+  47 suites, 189 tests passed
 
 npm run test:e2e -- --runInBand
-  3 suites, 44 tests passed
+  4 suites, 48 tests passed
+
+npm run test:integration:mongo
+  1 suite, 3 tests passed
 
 npm run test:architecture
-  source/module architecture: 1 suite, 14 tests passed
+  source/module architecture: 1 suite, 16 tests passed
   presenter contracts: 2 suites, 10 tests passed
 
 docker compose build kezzle-api
@@ -95,4 +101,4 @@ docker compose up -d --force-recreate kezzle-api
 
 ## 후속 범위
 
-이번 Type-A~F 작업은 계획대로 완료했다. dependency-cruiser 또는 ESLint 기반 전체 architecture rule, `modules/integrations/platform` 물리 이동, Log/Ranking/Counter의 repository 추출은 상위 Phase 7 또는 별도 리팩터링 범위로 남긴다.
+이번 Type-A~F 작업은 review 후속 보강까지 완료했다. 상세 수정과 검증 근거는 [`8_persistence_application_api_review_후속_결과.md`](./8_persistence_application_api_review_후속_결과.md)에 기록했다. dependency-cruiser 또는 ESLint 기반 전체 architecture rule, `modules/integrations/platform` 물리 이동, Log/Ranking/Counter의 repository 추출은 상위 Phase 7 또는 별도 리팩터링 범위로 남긴다.

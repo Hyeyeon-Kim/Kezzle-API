@@ -1,12 +1,14 @@
 # Persistence/Application/API 타입 분리 작업 계획서
 
 > 작성일: 2026-07-20
-> 문서 상태: Type-A~F 구현 및 검증 완료
+> 문서 상태: Type-A~F 구현 및 review 후속 검증 완료
 > 상위 로드맵: [`docs/refactoring.md`](../../refactoring.md) 4.5, Phase 3
 > 선행 작업: Catalog query와 feature 경계 캡슐화 Phase 4-A~D
 > 권장 라벨: `type: refactor`, `area: db`, `priority: p1`, `size: L`
 
 권장 실행 사양: `gpt-5.6-sol` / 기본 추론 - persistence document, application view, API contract를 여러 feature에 걸쳐 단계적으로 분리하고 Mongo 호환성과 endpoint 계약을 함께 검증해야 한다.
+
+후속 검증: [`8_persistence_application_api_review_후속_결과.md`](./8_persistence_application_api_review_후속_결과.md)
 
 ## 결론
 

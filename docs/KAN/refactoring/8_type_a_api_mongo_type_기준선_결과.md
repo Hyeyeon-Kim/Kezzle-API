@@ -58,6 +58,8 @@ Home은 cache hit가 반환하는 여섯 section value와 anniversary dependency
 
 Cake, Store, User, Curation representative document를 현재 Mongoose schema로 `hydrate()`한 뒤 `toObject()`와 JSON 직렬화를 수행해 입력 fixture와 동일한지 확인한다. Mongo 연결이나 write 없이 schema casting과 key 보존 동작만 검증한다.
 
+2026-08-01 review 후속 작업에서 `test/persistence.mongo-integration-spec.ts`를 추가했다. Docker Compose MongoDB의 고유 test DB에서 동일 fixture를 실제 `save → read`하고, default/casting과 Curation claim/timestamp 동작까지 검증한 뒤 test DB를 삭제한다. 최초 Type-A의 hydrate 기준선과 최종 Mongo integration은 역할을 분리해 함께 유지한다.
+
 Curation의 기존 AI fixture `test/fixtures/similar-cakes.mock.json`에서 확인한 cake snapshot key는 다음과 같다.
 
 ```text
