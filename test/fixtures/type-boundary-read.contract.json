@@ -206,46 +206,46 @@
     }
   },
   "homeCacheValues": {
-    "home:similar:seed-cake": [
+    "home:v2:similar:seed-cake": [
       {
-        "_id": "cake-recommend-1",
+        "id": "cake-recommend-1",
         "image": {
           "name": "recommend.png",
-          "converte_name": "recommend-converted.png",
+          "converteName": "recommend-converted.png",
           "key": "cakes/recommend-converted.png",
           "s3Url": "https://cdn.example.com/cakes/recommend-converted.png"
         },
-        "owner_store_id": "store-1",
-        "hashtag": [],
-        "popular_cal": null
+        "ownerStoreId": "store-1",
+        "tags": [],
+        "calculatedLikes": null
       }
     ],
-    "home:anniversary": {
-      "_id": "anniversary-1",
+    "home:v2:anniversary": {
+      "id": "anniversary-1",
       "name": "기념일",
       "dday": "D-1",
-      "ment": "기념일 케이크",
+      "mention": "기념일 케이크",
       "images": []
     },
-    "home:popular": {
+    "home:v2:popular": {
       "startDate": "2026-06-20",
       "endDate": "2026-07-20",
       "cakes": []
     },
-    "home:keyword-ranks": {
+    "home:v2:keyword-ranks": {
       "ranking": [],
       "startDate": "2026-06-20",
       "endDate": "2026-07-20"
     },
-    "home:newest:4": {
+    "home:v2:newest:4": {
       "hasMore": false,
       "cakes": []
     },
-    "home:curations": [
+    "home:v2:curations": [
       {
-        "_id": "curation-home-1",
+        "id": "curation-home-1",
         "cakes": [],
-        "description": "홈 큐레이션"
+        "key": "홈 큐레이션"
       }
     ]
   },

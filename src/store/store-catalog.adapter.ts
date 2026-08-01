@@ -30,7 +30,7 @@ export class StoreCatalogRepositoryAdapter implements StoreCatalogReader {
       .findByGeoNear(longitude, latitude, distance, after, limit)
       .catch(() => {
         throw new StoresNotFoundException();
-    });
+      });
     return stores.map((store) => ({
       id: store.id,
       name: store.name,

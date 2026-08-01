@@ -1,12 +1,40 @@
-import { ImageMapper } from 'src/common/image/image.mapper';
+import {
+  ImageMapper,
+  ImagePersistenceRecord,
+} from 'src/common/image/image.mapper';
 import { CreateCakeData, UpdateCakeData } from './application/cake.command';
 import { CakeView } from './application/cake.view';
 
+interface CakePersistenceSource {
+  readonly _id?: unknown;
+  readonly id?: unknown;
+  readonly image?: ImagePersistenceRecord;
+  readonly cursor?: string;
+  readonly user_like_ids?: string[];
+  readonly owner_store_id?: string;
+  readonly like_ins?: string;
+  readonly tag_ins?: string[];
+  readonly content_ins?: string;
+  readonly cal_likes?: number;
+  readonly faiss_id?: number;
+  readonly is_delete?: boolean;
+  readonly createdAt?: Date | string;
+  readonly updatedAt?: Date | string;
+}
+
+function identifier(value: unknown): string | undefined {
+  return value == null ? undefined : String(value);
+}
+
+function dateValue(value: Date | string | undefined): Date | undefined {
+  return typeof value === 'string' ? new Date(value) : value;
+}
+
 export class CakePersistenceMapper {
-  static toView(source: any): CakeView {
+  static toView(source: CakePersistenceSource): CakeView {
     return {
-      id: source?._id?.toString() ?? source?.id?.toString(),
-      image: source?.image ? ImageMapper.toValue(source.image) : source?.image,
+      id: identifier(source?._id) ?? identifier(source?.id),
+      image: source?.image ? ImageMapper.toValue(source.image) : undefined,
       cursor: source?.cursor,
       likedUserIds: [...(source?.user_like_ids ?? [])],
       ownerStoreId: source?.owner_store_id,
@@ -16,8 +44,8 @@ export class CakePersistenceMapper {
       calculatedLikes: source?.cal_likes,
       faissId: source?.faiss_id,
       isDeleted: source?.is_delete ?? false,
-      createdAt: source?.createdAt,
-      updatedAt: source?.updatedAt,
+      createdAt: dateValue(source?.createdAt),
+      updatedAt: dateValue(source?.updatedAt),
     };
   }
 

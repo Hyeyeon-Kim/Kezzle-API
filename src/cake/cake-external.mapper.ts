@@ -1,11 +1,44 @@
 import { ImageValue } from 'src/common/image/application/image.value';
-import { ImageMapper } from 'src/common/image/image.mapper';
+import {
+  ImageMapper,
+  ImagePersistenceRecord,
+} from 'src/common/image/image.mapper';
 import { CakeView } from './application/cake.view';
 
+interface CakeExternalSource {
+  readonly id?: unknown;
+  readonly _id?: unknown;
+  readonly image?: unknown;
+  readonly cursor?: string;
+  readonly likedUserIds?: string[];
+  readonly user_like_ids?: string[];
+  readonly ownerStoreId?: string;
+  readonly owner_store_id?: string;
+  readonly likeText?: string;
+  readonly like_ins?: string;
+  readonly tags?: string[];
+  readonly tag_ins?: string[];
+  readonly content?: string;
+  readonly content_ins?: string;
+  readonly calculatedLikes?: number;
+  readonly cal_likes?: number;
+  readonly total?: number;
+  readonly faissId?: number;
+  readonly faiss_id?: number;
+  readonly isDeleted?: boolean;
+  readonly is_delete?: boolean;
+  readonly createdAt?: Date;
+  readonly updatedAt?: Date;
+}
+
+function identifier(value: unknown): string | undefined {
+  return value == null ? undefined : String(value);
+}
+
 export class CakeExternalMapper {
-  static toView(source: any): CakeView {
+  static toView(source: CakeExternalSource): CakeView {
     return {
-      id: source?.id?.toString() ?? source?._id?.toString(),
+      id: identifier(source?.id) ?? identifier(source?._id),
       image: this.toImageValue(source?.image),
       cursor: source?.cursor,
       likedUserIds: [...(source?.likedUserIds ?? source?.user_like_ids ?? [])],
@@ -22,10 +55,13 @@ export class CakeExternalMapper {
     };
   }
 
-  private static toImageValue(image: any): ImageValue {
-    if (image == null || 'converteName' in image) {
-      return image;
+  private static toImageValue(image: unknown): ImageValue {
+    if (image == null || typeof image !== 'object') {
+      return image as ImageValue;
     }
-    return ImageMapper.toValue(image);
+    if ('converteName' in image) {
+      return image as ImageValue;
+    }
+    return ImageMapper.toValue(image as ImagePersistenceRecord);
   }
 }

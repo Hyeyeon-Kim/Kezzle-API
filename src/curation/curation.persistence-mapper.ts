@@ -4,28 +4,53 @@ import {
   CurationView,
   StaleCurationView,
 } from './application/curation.view';
-import { CurationExternalMapper } from './curation-external.mapper';
+import {
+  CurationCakeSnapshotSource,
+  CurationExternalMapper,
+} from './curation-external.mapper';
+
+interface CurationPersistenceSource {
+  readonly _id?: unknown;
+  readonly id?: unknown;
+  readonly cakes?: CurationCakeSnapshotSource[];
+  readonly key?: string;
+  readonly description?: string;
+  readonly note?: string;
+  readonly createdAt?: Date | string;
+  readonly updatedAt?: Date | string;
+  readonly __v?: number;
+  readonly toObject?: () => CurationPersistenceSource;
+}
+
+function identifier(value: unknown): string | undefined {
+  return value == null ? undefined : String(value);
+}
+
+function dateValue(value: Date | string | undefined): Date | undefined {
+  return typeof value === 'string' ? new Date(value) : value;
+}
 
 export class CurationPersistenceMapper {
-  static toView(source: any): CurationView {
+  static toView(source: CurationPersistenceSource): CurationView {
+    const record = this.toPlainObject(source);
     return {
-      id: source?._id?.toString() ?? source?.id?.toString(),
-      cakes: (source?.cakes ?? []).map((cake) =>
+      id: identifier(record?._id) ?? identifier(record?.id),
+      cakes: (record?.cakes ?? []).map((cake) =>
         CurationExternalMapper.toSnapshot(cake),
       ),
-      key: source?.key,
-      description: source?.description,
-      note: source?.note,
-      createdAt: source?.createdAt,
-      updatedAt: source?.updatedAt,
-      version: source?.__v,
+      key: record?.key,
+      description: record?.description,
+      note: record?.note,
+      createdAt: dateValue(record?.createdAt),
+      updatedAt: dateValue(record?.updatedAt),
+      version: record?.__v,
     };
   }
 
-  static toStaleView(source: any): StaleCurationView {
+  static toStaleView(source: CurationPersistenceSource): StaleCurationView {
     return {
-      id: source?._id?.toString() ?? source?.id?.toString(),
-      updatedAt: source?.updatedAt,
+      id: identifier(source?._id) ?? identifier(source?.id),
+      updatedAt: dateValue(source?.updatedAt),
     };
   }
 
@@ -56,5 +81,11 @@ export class CurationPersistenceMapper {
       user_like_ids: cake.likedUserIds,
       score: cake.score,
     };
+  }
+
+  private static toPlainObject(
+    source: CurationPersistenceSource,
+  ): CurationPersistenceSource {
+    return typeof source?.toObject === 'function' ? source.toObject() : source;
   }
 }

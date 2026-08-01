@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString } from 'class-validator';
 import { ImageValue } from '../application/image.value';
-import { ImageMapper, ImagePersistenceRecord } from '../image.mapper';
 
 export class ImageDto {
   @IsString()
@@ -40,15 +39,12 @@ export class ImageDto {
     this.s3Url = image?.s3Url;
   }
 
-  static fromPersistence(image: ImagePersistenceRecord): ImageDto {
-    return new ImageDto(ImageMapper.toValue(image));
-  }
-
-  static fromValueOrPersistence(
-    image: ImageValue | ImagePersistenceRecord,
-  ): ImageDto {
-    return 'converteName' in image
-      ? new ImageDto(image)
-      : ImageDto.fromPersistence(image);
+  static toValue(image: ImageDto): ImageValue {
+    return {
+      name: image.name,
+      converteName: image.converte_name,
+      key: image.key,
+      s3Url: image.s3Url,
+    };
   }
 }

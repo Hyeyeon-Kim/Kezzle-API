@@ -1,7 +1,5 @@
 import { CatalogQueryService } from './catalog-query.service';
 
-const user = { firebaseUid: 'viewer-user', roles: [] };
-
 const cake = (id: string, storeId = 'store-1') => ({
   id,
   image: {},

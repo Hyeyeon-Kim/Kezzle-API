@@ -62,10 +62,7 @@ export class CreateStoreResponseDto {
     const source = store as any;
     this._id = source.id ?? source._id;
     this.name = store.name;
-    this.logo =
-      store.logo == null
-        ? store.logo
-        : ImageDto.fromValueOrPersistence(store.logo as never);
+    this.logo = store.logo == null ? store.logo : new ImageDto(store.logo);
     this.store_feature = source.feature ?? source.store_feature;
     this.store_description = source.description ?? source.store_description;
     this.insta_url = source.instagramUrl ?? source.insta_url;
@@ -84,8 +81,8 @@ export class CreateStoreResponseDto {
       source.detailImages ??
       source.detail_images ??
       []
-    ).map((image) => ImageDto.fromValueOrPersistence(image));
-    this.detail_images = detailImages.length > 0 ? detailImages : undefined;
+    ).map((image) => new ImageDto(image));
+    this.detail_images = detailImages;
     this.operating_time = [
       ...(source.operatingTime ?? source.operating_time ?? []),
     ];

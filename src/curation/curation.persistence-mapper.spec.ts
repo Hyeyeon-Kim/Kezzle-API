@@ -1,5 +1,8 @@
 import fixtures from '../../test/fixtures/legacy-persistence.contract.json';
+import { model } from 'mongoose';
 import { CurationPersistenceMapper } from './curation.persistence-mapper';
+import { CurationPresenter } from './curation.presenter';
+import { Curation, CurationSchema } from './entities/curation.schema';
 
 describe('CurationPersistenceMapper', () => {
   it('maps legacy snapshots to pure views and preserves additional keys', () => {
@@ -29,5 +32,27 @@ describe('CurationPersistenceMapper', () => {
       user_like_ids: ['legacy-user-1'],
       legacy_extra: 'must-stay',
     });
+  });
+
+  it('removes Mongoose subdocument internals before presenting a hydrated document', () => {
+    const curationModel = model<Curation>(
+      'HydratedCurationMapperContract',
+      CurationSchema,
+    );
+    const hydrated = curationModel.hydrate(fixtures.curation);
+
+    const response = CurationPresenter.created(
+      CurationPersistenceMapper.toView(hydrated),
+    );
+    const serialized = JSON.parse(JSON.stringify(response));
+
+    expect({
+      ...serialized,
+      refreshClaimedAt: fixtures.curation.refreshClaimedAt,
+    }).toEqual(fixtures.curation);
+    expect(serialized).not.toHaveProperty('refreshClaimedAt');
+    expect(serialized.cakes[0]).not.toHaveProperty('_doc');
+    expect(serialized.cakes[0]).not.toHaveProperty('$__');
+    expect(serialized.cakes[0]).toHaveProperty('legacy_extra', 'must-stay');
   });
 });

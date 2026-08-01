@@ -1,4 +1,4 @@
-import { ImageMapper } from 'src/common/image/image.mapper';
+import { ImageDto } from 'src/common/image/api/image.dto';
 import { CreateStoreData, UpdateStoreData } from './application/store.command';
 import { StoreView } from './application/store.view';
 import { CreateStoreDto } from './dto/create-store.dto';
@@ -10,7 +10,7 @@ export class StorePresenter {
   static toCreateData(dto: CreateStoreDto): CreateStoreData {
     return {
       name: dto.name,
-      logo: dto.logo ? ImageMapper.toValue(dto.logo) : undefined,
+      logo: dto.logo ? ImageDto.toValue(dto.logo) : undefined,
       feature: dto.store_feature,
       description: dto.store_description,
       instagramUrl: dto.insta_url,
@@ -19,9 +19,7 @@ export class StorePresenter {
       address: dto.address,
       phoneNumber: dto.phone_number,
       ownerUserId: dto.owner_user_id,
-      detailImages: dto.detailImages?.map((image) =>
-        ImageMapper.toValue(image),
-      ),
+      detailImages: dto.detailImages?.map((image) => ImageDto.toValue(image)),
       operatingTime: dto.operating_time,
       taste: dto.taste,
     };
@@ -36,9 +34,7 @@ export class StorePresenter {
       location: dto.location ? this.toLocation(dto.location) : undefined,
       address: dto.address,
       phoneNumber: dto.phone_number,
-      detailImages: dto.detail_images?.map((image) =>
-        ImageMapper.toValue(image),
-      ),
+      detailImages: dto.detail_images?.map((image) => ImageDto.toValue(image)),
       operatingTime: dto.operating_time,
       taste: dto.taste,
     };

@@ -26,6 +26,33 @@ import { UserController } from 'src/user/user.controller';
 import { UserService } from 'src/user/user.service';
 import fixtures from './fixtures/type-boundary-read.contract.json';
 
+const imageValue = (image) => ({
+  name: image.name,
+  converteName: image.converte_name,
+  key: image.key,
+  s3Url: image.s3Url,
+});
+
+const cakeView = (cake, likedUserId = 'user-1') => ({
+  id: cake._id,
+  image: imageValue(cake.image),
+  ownerStoreId: cake.owner_store_id,
+  likedUserIds: cake.isLiked ? [likedUserId] : [],
+  cursor: cake.cursor,
+  tags: [...(cake.hashtag ?? [])],
+  calculatedLikes: cake.popular_cal,
+  isDeleted: false,
+});
+
+const userView = (user) => ({
+  firebaseUid: user.firebaseUid,
+  nickname: user.nickname,
+  oauthProvider: 'password',
+  roles: user.roles,
+  cakeLikeIds: [...user.cake_like_ids],
+  storeLikeIds: [],
+});
+
 @Injectable()
 class TypeBoundaryAuthenticationGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
@@ -124,18 +151,85 @@ describe('Type-A read HTTP contract baseline', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    cakeService.findAllByNewest.mockResolvedValue(fixtures.newestCakes);
-    cakeService.popular.mockResolvedValue(fixtures.popularCakes);
-    cakeService.anniversary.mockResolvedValue(fixtures.anniversaryCakes);
-    cakeService.findOne.mockResolvedValue(fixtures.cakeDetail);
-    storeService.findOne.mockResolvedValue(fixtures.storeDetail);
-    userService.findAll.mockResolvedValue(fixtures.users);
-    userService.findOneByFirebase.mockResolvedValue(fixtures.userDetail);
-    searchService.search.mockResolvedValue(fixtures.searchResult);
-    searchService.getRank.mockResolvedValue(fixtures.searchRank);
+    cakeService.findAllByNewest.mockResolvedValue({
+      hasMore: fixtures.newestCakes.hasMore,
+      cakes: fixtures.newestCakes.cakes.map((cake) => cakeView(cake)),
+    });
+    cakeService.popular.mockResolvedValue({
+      startDate: fixtures.popularCakes.startDate,
+      endDate: fixtures.popularCakes.endDate,
+      cakes: fixtures.popularCakes.cakes.map((cake) => cakeView(cake)),
+    });
+    cakeService.anniversary.mockResolvedValue({
+      hasMore: fixtures.anniversaryCakes.hasMore,
+      cakes: fixtures.anniversaryCakes.cakes.map((cake) => cakeView(cake)),
+    });
+    cakeService.findOne.mockResolvedValue(cakeView(fixtures.cakeDetail));
+    storeService.findOne.mockResolvedValue({
+      id: fixtures.storeDetail._id,
+      name: fixtures.storeDetail.name,
+      logo: fixtures.storeDetail.logo,
+      feature: fixtures.storeDetail.store_feature,
+      description: fixtures.storeDetail.store_description,
+      instagramUrl: fixtures.storeDetail.insta_url,
+      kakaoChannelUrl: fixtures.storeDetail.kakako_url,
+      kakaoMapUrl: fixtures.storeDetail.kakao_map_url,
+      location: {
+        latitude: fixtures.storeDetail.latitude,
+        longitude: fixtures.storeDetail.longitude,
+      },
+      address: fixtures.storeDetail.address,
+      phoneNumber: fixtures.storeDetail.phone_number,
+      ownerUserId: 'seller-1',
+      detailImages: [],
+      operatingTime: fixtures.storeDetail.operating_time,
+      likedUserIds: [],
+      taste: fixtures.storeDetail.taste,
+      distance: fixtures.storeDetail.distance,
+    });
+    userService.findAll.mockResolvedValue(fixtures.users.map(userView));
+    userService.findOneByFirebase.mockResolvedValue(
+      userView(fixtures.userDetail),
+    );
+    searchService.search.mockResolvedValue({
+      hasMore: fixtures.searchResult.hasMore,
+      nextPage: fixtures.searchResult.nextPage,
+      cakes: fixtures.searchResult.cakes.map((cake) => cakeView(cake)),
+    });
+    searchService.getRank.mockResolvedValue({
+      ...fixtures.searchRank,
+      ranking: fixtures.searchRank.ranking.map((rank) => ({
+        id: rank._id,
+        count: rank.count,
+      })),
+    });
     searchService.getLatest.mockResolvedValue(fixtures.latestSearch);
-    curationService.showCuration.mockResolvedValue(fixtures.curationDetail);
-    homeFeedService.getHome.mockResolvedValue(fixtures.home);
+    curationService.showCuration.mockResolvedValue({
+      description: fixtures.curationDetail.description,
+      cakes: fixtures.curationDetail.cakes.map((cake) => cakeView(cake)),
+    });
+    homeFeedService.getHome.mockResolvedValue({
+      anniversary: {
+        id: fixtures.home.anniversary._id,
+        name: fixtures.home.anniversary.name,
+        dday: fixtures.home.anniversary.dday,
+        mention: fixtures.home.anniversary.ment,
+        images: fixtures.home.anniversary.images,
+      },
+      recommendCakes: fixtures.home.recommendCakes.map((cake) =>
+        cakeView(cake),
+      ),
+      popularCakes: fixtures.home.popularCakes,
+      keywordRanks: fixtures.home.keywordRanks,
+      newestCakes: fixtures.home.newestCakes,
+      curations: fixtures.home.curations.map((curation) => ({
+        id: curation._id,
+        cakes: [],
+        key: curation.description,
+      })),
+      degraded: fixtures.home.degraded,
+      sections: fixtures.home.sections,
+    });
   });
 
   afterAll(async () => {

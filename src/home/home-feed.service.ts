@@ -15,6 +15,7 @@ import { CurationQueryService } from 'src/curation/curation-query.service';
 import { CurationView } from 'src/curation/application/curation.view';
 import { HomeCacheService } from 'src/home-cache/home-cache.service';
 import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
+import { homeCacheKey } from 'src/home-cache/home-cache.constants';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
 import {
   computeRankWindow,
@@ -140,7 +141,7 @@ export class HomeFeedService {
                 recommendTimeout,
               );
               return this.homeCache.getWithSwr({
-                key: `home:similar:${seedCakeId}`,
+                key: homeCacheKey(`similar:${seedCakeId}`),
                 ...homeCachePolicy('recommend'),
                 refresh: async () => {
                   this.homeMetrics.countAi('vit');
@@ -179,7 +180,7 @@ export class HomeFeedService {
             anniversaryFallback,
             (signal) =>
               this.homeCache.getWithSwr({
-                key: 'home:anniversary',
+                key: homeCacheKey('anniversary'),
                 ...homeCachePolicy('anniversary'),
                 refresh: async () => {
                   this.homeMetrics.countDb();
@@ -222,7 +223,7 @@ export class HomeFeedService {
             popularFallback,
             () =>
               this.homeCache.getWithSwr({
-                key: 'home:popular',
+                key: homeCacheKey('popular'),
                 ...homeCachePolicy('popular'),
                 refresh: () => {
                   this.homeMetrics.countDb(2);
@@ -255,7 +256,7 @@ export class HomeFeedService {
             keywordRanksFallback,
             () =>
               this.homeCache.getWithSwr({
-                key: 'home:keyword-ranks',
+                key: homeCacheKey('keyword-ranks'),
                 ...homeCachePolicy('keywordRanks'),
                 refresh: () => {
                   this.homeMetrics.countDb(2);
@@ -293,7 +294,7 @@ export class HomeFeedService {
             newestCakesFallback,
             () =>
               this.homeCache.getWithSwr({
-                key: 'home:newest:4',
+                key: homeCacheKey('newest:4'),
                 ...homeCachePolicy('newest'),
                 refresh: () => {
                   this.homeMetrics.countDb();
@@ -330,7 +331,7 @@ export class HomeFeedService {
             curationsFallback,
             () =>
               this.homeCache.getWithSwr({
-                key: 'home:curations',
+                key: homeCacheKey('curations'),
                 ...homeCachePolicy('curations'),
                 refresh: async () => {
                   this.homeMetrics.countDb();

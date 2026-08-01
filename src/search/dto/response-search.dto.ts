@@ -24,7 +24,7 @@ export class SearchCakeResponseDto {
   constructor(cake: CakeView, viewerId: string) {
     const source = cake as any;
     this._id = source.id ?? source._id;
-    this.image = ImageDto.fromValueOrPersistence(source.image);
+    this.image = new ImageDto(source.image);
     this.owner_store_id = source.ownerStoreId ?? source.owner_store_id;
     const likedUserIds = source.likedUserIds ?? source.user_like_ids;
     this.isLiked =

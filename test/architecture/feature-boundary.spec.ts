@@ -78,9 +78,7 @@ function normalizedImports(source: SourceFile): string[] {
 }
 
 function isApiDtoPath(path: string): boolean {
-  return (
-    /(^|\/)(api\/)?dto(\/|$)/.test(path) || /\.dto(?:\.ts)?$/.test(path)
-  );
+  return /(^|\/)(api\/)?dto(\/|$)/.test(path) || /\.dto(?:\.ts)?$/.test(path);
 }
 
 function isPersistenceSchemaPath(path: string): boolean {
@@ -93,7 +91,15 @@ function isPersistenceSchemaPath(path: string): boolean {
 function isPersistenceSource(path: string): boolean {
   return (
     /(^|\/)(entities|persistence)\//.test(path) ||
-    path.endsWith('.repository.ts')
+    path.endsWith('.repository.ts') ||
+    isPersistenceMapperPath(path)
+  );
+}
+
+function isPersistenceMapperPath(path: string): boolean {
+  return (
+    /\.persistence-mapper(?:\.ts)?$/.test(path) ||
+    /(^|\/)image\.mapper(?:\.ts)?$/.test(path)
   );
 }
 
@@ -276,6 +282,7 @@ describe('Feature boundary architecture', () => {
           .filter(
             (value) =>
               isPersistenceSchemaPath(value) ||
+              isPersistenceMapperPath(value) ||
               value === 'mongoose' ||
               value === '@nestjs/mongoose',
           )
@@ -329,6 +336,30 @@ describe('Feature boundary architecture', () => {
               value === 'class-transformer',
           )
           .map((value) => `${source.path}: ${value}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps persistence mapper inputs explicit', () => {
+    const violations = sourceFiles
+      .filter((source) => isPersistenceMapperPath(source.path))
+      .filter((source) => /\bsource\??\s*:\s*any\b/.test(source.content))
+      .map((source) => source.path);
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps repository Promise return types free from persistence models', () => {
+    const persistenceType =
+      /\b(?:Document|HydratedDocument|Cake|Store|User|Curation|Anniversary)\b/;
+    const violations = sourceFiles
+      .filter((source) => source.path.endsWith('.repository.ts'))
+      .flatMap((source) =>
+        [...source.content.matchAll(/Promise<([^;\n]+)>/g)]
+          .map((match) => match[1])
+          .filter((returnType) => persistenceType.test(returnType))
+          .map((returnType) => `${source.path}: Promise<${returnType}>`),
       );
 
     expect(violations).toEqual([]);

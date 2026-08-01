@@ -30,9 +30,7 @@ export class CakeSimpleResponseDto {
 
   constructor(data: any) {
     this._id = data?.id === undefined ? data?._id : data?.id;
-    this.image = data?.image
-      ? ImageDto.fromValueOrPersistence(data.image)
-      : data?.image;
+    this.image = data?.image ? new ImageDto(data.image) : data?.image;
     this.owner_store_id = data?.ownerStoreId ?? data?.owner_store_id;
     this.hashtag = data?.tags ?? data?.hashtag ?? data?.tag_ins;
     this.popular_cal =

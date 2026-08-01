@@ -19,7 +19,7 @@ export class CurationCakeResponseDto {
 
   constructor(data: any) {
     this._id = data?.id ?? data?._id;
-    this.image = ImageDto.fromValueOrPersistence(data.image);
+    this.image = new ImageDto(data.image);
     this.owner_store_id = data?.ownerStoreId ?? data?.owner_store_id;
     this.hashtag = [...(data?.tags ?? data?.hashtag ?? data?.tag_ins ?? [])];
     this.popular_cal =

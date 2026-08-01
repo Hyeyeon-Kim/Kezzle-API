@@ -121,10 +121,7 @@ export class DetailStoreResponseDto {
   constructor(data: any, userid: string) {
     this._id = data?.id ?? data?._id;
     this.name = data?.name;
-    this.logo =
-      data?.logo == null
-        ? data?.logo
-        : ImageDto.fromValueOrPersistence(data.logo);
+    this.logo = data?.logo == null ? data?.logo : new ImageDto(data.logo);
     this.store_feature = data?.feature ?? data?.store_feature;
     this.store_description = data?.description ?? data?.store_description;
     this.insta_url = data?.instagramUrl ?? data?.insta_url;
@@ -132,7 +129,7 @@ export class DetailStoreResponseDto {
     this.address = data?.address;
     this.phone_number = data?.phoneNumber ?? data?.phone_number;
     this.detail_images = (data?.detailImages ?? data?.detail_images ?? []).map(
-      (image) => ImageDto.fromValueOrPersistence(image),
+      (image) => new ImageDto(image),
     );
     this.operating_time = data?.operatingTime ?? data?.operating_time;
     this.taste = data?.taste;

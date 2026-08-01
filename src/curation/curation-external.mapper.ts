@@ -1,5 +1,30 @@
 import { CurationCakeSnapshotView } from './application/curation.view';
 
+export interface CurationCakeSnapshotSource {
+  readonly id?: unknown;
+  readonly _id?: unknown;
+  readonly image?: Record<string, unknown> & {
+    readonly name?: string;
+    readonly converteName?: string;
+    readonly converte_name?: string;
+    readonly key?: string;
+    readonly s3Url?: string;
+  };
+  readonly ownerStoreId?: string;
+  readonly owner_store_id?: string;
+  readonly cursor?: string;
+  readonly tags?: string[];
+  readonly tag_ins?: string[];
+  readonly likedUserIds?: string[];
+  readonly user_like_ids?: string[];
+  readonly score?: number;
+  readonly toObject?: () => CurationCakeSnapshotSource;
+}
+
+function identifier(value: unknown): string | undefined {
+  return value == null ? undefined : String(value);
+}
+
 const KNOWN_KEYS = new Set([
   'id',
   '_id',
@@ -15,25 +40,29 @@ const KNOWN_KEYS = new Set([
 ]);
 
 export class CurationExternalMapper {
-  static toSnapshot(source: any): CurationCakeSnapshotView {
+  static toSnapshot(
+    source: CurationCakeSnapshotSource,
+  ): CurationCakeSnapshotView {
+    const record =
+      typeof source?.toObject === 'function' ? source.toObject() : source;
     return {
-      id: source?.id?.toString() ?? source?._id?.toString(),
-      image: source?.image
+      id: identifier(record?.id) ?? identifier(record?._id),
+      image: record?.image
         ? {
-            name: source.image.name,
+            name: record.image.name,
             converteName:
-              source.image.converteName ?? source.image.converte_name,
-            key: source.image.key,
-            s3Url: source.image.s3Url,
+              record.image.converteName ?? record.image.converte_name,
+            key: record.image.key,
+            s3Url: record.image.s3Url,
           }
         : undefined,
-      ownerStoreId: source?.ownerStoreId ?? source?.owner_store_id,
-      cursor: source?.cursor,
-      tags: [...(source?.tags ?? source?.tag_ins ?? [])],
-      likedUserIds: [...(source?.likedUserIds ?? source?.user_like_ids ?? [])],
-      score: source?.score,
+      ownerStoreId: record?.ownerStoreId ?? record?.owner_store_id,
+      cursor: record?.cursor,
+      tags: [...(record?.tags ?? record?.tag_ins ?? [])],
+      likedUserIds: [...(record?.likedUserIds ?? record?.user_like_ids ?? [])],
+      score: record?.score,
       extra: Object.fromEntries(
-        Object.entries(source ?? {}).filter(([key]) => !KNOWN_KEYS.has(key)),
+        Object.entries(record ?? {}).filter(([key]) => !KNOWN_KEYS.has(key)),
       ),
     };
   }

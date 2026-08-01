@@ -90,6 +90,6 @@ rg -n "from ['\"][^'\"]*dto" src \
 | application/service/port/reader → `Document` | 12 | 0 |
 | service/port/reader → API DTO | 36 | 0 |
 
-The Jest architecture gate resolves both `src/...` and relative imports to source-relative paths before applying the final rules. It also rejects cross-feature API DTO imports, persistence/API framework imports from application types, and `forwardRef`.
+The Jest architecture gate resolves both `src/...` and relative imports to source-relative paths before applying the final rules. It classifies root `*.persistence-mapper.ts` and the shared Image mapper as persistence sources, rejects `source: any` mapper inputs and persistence model repository returns, and also rejects cross-feature API DTO imports, persistence/API framework imports from application types, and `forwardRef`.
 
 `npm run test:architecture` runs the source scan, Nest module metadata checks, and the Type-D/Type-E presenter contract specs together.

@@ -267,14 +267,15 @@ describe('HomeFeedService', () => {
     );
     expect(keys).toEqual(
       expect.arrayContaining([
-        'home:similar:seed-cake',
-        'home:anniversary',
-        'home:popular',
-        'home:keyword-ranks',
-        'home:newest:4',
-        'home:curations',
+        'home:v2:similar:seed-cake',
+        'home:v2:anniversary',
+        'home:v2:popular',
+        'home:v2:keyword-ranks',
+        'home:v2:newest:4',
+        'home:v2:curations',
       ]),
     );
+    expect(keys.some((key) => /^home:(?!v2:)/.test(key))).toBe(false);
   });
 
   it('maps curation query results without triggering a refresh', async () => {

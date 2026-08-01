@@ -36,9 +36,7 @@ export class CakeResponseDto {
 
   constructor(data: any, userid: string) {
     this._id = data?.id ?? data?._id;
-    this.image = data?.image
-      ? ImageDto.fromValueOrPersistence(data.image)
-      : data?.image;
+    this.image = data?.image ? new ImageDto(data.image) : data?.image;
     this.owner_store_id = data?.ownerStoreId ?? data?.owner_store_id;
     const likedUserIds = data?.likedUserIds ?? data?.user_like_ids ?? [];
     this.isLiked =

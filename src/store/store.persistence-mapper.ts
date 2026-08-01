@@ -1,14 +1,58 @@
-import { ImageMapper } from 'src/common/image/image.mapper';
+import {
+  ImageMapper,
+  ImagePersistenceRecord,
+} from 'src/common/image/image.mapper';
+import { ImageValue } from 'src/common/image/application/image.value';
 import { CreateStoreData, UpdateStoreData } from './application/store.command';
 import { StoreSummaryView, StoreView } from './application/store.view';
 
+interface StorePersistenceSource {
+  readonly _id?: unknown;
+  readonly id?: unknown;
+  readonly name?: string;
+  readonly logo?: ImagePersistenceRecord | null;
+  readonly store_feature?: string;
+  readonly store_description?: string;
+  readonly insta_url?: string;
+  readonly kakako_url?: string;
+  readonly kakao_map_url?: string;
+  readonly location?: { readonly coordinates?: number[] };
+  readonly address?: string;
+  readonly phone_number?: string;
+  readonly owner_user_id?: string;
+  readonly detail_images?: ImagePersistenceRecord[];
+  readonly operating_time?: string[];
+  readonly user_like_ids?: string[];
+  readonly taste?: string[];
+  readonly dist?: number;
+  readonly distance?: number;
+  readonly createdAt?: Date | string;
+  readonly updatedAt?: Date | string;
+}
+
+function identifier(value: unknown): string | undefined {
+  return value == null ? undefined : String(value);
+}
+
+function dateValue(value: Date | string | undefined): Date | undefined {
+  return typeof value === 'string' ? new Date(value) : value;
+}
+
+function imageValueOrNull(
+  image: ImagePersistenceRecord | null | undefined,
+): ImageValue | null | undefined {
+  if (image === null) return null;
+  if (image === undefined) return undefined;
+  return ImageMapper.toValue(image);
+}
+
 export class StorePersistenceMapper {
-  static toView(source: any): StoreView {
+  static toView(source: StorePersistenceSource): StoreView {
+    const logo = source?.logo;
     return {
-      id: source?._id?.toString() ?? source?.id?.toString(),
+      id: identifier(source?._id) ?? identifier(source?.id),
       name: source?.name,
-      logo:
-        source?.logo == null ? source?.logo : ImageMapper.toValue(source.logo),
+      logo: imageValueOrNull(logo),
       feature: source?.store_feature ?? '',
       description: source?.store_description ?? '',
       instagramUrl: source?.insta_url ?? '',
@@ -30,14 +74,14 @@ export class StorePersistenceMapper {
       likedUserIds: [...(source?.user_like_ids ?? [])],
       taste: [...(source?.taste ?? [])],
       distance: source?.dist ?? source?.distance,
-      createdAt: source?.createdAt,
-      updatedAt: source?.updatedAt,
+      createdAt: dateValue(source?.createdAt),
+      updatedAt: dateValue(source?.updatedAt),
     };
   }
 
-  static toSummaryView(source: any): StoreSummaryView {
+  static toSummaryView(source: StorePersistenceSource): StoreSummaryView {
     return {
-      id: source?._id?.toString() ?? source?.id?.toString(),
+      id: identifier(source?._id) ?? identifier(source?.id),
       name: source?.name,
       address: source?.address,
       taste: [...(source?.taste ?? [])],

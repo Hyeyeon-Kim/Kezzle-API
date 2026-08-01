@@ -26,9 +26,8 @@ describe('ImageMapper', () => {
   });
 
   it('maps the application value to the unchanged API JSON key', () => {
-    expect(new ImageDto(imageValue)).toEqual(persistenceImage);
-    expect(ImageDto.fromPersistence(persistenceImage)).toEqual(
-      persistenceImage,
-    );
+    const dto = new ImageDto(imageValue);
+    expect(dto).toEqual(persistenceImage);
+    expect(ImageDto.toValue(dto)).toEqual(imageValue);
   });
 });
