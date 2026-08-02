@@ -15,6 +15,12 @@ import { CakeRepository } from './cake.repository';
 import { CakeExternalMapper } from './cake-external.mapper';
 import { CakePageView } from './application/cake-result.view';
 import { CakeView } from './application/cake.view';
+import { MediaFile } from 'src/upload/application/media-file';
+
+interface CakeImportFiles {
+  readonly image: MediaFile[];
+  readonly excel: MediaFile[];
+}
 
 @Injectable()
 export class CakeService {
@@ -79,7 +85,11 @@ export class CakeService {
     return this.cakeRepository.findByIdOrThrow(cakeid);
   }
 
-  async changeContent(cakeid: string, user: AuthenticatedUser, file) {
+  async changeContent(
+    cakeid: string,
+    user: AuthenticatedUser,
+    file: MediaFile,
+  ) {
     const cake = await this.cakeRepository.findByIdOrThrow(cakeid);
     const store = await this.storeWriteContext.findByIdOrThrow(
       cake.ownerStoreId,
@@ -121,7 +131,11 @@ export class CakeService {
     });
   }
 
-  async createCake(storeid, user: AuthenticatedUser, files) {
+  async createCake(
+    storeid: string,
+    user: AuthenticatedUser,
+    files: CakeImportFiles,
+  ) {
     const workbook = await XLSX.read(files.excel[0].buffer, { type: 'buffer' });
     // 첫번째 sheet 의 이름을 조회합니다.
     const sheetName = await workbook.SheetNames[0];
@@ -153,7 +167,7 @@ export class CakeService {
       let content;
 
       for (let i = 0; i < rows.length; i++) {
-        if (img.originalname === rows[i].img) {
+        if (img.originalName === rows[i].img) {
           content = rows[i];
           break;
         }

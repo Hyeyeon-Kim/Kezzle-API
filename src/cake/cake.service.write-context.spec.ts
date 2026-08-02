@@ -21,6 +21,17 @@ const user = (firebaseUid: string, roles: Roles[]) => ({
   roles,
 });
 
+const mediaFile = (
+  originalName = 'cake.jpg',
+  buffer = Buffer.from('image'),
+) => ({
+  originalName,
+  contentType: originalName.endsWith('.xlsx')
+    ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    : 'image/jpeg',
+  buffer,
+});
+
 const buildService = ({
   uploadService = {},
   counterService = {},
@@ -46,14 +57,15 @@ function cakeImportFiles() {
   );
   return {
     excel: [
-      {
-        buffer: XLSX.write(workbook, {
+      mediaFile(
+        'cakes.xlsx',
+        XLSX.write(workbook, {
           type: 'buffer',
           bookType: 'xlsx',
         }),
-      },
+      ),
     ],
-    image: [{ originalname: 'cake.jpg' }],
+    image: [mediaFile()],
   };
 }
 
@@ -79,7 +91,7 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
     await service.changeContent(
       'cake-1',
       user('owner-1', [Roles.SELLER]) as any,
-      { buffer: Buffer.from('image') },
+      mediaFile(),
     );
 
     expect(storeWriteContext.findByIdOrThrow).toHaveBeenCalledWith('store-1');
@@ -107,7 +119,7 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
       service.changeContent(
         'cake-1',
         user('other-1', [Roles.SELLER]) as any,
-        {},
+        mediaFile(),
       ),
     ).rejects.toBeInstanceOf(UserNotOwnerException);
     expect(uploadService.remove).not.toHaveBeenCalled();
@@ -158,7 +170,7 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
       type: 'buffer',
       bookType: 'xlsx',
     });
-    const imageFile = { originalname: 'cake.jpg' };
+    const imageFile = mediaFile();
     const uploadService = {
       create: jest.fn().mockResolvedValue({ s3Url: 'cake.jpg' }),
     };
@@ -177,7 +189,7 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
     await service.createCake(
       'store-1',
       user('owner-1', [Roles.SELLER]) as any,
-      { excel: [{ buffer: excelBuffer }], image: [imageFile] },
+      { excel: [mediaFile('cakes.xlsx', excelBuffer)], image: [imageFile] },
     );
 
     expect(uploadService.create).toHaveBeenCalledWith(
@@ -212,7 +224,7 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
       service.changeContent(
         'cake-1',
         user('owner-1', [Roles.SELLER]) as any,
-        {},
+        mediaFile(),
       ),
     ).rejects.toBe(failure);
     expect(uploadService.create).not.toHaveBeenCalled();
@@ -241,7 +253,7 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
       service.changeContent(
         'cake-1',
         user('owner-1', [Roles.SELLER]) as any,
-        {},
+        mediaFile(),
       ),
     ).rejects.toBe(failure);
     expect(uploadService.remove).toHaveBeenCalledTimes(1);
@@ -269,7 +281,7 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
       service.changeContent(
         'cake-1',
         user('owner-1', [Roles.SELLER]) as any,
-        {},
+        mediaFile(),
       ),
     ).rejects.toBe(failure);
     expect(uploadService.remove).toHaveBeenCalledTimes(1);
@@ -374,7 +386,7 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
     ).rejects.toBe(failure);
     expect(uploadService.create).toHaveBeenCalledWith(
       baseline.mediaPaths.cakeCreate,
-      expect.objectContaining({ originalname: 'cake.jpg' }),
+      expect.objectContaining({ originalName: 'cake.jpg' }),
     );
     expect(uploadService.remove).not.toHaveBeenCalled();
   });
@@ -396,8 +408,8 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
       bookType: 'xlsx',
     });
     const imageFiles = [
-      { originalname: 'blank-fav.jpg' },
-      { originalname: 'numeric-fav.jpg' },
+      mediaFile('blank-fav.jpg'),
+      mediaFile('numeric-fav.jpg'),
     ];
     const cakeRepository = {
       create: jest.fn().mockResolvedValue(cake),
@@ -421,7 +433,7 @@ describe('CakeService StoreCakeWriteContextReader boundary', () => {
     await service.createCake(
       'store-1',
       user('owner-1', [Roles.SELLER]) as any,
-      { excel: [{ buffer: excelBuffer }], image: imageFiles },
+      { excel: [mediaFile('cakes.xlsx', excelBuffer)], image: imageFiles },
     );
 
     expect(cakeRepository.create).toHaveBeenNthCalledWith(

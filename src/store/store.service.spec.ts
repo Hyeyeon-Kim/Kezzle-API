@@ -18,6 +18,12 @@ const store = {
   ],
 };
 
+const mediaFile = {
+  originalName: 'store.png',
+  contentType: 'image/png',
+  buffer: Buffer.from('image'),
+};
+
 function createService(options?: {
   remove?: jest.Mock;
   create?: jest.Mock;
@@ -45,7 +51,7 @@ describe('StoreService Phase A media failure contract', () => {
   it('keeps logo replace path and delete -> upload -> persistence order', async () => {
     const { service, uploadService, storeRepository } = createService();
 
-    await service.changeLogo('store-1', owner as never, { buffer: 'logo' });
+    await service.changeLogo('store-1', owner as never, mediaFile);
 
     expect(uploadService.remove).toHaveBeenCalledWith(
       baseline.mediaPaths.storeLogo,
@@ -53,7 +59,7 @@ describe('StoreService Phase A media failure contract', () => {
     );
     expect(uploadService.create).toHaveBeenCalledWith(
       baseline.mediaPaths.storeLogo,
-      { buffer: 'logo' },
+      mediaFile,
     );
     expect(storeRepository.updateOneById).toHaveBeenCalledWith('store-1', {
       logo: { s3Url: 'https://cdn.example.com/new.png' },
@@ -73,7 +79,7 @@ describe('StoreService Phase A media failure contract', () => {
     });
 
     await expect(
-      service.changeLogo('store-1', owner as never, {}),
+      service.changeLogo('store-1', owner as never, mediaFile),
     ).rejects.toBe(failure);
     expect(uploadService.create).not.toHaveBeenCalled();
     expect(storeRepository.updateOneById).not.toHaveBeenCalled();
@@ -86,7 +92,7 @@ describe('StoreService Phase A media failure contract', () => {
     });
 
     await expect(
-      service.changeLogo('store-1', owner as never, {}),
+      service.changeLogo('store-1', owner as never, mediaFile),
     ).rejects.toBe(failure);
     expect(uploadService.remove).toHaveBeenCalledTimes(1);
     expect(storeRepository.updateOneById).not.toHaveBeenCalled();
@@ -99,7 +105,7 @@ describe('StoreService Phase A media failure contract', () => {
     });
 
     await expect(
-      service.changeLogo('store-1', owner as never, {}),
+      service.changeLogo('store-1', owner as never, mediaFile),
     ).rejects.toBe(failure);
     expect(uploadService.remove).toHaveBeenCalledTimes(1);
     expect(uploadService.create).toHaveBeenCalledTimes(1);
@@ -112,11 +118,11 @@ describe('StoreService Phase A media failure contract', () => {
     });
 
     await expect(
-      first.service.Imageupload('store-1', owner as never, {}),
+      first.service.Imageupload('store-1', owner as never, mediaFile),
     ).rejects.toBe(uploadFailure);
     expect(first.uploadService.create).toHaveBeenCalledWith(
       baseline.mediaPaths.storeDetail,
-      {},
+      mediaFile,
     );
     expect(first.storeRepository.updateOneById).not.toHaveBeenCalled();
 
@@ -125,7 +131,7 @@ describe('StoreService Phase A media failure contract', () => {
       update: jest.fn().mockRejectedValue(persistFailure),
     });
     await expect(
-      second.service.Imageupload('store-1', owner as never, {}),
+      second.service.Imageupload('store-1', owner as never, mediaFile),
     ).rejects.toBe(persistFailure);
     expect(second.uploadService.create).toHaveBeenCalledTimes(1);
     expect(second.uploadService.remove).not.toHaveBeenCalled();

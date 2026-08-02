@@ -6,6 +6,7 @@ import { UploadService } from 'src/upload/upload.service';
 import { CreateStoreData, UpdateStoreData } from './application/store.command';
 import { StoreView } from './application/store.view';
 import { StoreRepository } from './store.repository';
+import { MediaFile } from 'src/upload/application/media-file';
 
 @Injectable()
 export class StoreService {
@@ -38,7 +39,7 @@ export class StoreService {
     return this.storeRepository.deleteById(storeId);
   }
 
-  async changeLogo(storeId: string, user: AuthenticatedUser, file) {
+  async changeLogo(storeId: string, user: AuthenticatedUser, file: MediaFile) {
     const store = await this.storeRepository.findByIdOrThrow(storeId);
     this.assertOwnerOrAdmin(store.ownerUserId, user);
     const path = `${store.name}/logo`;
@@ -49,7 +50,7 @@ export class StoreService {
     return this.storeRepository.updateOneById(storeId, { logo });
   }
 
-  async Imageupload(storeId: string, user: AuthenticatedUser, file) {
+  async Imageupload(storeId: string, user: AuthenticatedUser, file: MediaFile) {
     const store = await this.storeRepository.findByIdOrThrow(storeId);
     this.assertOwnerOrAdmin(store.ownerUserId, user);
     const path = `${store.name}/detail`;

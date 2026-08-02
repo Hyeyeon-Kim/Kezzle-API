@@ -34,6 +34,9 @@ import { SearchEventRecorder } from 'src/search/application/port/search-event-re
 import { SearchHistoryReader } from 'src/search/application/port/search-history.reader';
 import { SearchEventModule } from 'src/search/infrastructure/persistence/search-event.module';
 import { SearchEventRepository } from 'src/search/infrastructure/persistence/search-event.repository';
+import { ObjectStoragePort } from 'src/upload/application/object-storage.port';
+import { S3ObjectStorageAdapter } from 'src/upload/infrastructure/s3-object-storage.adapter';
+import { UploadModule } from 'src/upload/upload.module';
 
 type SourceFile = {
   path: string;
@@ -728,5 +731,46 @@ describe('Feature boundary architecture', () => {
       imageFields,
     );
     expect(CakeImageEmbeddedSchema).not.toBe(StoreImageEmbeddedSchema);
+  });
+
+  it('keeps object storage application contracts pure and AWS access in the S3 adapter', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const awsImports = productionSources
+      .filter((source) => normalizedImports(source).includes('aws-sdk'))
+      .map((source) => source.path);
+    const applicationFrameworkImports = productionSources
+      .filter((source) => source.path.startsWith('upload/application/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(
+            (value) =>
+              value.startsWith('@nestjs/') ||
+              value === 'aws-sdk' ||
+              value === 'express' ||
+              value.includes('multer'),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const adapter = productionSources.find(
+      (source) =>
+        source.path === 'upload/infrastructure/s3-object-storage.adapter.ts',
+    );
+    const uploadProviders = moduleMetadata(
+      UploadModule,
+      MODULE_METADATA.PROVIDERS,
+    );
+
+    expect(awsImports).toEqual([
+      'upload/infrastructure/s3-object-storage.adapter.ts',
+    ]);
+    expect(applicationFrameworkImports).toEqual([]);
+    expect(adapter?.content).not.toContain('process.env');
+    expect(uploadProviders).toContain(S3ObjectStorageAdapter);
+    expect(uploadProviders).toContainEqual({
+      provide: ObjectStoragePort,
+      useExisting: S3ObjectStorageAdapter,
+    });
   });
 });

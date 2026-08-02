@@ -179,8 +179,19 @@ describe('Type boundary write HTTP contract', () => {
         roles: [Roles.SELLER],
       }),
       expect.objectContaining({
-        image: [expect.objectContaining({ originalname: 'cake.png' })],
-        excel: [expect.objectContaining({ originalname: 'cakes.xlsx' })],
+        image: [
+          expect.objectContaining({
+            originalName: 'cake.png',
+            contentType: 'image/png',
+          }),
+        ],
+        excel: [
+          expect.objectContaining({
+            originalName: 'cakes.xlsx',
+            contentType:
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          }),
+        ],
       }),
     );
   });

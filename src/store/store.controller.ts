@@ -30,6 +30,7 @@ import { DetailStoreResponseDto } from './dto/response-detail-store.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateStoreResponseDto } from './dto/response-create-store.dto';
 import { StorePresenter } from './store.presenter';
+import { MulterMediaFileMapper } from 'src/upload/api/multer-media-file.mapper';
 
 const storeIdParams = {
   name: 'id',
@@ -154,7 +155,11 @@ export class StoreController {
     @GetUser() userDto: AuthenticatedUser,
     @UploadedFile() file,
   ) {
-    return this.storeService.changeLogo(storeId, userDto, file);
+    return this.storeService.changeLogo(
+      storeId,
+      userDto,
+      MulterMediaFileMapper.toMediaFile(file),
+    );
   }
 
   @RolesAllowed(Roles.SELLER, Roles.ADMIN)
@@ -165,7 +170,11 @@ export class StoreController {
     @GetUser() userDto: AuthenticatedUser,
     @UploadedFile() file,
   ) {
-    return this.storeService.Imageupload(storeId, userDto, file);
+    return this.storeService.Imageupload(
+      storeId,
+      userDto,
+      MulterMediaFileMapper.toMediaFile(file),
+    );
   }
 
   @RolesAllowed(Roles.SELLER, Roles.ADMIN)

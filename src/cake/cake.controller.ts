@@ -33,6 +33,7 @@ import {
 } from '@nestjs/platform-express';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
 import { CakePresenter } from './cake.presenter';
+import { MulterMediaFileMapper } from 'src/upload/api/multer-media-file.mapper';
 
 const cakeIdParams = {
   name: 'id',
@@ -130,7 +131,11 @@ export class CakeController {
     @UploadedFile() file,
     @GetUser() userDto: AuthenticatedUser,
   ) {
-    return this.cakeService.changeContent(cakeId, userDto, file);
+    return this.cakeService.changeContent(
+      cakeId,
+      userDto,
+      MulterMediaFileMapper.toMediaFile(file),
+    );
   }
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER)
@@ -176,6 +181,9 @@ export class CakeController {
     @GetUser() userDto: AuthenticatedUser,
     @UploadedFiles() files,
   ) {
-    return this.cakeService.createCake(storeId, userDto, files);
+    return this.cakeService.createCake(storeId, userDto, {
+      image: MulterMediaFileMapper.toMediaFiles(files?.image),
+      excel: MulterMediaFileMapper.toMediaFiles(files?.excel),
+    });
   }
 }
