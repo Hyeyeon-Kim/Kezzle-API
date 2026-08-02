@@ -8,6 +8,7 @@ import { MediaFile } from 'src/media/application/media-file';
 import { ObjectStorageError } from 'src/media/application/object-storage.error';
 import { ObjectStoragePort } from 'src/media/application/object-storage.port';
 import { S3UploadException } from 'src/media/exception/s3-upload.exception';
+import { MetricsService } from 'src/metrics/metrics.service';
 import { StoreRepository } from './store.repository';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class StoreMediaService {
   constructor(
     private readonly objectStorage: ObjectStoragePort,
     private readonly storeRepository: StoreRepository,
+    private readonly metricsService: MetricsService,
   ) {}
 
   async replaceLogo(storeId: string, user: AuthenticatedUser, file: MediaFile) {
@@ -153,6 +155,10 @@ export class StoreMediaService {
     error: unknown,
     cause?: unknown,
   ): void {
+    this.metricsService.mediaObjectOrphans.inc({
+      feature: 'store',
+      operation,
+    });
     this.logger.error({
       event: 'store_media_object_orphaned',
       storeId,

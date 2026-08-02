@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MetricsModule } from 'src/metrics/metrics.module';
 import { ObjectStoragePort } from './application/object-storage.port';
 import {
   S3ObjectStorageAdapter,
@@ -10,6 +11,7 @@ import {
 } from './infrastructure/s3-storage.config';
 
 @Module({
+  imports: [MetricsModule],
   providers: [
     { provide: S3_STORAGE_CONFIG, useFactory: loadS3StorageConfig },
     s3ClientProvider,

@@ -50,13 +50,18 @@ describe('StoreMediaService', () => {
       }),
       updateOneById: jest.fn().mockResolvedValue({ acknowledged: true }),
     };
+    const metricsService = {
+      mediaObjectOrphans: { inc: jest.fn() },
+    };
     return {
       service: new StoreMediaService(
         objectStorage as never,
         storeRepository as never,
+        metricsService as never,
       ),
       objectStorage,
       storeRepository,
+      metricsService,
     };
   }
 
@@ -103,7 +108,8 @@ describe('StoreMediaService', () => {
   });
 
   it('keeps the original Mongo error and records the new object when compensation fails', async () => {
-    const { service, objectStorage, storeRepository } = createService();
+    const { service, objectStorage, storeRepository, metricsService } =
+      createService();
     const failure = new Error('Mongo update failed');
     storeRepository.updateOneById.mockRejectedValue(failure);
     objectStorage.delete.mockRejectedValue(
@@ -121,10 +127,14 @@ describe('StoreMediaService', () => {
         operation: 'replace_logo_compensation',
       }),
     );
+    expect(metricsService.mediaObjectOrphans.inc).toHaveBeenCalledWith({
+      feature: 'store',
+      operation: 'replace_logo_compensation',
+    });
   });
 
   it('returns Mongo success and records an orphan when previous logo delete fails', async () => {
-    const { service, objectStorage } = createService();
+    const { service, objectStorage, metricsService } = createService();
     const log = jest.spyOn(Logger.prototype, 'error').mockImplementation();
     objectStorage.delete.mockRejectedValue(
       new ObjectStorageError('delete', oldLogo.key, new Error('S3 failed')),
@@ -140,6 +150,10 @@ describe('StoreMediaService', () => {
         operation: 'replace_previous_logo',
       }),
     );
+    expect(metricsService.mediaObjectOrphans.inc).toHaveBeenCalledWith({
+      feature: 'store',
+      operation: 'replace_previous_logo',
+    });
   });
 
   it('compensates a newly uploaded detail image when Mongo update fails', async () => {
@@ -156,7 +170,9 @@ describe('StoreMediaService', () => {
   });
 
   it('removes the Mongo reference before deleting the stored full key', async () => {
-    const { service, objectStorage, storeRepository } = createService();
+    const { service, objectStorage, storeRepository, metricsService } =
+      createService();
+    jest.spyOn(Logger.prototype, 'error').mockImplementation();
     objectStorage.delete.mockRejectedValue(
       new ObjectStorageError(
         'delete',
@@ -175,6 +191,10 @@ describe('StoreMediaService', () => {
     expect(
       storeRepository.updateOneById.mock.invocationCallOrder[0],
     ).toBeLessThan(objectStorage.delete.mock.invocationCallOrder[0]);
+    expect(metricsService.mediaObjectOrphans.inc).toHaveBeenCalledWith({
+      feature: 'store',
+      operation: 'remove_detail_image',
+    });
   });
 
   it('does not delete a detail object when Mongo reference removal fails', async () => {

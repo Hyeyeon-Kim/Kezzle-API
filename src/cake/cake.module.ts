@@ -13,6 +13,7 @@ import { CakeLikeRepositoryAdapter } from './cake-like.adapter';
 import { CakeLikePort } from './cake-like.port';
 import { CakeMediaService } from './cake-media.service';
 import { CakeImportService } from './cake-import.service';
+import { MetricsModule } from 'src/metrics/metrics.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CakeImportService } from './cake-import.service';
     AiSearchModule,
     CakeRepositoryModule,
     StoreModule,
+    MetricsModule,
   ],
   controllers: [CakeController],
   providers: [

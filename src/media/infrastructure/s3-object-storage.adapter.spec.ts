@@ -16,8 +16,15 @@ describe('S3ObjectStorageAdapter', () => {
       upload: jest.fn(),
       deleteObject: jest.fn(),
     };
-    const adapter = new S3ObjectStorageAdapter(client as never, config);
-    return { adapter, client };
+    const metricsService = {
+      objectStorageOperationFailures: { inc: jest.fn() },
+    };
+    const adapter = new S3ObjectStorageAdapter(
+      client as never,
+      config,
+      metricsService as never,
+    );
+    return { adapter, client, metricsService };
   }
 
   afterEach(() => jest.restoreAllMocks());
@@ -68,7 +75,7 @@ describe('S3ObjectStorageAdapter', () => {
   ] as const)(
     'maps %s SDK failures and records structured context',
     async (operation, key) => {
-      const { adapter, client } = createAdapter();
+      const { adapter, client, metricsService } = createAdapter();
       const cause = new Error(`${operation} failed`);
       const log = jest.spyOn(Logger.prototype, 'error').mockImplementation();
 
@@ -107,6 +114,9 @@ describe('S3ObjectStorageAdapter', () => {
           error: expect.objectContaining({ message: cause.message }),
         }),
       );
+      expect(
+        metricsService.objectStorageOperationFailures.inc,
+      ).toHaveBeenCalledWith({ operation });
     },
   );
 });

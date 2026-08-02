@@ -16,6 +16,8 @@ export class MetricsService {
   readonly aiApiErrors: Counter<'reason' | 'model' | 'endpoint'>;
   readonly searchEventRecordFailures: Counter;
   readonly cakeLikeEventRecordFailures: Counter;
+  readonly objectStorageOperationFailures: Counter<'operation'>;
+  readonly mediaObjectOrphans: Counter<'feature' | 'operation'>;
 
   constructor() {
     this.registry = new Registry();
@@ -61,6 +63,20 @@ export class MetricsService {
     this.cakeLikeEventRecordFailures = new Counter({
       name: 'cake_like_event_record_failures_total',
       help: 'Total cake-like event persistence failures',
+      registers: [this.registry],
+    });
+
+    this.objectStorageOperationFailures = new Counter({
+      name: 'object_storage_operation_failures_total',
+      help: 'Total object storage operation failures',
+      labelNames: ['operation'],
+      registers: [this.registry],
+    });
+
+    this.mediaObjectOrphans = new Counter({
+      name: 'media_object_orphans_total',
+      help: 'Total media objects orphaned after cleanup failures',
+      labelNames: ['feature', 'operation'],
       registers: [this.registry],
     });
   }

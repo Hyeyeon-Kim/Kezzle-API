@@ -41,6 +41,7 @@ import { ObjectStorageModule } from 'src/media/object-storage.module';
 import { CakeMediaService } from 'src/cake/cake-media.service';
 import { CakeImportService } from 'src/cake/cake-import.service';
 import { StoreMediaService } from 'src/store/store-media.service';
+import { MetricsModule } from 'src/metrics/metrics.module';
 
 type SourceFile = {
   path: string;
@@ -793,6 +794,10 @@ describe('Feature boundary architecture', () => {
       ObjectStorageModule,
       MODULE_METADATA.PROVIDERS,
     );
+    const storageImports = moduleMetadata(
+      ObjectStorageModule,
+      MODULE_METADATA.IMPORTS,
+    );
     const storageExports = moduleMetadata(
       ObjectStorageModule,
       MODULE_METADATA.EXPORTS,
@@ -804,6 +809,7 @@ describe('Feature boundary architecture', () => {
     expect(applicationFrameworkImports).toEqual([]);
     expect(featureStorageViolations).toEqual([]);
     expect(adapter?.content).not.toContain('process.env');
+    expect(storageImports).toContain(MetricsModule);
     expect(storageProviders).toContain(S3ObjectStorageAdapter);
     expect(storageProviders).toContainEqual({
       provide: ObjectStoragePort,
@@ -841,10 +847,12 @@ describe('Feature boundary architecture', () => {
     const storeService = sourceByPath.get('store/store.service.ts');
     const cakeImport = sourceByPath.get('cake/cake-import.service.ts');
     const cakeProviders = moduleMetadata(CakeModule, MODULE_METADATA.PROVIDERS);
+    const cakeImports = moduleMetadata(CakeModule, MODULE_METADATA.IMPORTS);
     const storeProviders = moduleMetadata(
       StoreModule,
       MODULE_METADATA.PROVIDERS,
     );
+    const storeImports = moduleMetadata(StoreModule, MODULE_METADATA.IMPORTS);
 
     expect(objectStorageConsumers).toEqual([
       'cake/cake-media.service.ts',
@@ -867,7 +875,9 @@ describe('Feature boundary architecture', () => {
     expect(cakeProviders).toEqual(
       expect.arrayContaining([CakeMediaService, CakeImportService]),
     );
+    expect(cakeImports).toContain(MetricsModule);
     expect(storeProviders).toContain(StoreMediaService);
+    expect(storeImports).toContain(MetricsModule);
   });
 
   it('keeps removed legacy log and upload modules out of the source tree', () => {
