@@ -8,7 +8,6 @@ import {
   S3_STORAGE_CONFIG,
   loadS3StorageConfig,
 } from './infrastructure/s3-storage.config';
-import { UploadService } from './upload.service';
 
 @Module({
   providers: [
@@ -16,8 +15,7 @@ import { UploadService } from './upload.service';
     s3ClientProvider,
     S3ObjectStorageAdapter,
     { provide: ObjectStoragePort, useExisting: S3ObjectStorageAdapter },
-    UploadService,
   ],
-  exports: [UploadService, ObjectStoragePort],
+  exports: [ObjectStoragePort],
 })
-export class UploadModule {}
+export class ObjectStorageModule {}

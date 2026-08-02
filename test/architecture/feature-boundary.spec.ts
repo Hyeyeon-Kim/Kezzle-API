@@ -34,9 +34,12 @@ import { SearchEventRecorder } from 'src/search/application/port/search-event-re
 import { SearchHistoryReader } from 'src/search/application/port/search-history.reader';
 import { SearchEventModule } from 'src/search/infrastructure/persistence/search-event.module';
 import { SearchEventRepository } from 'src/search/infrastructure/persistence/search-event.repository';
-import { ObjectStoragePort } from 'src/upload/application/object-storage.port';
-import { S3ObjectStorageAdapter } from 'src/upload/infrastructure/s3-object-storage.adapter';
-import { UploadModule } from 'src/upload/upload.module';
+import { ObjectStoragePort } from 'src/media/application/object-storage.port';
+import {
+  S3_CLIENT,
+  S3ObjectStorageAdapter,
+} from 'src/media/infrastructure/s3-object-storage.adapter';
+import { ObjectStorageModule } from 'src/media/object-storage.module';
 import { CakeMediaService } from 'src/cake/cake-media.service';
 import { CakeImportService } from 'src/cake/cake-import.service';
 import { StoreMediaService } from 'src/store/store-media.service';
@@ -47,6 +50,10 @@ type SourceFile = {
 };
 
 const srcRoot = join(__dirname, '..', '..', 'src');
+const legacyLogProviderPattern = new RegExp(
+  [['L', 'ogModule'].join(''), ['L', 'ogService'].join('')].join('|'),
+);
+const legacyStorageFacadeIdentifier = ['Up', 'loadService'].join('');
 
 function readSourceFiles(directory = srcRoot): SourceFile[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -576,7 +583,7 @@ describe('Feature boundary architecture', () => {
       ...recorderViolations,
       ...directCollectionReads,
     ]).toEqual([]);
-    expect(likeService?.content ?? '').not.toMatch(/LogModule|LogService/);
+    expect(likeService?.content ?? '').not.toMatch(legacyLogProviderPattern);
     expect(likeImports).not.toContain(RankingModule);
     expect(rankingImports).toEqual(
       expect.arrayContaining([LikeEventModule, CakeRankingModule]),
@@ -744,7 +751,7 @@ describe('Feature boundary architecture', () => {
       .filter((source) => normalizedImports(source).includes('aws-sdk'))
       .map((source) => source.path);
     const applicationFrameworkImports = productionSources
-      .filter((source) => source.path.startsWith('upload/application/'))
+      .filter((source) => source.path.startsWith('media/application/'))
       .flatMap((source) =>
         normalizedImports(source)
           .filter(
@@ -756,25 +763,48 @@ describe('Feature boundary architecture', () => {
           )
           .map((value) => `${source.path}: ${value}`),
       );
+    const featureStorageViolations = productionSources
+      .filter((source) => /^(cake|store)\//.test(source.path))
+      .filter(
+        (source) =>
+          normalizedImports(source).includes('aws-sdk') ||
+          /\bnew\s+S3\b|A_BUCKET_NAME|process\.env/.test(source.content),
+      )
+      .map((source) => source.path);
     const adapter = productionSources.find(
       (source) =>
-        source.path === 'upload/infrastructure/s3-object-storage.adapter.ts',
+        source.path === 'media/infrastructure/s3-object-storage.adapter.ts',
     );
-    const uploadProviders = moduleMetadata(
-      UploadModule,
+    const storageProviders = moduleMetadata(
+      ObjectStorageModule,
       MODULE_METADATA.PROVIDERS,
+    );
+    const storageExports = moduleMetadata(
+      ObjectStorageModule,
+      MODULE_METADATA.EXPORTS,
     );
 
     expect(awsImports).toEqual([
-      'upload/infrastructure/s3-object-storage.adapter.ts',
+      'media/infrastructure/s3-object-storage.adapter.ts',
     ]);
     expect(applicationFrameworkImports).toEqual([]);
+    expect(featureStorageViolations).toEqual([]);
     expect(adapter?.content).not.toContain('process.env');
-    expect(uploadProviders).toContain(S3ObjectStorageAdapter);
-    expect(uploadProviders).toContainEqual({
+    expect(storageProviders).toContain(S3ObjectStorageAdapter);
+    expect(storageProviders).toContainEqual({
       provide: ObjectStoragePort,
       useExisting: S3ObjectStorageAdapter,
     });
+    expect(storageExports).toEqual([ObjectStoragePort]);
+    expect(
+      storageProviders.filter(
+        (provider) =>
+          typeof provider === 'object' &&
+          provider !== null &&
+          'provide' in provider &&
+          provider.provide === S3_CLIENT,
+      ),
+    ).toHaveLength(1);
   });
 
   it('keeps Cake and Store media orchestration in feature media services', () => {
@@ -788,7 +818,7 @@ describe('Feature boundary architecture', () => {
       .filter((source) => /^(cake|store)\//.test(source.path))
       .filter((source) =>
         normalizedImports(source).includes(
-          'upload/application/object-storage.port',
+          'media/application/object-storage.port',
         ),
       )
       .map((source) => source.path)
@@ -807,18 +837,62 @@ describe('Feature boundary architecture', () => {
       'store/store-media.service.ts',
     ]);
     expect(cakeService?.content).not.toMatch(
-      /UploadService|ObjectStoragePort|xlsx/,
+      new RegExp(
+        [legacyStorageFacadeIdentifier, 'ObjectStoragePort', 'xlsx'].join('|'),
+      ),
     );
     expect(storeService?.content).not.toMatch(
-      /UploadService|ObjectStoragePort/,
+      new RegExp(
+        [legacyStorageFacadeIdentifier, 'ObjectStoragePort'].join('|'),
+      ),
     );
     expect(normalizedImports(cakeImport)).toContain('cake/cake-media.service');
     expect(normalizedImports(cakeImport)).not.toContain(
-      'upload/application/object-storage.port',
+      'media/application/object-storage.port',
     );
     expect(cakeProviders).toEqual(
       expect.arrayContaining([CakeMediaService, CakeImportService]),
     );
     expect(storeProviders).toContain(StoreMediaService);
+  });
+
+  it('keeps removed legacy log and upload modules out of the source tree', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const removedDirectories = [['l', 'og'].join(''), ['up', 'load'].join('')];
+    const removedIdentifiers = [
+      ...legacyLogProviderPattern.source.split('|'),
+      ['Up', 'loadModule'].join(''),
+      legacyStorageFacadeIdentifier,
+    ];
+    const removedIdentifierPattern = new RegExp(removedIdentifiers.join('|'));
+    const identifierViolations = productionSources
+      .filter((source) => removedIdentifierPattern.test(source.content))
+      .map((source) => source.path);
+    const legacyPathViolations = productionSources.flatMap((source) =>
+      normalizedImports(source)
+        .filter((value) =>
+          removedDirectories.some(
+            (directory) =>
+              value === directory || value.startsWith(`${directory}/`),
+          ),
+        )
+        .map((value) => `${source.path}: ${value}`),
+    );
+    const appImports = moduleMetadata(AppModule, MODULE_METADATA.IMPORTS);
+    const cakeImports = moduleMetadata(CakeModule, MODULE_METADATA.IMPORTS);
+    const storeImports = moduleMetadata(StoreModule, MODULE_METADATA.IMPORTS);
+
+    expect(
+      removedDirectories.map((directory) =>
+        existsSync(join(srcRoot, directory)),
+      ),
+    ).toEqual([false, false]);
+    expect(identifierViolations).toEqual([]);
+    expect(legacyPathViolations).toEqual([]);
+    expect(appImports).not.toContain(ObjectStorageModule);
+    expect(cakeImports).toContain(ObjectStorageModule);
+    expect(storeImports).toContain(ObjectStorageModule);
   });
 });

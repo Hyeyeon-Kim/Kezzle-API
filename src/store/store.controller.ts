@@ -30,7 +30,7 @@ import { DetailStoreResponseDto } from './dto/response-detail-store.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateStoreResponseDto } from './dto/response-create-store.dto';
 import { StorePresenter } from './store.presenter';
-import { MulterMediaFileMapper } from 'src/upload/api/multer-media-file.mapper';
+import { MulterMediaFileMapper } from 'src/media/api/multer-media-file.mapper';
 import { StoreMediaService } from './store-media.service';
 
 const storeIdParams = {

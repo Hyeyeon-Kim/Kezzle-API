@@ -33,7 +33,7 @@ import {
 } from '@nestjs/platform-express';
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
 import { CakePresenter } from './cake.presenter';
-import { MulterMediaFileMapper } from 'src/upload/api/multer-media-file.mapper';
+import { MulterMediaFileMapper } from 'src/media/api/multer-media-file.mapper';
 import { CakeMediaService } from './cake-media.service';
 import { CakeImportService } from './cake-import.service';
 

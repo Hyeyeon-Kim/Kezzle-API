@@ -5,7 +5,7 @@ import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.
 import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
-import { MediaFile } from 'src/upload/application/media-file';
+import { MediaFile } from 'src/media/application/media-file';
 import * as XLSX from 'xlsx';
 import { CakeImportRow } from './application/cake-import-row';
 import { CakeMediaService } from './cake-media.service';

@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
-import { ObjectStorageError } from 'src/upload/application/object-storage.error';
-import { S3UploadException } from 'src/upload/exception/s3-upload.exception';
+import { ObjectStorageError } from 'src/media/application/object-storage.error';
+import { S3UploadException } from 'src/media/exception/s3-upload.exception';
 import { StoreMediaService } from './store-media.service';
 
 const owner = { firebaseUid: 'owner-1', roles: [Roles.SELLER] };

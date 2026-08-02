@@ -8,7 +8,6 @@ import { CakeModule } from './cake/cake.module';
 import { AuthModule } from './auth/auth.module';
 import { LikeModule } from './like/like.module';
 import { StoreModule } from './store/store.module';
-import { UploadModule } from './upload/upload.module';
 import { SearchModule } from './search/search.module';
 import { CurationModule } from './curation/curation.module';
 import { HomeModule } from './home/home.module';
@@ -42,7 +41,6 @@ import { CatalogQueryModule } from './catalog/catalog-query.module';
     AuthModule,
     LikeModule,
     StoreModule,
-    UploadModule,
     SearchModule,
     CurationModule,
     HomeModule,

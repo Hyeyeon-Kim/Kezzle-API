@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { StoreController } from './store.controller';
 import { StoreService } from './store.service';
-import { UploadModule } from 'src/upload/upload.module';
+import { ObjectStorageModule } from 'src/media/object-storage.module';
 import { StoreRepositoryModule } from './store-repository.module';
 import { StoreCatalogRepositoryAdapter } from './store-catalog.adapter';
 import { StoreCatalogReader } from './store-catalog.reader';
@@ -12,7 +12,7 @@ import { StoreLikePort } from './store-like.port';
 import { StoreMediaService } from './store-media.service';
 
 @Module({
-  imports: [UploadModule, StoreRepositoryModule],
+  imports: [ObjectStorageModule, StoreRepositoryModule],
   controllers: [StoreController],
   providers: [
     StoreService,

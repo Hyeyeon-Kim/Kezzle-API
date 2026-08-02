@@ -4,10 +4,10 @@ import { ImageValue } from 'src/common/image/application/image.value';
 import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
-import { MediaFile } from 'src/upload/application/media-file';
-import { ObjectStorageError } from 'src/upload/application/object-storage.error';
-import { ObjectStoragePort } from 'src/upload/application/object-storage.port';
-import { S3UploadException } from 'src/upload/exception/s3-upload.exception';
+import { MediaFile } from 'src/media/application/media-file';
+import { ObjectStorageError } from 'src/media/application/object-storage.error';
+import { ObjectStoragePort } from 'src/media/application/object-storage.port';
+import { S3UploadException } from 'src/media/exception/s3-upload.exception';
 import { StoreRepository } from './store.repository';
 
 @Injectable()

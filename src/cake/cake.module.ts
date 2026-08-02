@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { CakeService } from './cake.service';
 import { CakeRepositoryModule } from './cake-repository.module';
 import { CakeController } from './cake.controller';
-import { UploadModule } from '../upload/upload.module';
+import { ObjectStorageModule } from '../media/object-storage.module';
 import { AnniversaryModule } from 'src/anniversary/anniversary.module';
 import { CounterModule } from 'src/counter/counter.module';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
@@ -16,7 +16,7 @@ import { CakeImportService } from './cake-import.service';
 
 @Module({
   imports: [
-    UploadModule,
+    ObjectStorageModule,
     AnniversaryModule,
     CounterModule,
     AiSearchModule,

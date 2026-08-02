@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
-import { ObjectStorageError } from 'src/upload/application/object-storage.error';
+import { ObjectStorageError } from 'src/media/application/object-storage.error';
 import { CakeMediaService } from './cake-media.service';
 
 const owner = { firebaseUid: 'owner-1', roles: [Roles.SELLER] };

@@ -5,10 +5,10 @@ import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.
 import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
-import { MediaFile } from 'src/upload/application/media-file';
-import { ObjectStorageError } from 'src/upload/application/object-storage.error';
-import { ObjectStoragePort } from 'src/upload/application/object-storage.port';
-import { S3UploadException } from 'src/upload/exception/s3-upload.exception';
+import { MediaFile } from 'src/media/application/media-file';
+import { ObjectStorageError } from 'src/media/application/object-storage.error';
+import { ObjectStoragePort } from 'src/media/application/object-storage.port';
+import { S3UploadException } from 'src/media/exception/s3-upload.exception';
 import { CakeRepository } from './cake.repository';
 
 @Injectable()
