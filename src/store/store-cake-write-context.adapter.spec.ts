@@ -17,7 +17,6 @@ describe('StoreCakeWriteContextRepositoryAdapter', () => {
     await expect(adapter.findByIdOrThrow('store-1')).resolves.toEqual({
       storeId: 'store-1',
       ownerUserId: 'owner-1',
-      storeName: 'Store Name',
     });
     expect(storeRepository.findByIdOrThrow).toHaveBeenCalledWith('store-1');
   });

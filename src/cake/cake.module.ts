@@ -11,6 +11,8 @@ import { CakeCatalogRepositoryAdapter } from './cake-catalog.adapter';
 import { CakeCatalogReader } from './cake-catalog.reader';
 import { CakeLikeRepositoryAdapter } from './cake-like.adapter';
 import { CakeLikePort } from './cake-like.port';
+import { CakeMediaService } from './cake-media.service';
+import { CakeImportService } from './cake-import.service';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { CakeLikePort } from './cake-like.port';
   controllers: [CakeController],
   providers: [
     CakeService,
+    CakeMediaService,
+    CakeImportService,
     CakeCatalogRepositoryAdapter,
     { provide: CakeCatalogReader, useExisting: CakeCatalogRepositoryAdapter },
     CakeLikeRepositoryAdapter,

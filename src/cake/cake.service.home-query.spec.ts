@@ -12,10 +12,7 @@ describe('CakeService home query surface', () => {
     };
     const service = new CakeService(
       {} as never,
-      {} as never,
-      {} as never,
       vitClient as never,
-      {} as never,
       {} as never,
       cakeRepository as never,
     );

@@ -37,6 +37,9 @@ import { SearchEventRepository } from 'src/search/infrastructure/persistence/sea
 import { ObjectStoragePort } from 'src/upload/application/object-storage.port';
 import { S3ObjectStorageAdapter } from 'src/upload/infrastructure/s3-object-storage.adapter';
 import { UploadModule } from 'src/upload/upload.module';
+import { CakeMediaService } from 'src/cake/cake-media.service';
+import { CakeImportService } from 'src/cake/cake-import.service';
+import { StoreMediaService } from 'src/store/store-media.service';
 
 type SourceFile = {
   path: string;
@@ -772,5 +775,50 @@ describe('Feature boundary architecture', () => {
       provide: ObjectStoragePort,
       useExisting: S3ObjectStorageAdapter,
     });
+  });
+
+  it('keeps Cake and Store media orchestration in feature media services', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const sourceByPath = new Map(
+      productionSources.map((source) => [source.path, source]),
+    );
+    const objectStorageConsumers = productionSources
+      .filter((source) => /^(cake|store)\//.test(source.path))
+      .filter((source) =>
+        normalizedImports(source).includes(
+          'upload/application/object-storage.port',
+        ),
+      )
+      .map((source) => source.path)
+      .sort();
+    const cakeService = sourceByPath.get('cake/cake.service.ts');
+    const storeService = sourceByPath.get('store/store.service.ts');
+    const cakeImport = sourceByPath.get('cake/cake-import.service.ts');
+    const cakeProviders = moduleMetadata(CakeModule, MODULE_METADATA.PROVIDERS);
+    const storeProviders = moduleMetadata(
+      StoreModule,
+      MODULE_METADATA.PROVIDERS,
+    );
+
+    expect(objectStorageConsumers).toEqual([
+      'cake/cake-media.service.ts',
+      'store/store-media.service.ts',
+    ]);
+    expect(cakeService?.content).not.toMatch(
+      /UploadService|ObjectStoragePort|xlsx/,
+    );
+    expect(storeService?.content).not.toMatch(
+      /UploadService|ObjectStoragePort/,
+    );
+    expect(normalizedImports(cakeImport)).toContain('cake/cake-media.service');
+    expect(normalizedImports(cakeImport)).not.toContain(
+      'upload/application/object-storage.port',
+    );
+    expect(cakeProviders).toEqual(
+      expect.arrayContaining([CakeMediaService, CakeImportService]),
+    );
+    expect(storeProviders).toContain(StoreMediaService);
   });
 });

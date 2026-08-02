@@ -31,6 +31,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateStoreResponseDto } from './dto/response-create-store.dto';
 import { StorePresenter } from './store.presenter';
 import { MulterMediaFileMapper } from 'src/upload/api/multer-media-file.mapper';
+import { StoreMediaService } from './store-media.service';
 
 const storeIdParams = {
   name: 'id',
@@ -42,7 +43,10 @@ const storeIdParams = {
 @ApiTags('stores')
 @Controller('stores')
 export class StoreController {
-  constructor(private readonly storeService: StoreService) {}
+  constructor(
+    private readonly storeService: StoreService,
+    private readonly storeMediaService: StoreMediaService,
+  ) {}
 
   @RolesAllowed(Roles.ADMIN)
   @Post()
@@ -155,7 +159,7 @@ export class StoreController {
     @GetUser() userDto: AuthenticatedUser,
     @UploadedFile() file,
   ) {
-    return this.storeService.changeLogo(
+    return this.storeMediaService.replaceLogo(
       storeId,
       userDto,
       MulterMediaFileMapper.toMediaFile(file),
@@ -170,7 +174,7 @@ export class StoreController {
     @GetUser() userDto: AuthenticatedUser,
     @UploadedFile() file,
   ) {
-    return this.storeService.Imageupload(
+    return this.storeMediaService.addDetailImage(
       storeId,
       userDto,
       MulterMediaFileMapper.toMediaFile(file),
@@ -184,6 +188,10 @@ export class StoreController {
     @GetUser() userDto: AuthenticatedUser,
     @Query('index') fileIdx,
   ) {
-    return this.storeService.Imageremove(storeId, userDto, parseInt(fileIdx));
+    return this.storeMediaService.removeDetailImage(
+      storeId,
+      userDto,
+      parseInt(fileIdx),
+    );
   }
 }

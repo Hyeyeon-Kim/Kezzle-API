@@ -10,6 +10,8 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { CakeController } from 'src/cake/cake.controller';
 import { CakeService } from 'src/cake/cake.service';
+import { CakeMediaService } from 'src/cake/cake-media.service';
+import { CakeImportService } from 'src/cake/cake-import.service';
 import { CatalogCakeController } from 'src/catalog/catalog-cake.controller';
 import { CatalogPresenter } from 'src/catalog/api/catalog.presenter';
 import { CatalogQueryService } from 'src/catalog/catalog-query.service';
@@ -21,6 +23,7 @@ import { LikePresenter } from 'src/like/api/like.presenter';
 import { LikeService } from 'src/like/like.service';
 import { StoreController } from 'src/store/store.controller';
 import { StoreService } from 'src/store/store.service';
+import { StoreMediaService } from 'src/store/store-media.service';
 import { Roles } from 'src/user/entities/roles.enum';
 import fixtures from './fixtures/catalog-like-read.contract.json';
 
@@ -95,7 +98,10 @@ describe('Catalog/Like read HTTP contract', () => {
           useValue: similarCakeQuery,
         },
         { provide: CakeService, useValue: cakeService },
+        { provide: CakeMediaService, useValue: {} },
+        { provide: CakeImportService, useValue: {} },
         { provide: StoreService, useValue: storeService },
+        { provide: StoreMediaService, useValue: {} },
         { provide: LikeService, useValue: likeService },
         CatalogPresenter,
         LikePresenter,

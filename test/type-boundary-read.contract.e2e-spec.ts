@@ -12,6 +12,8 @@ import { IS_PUBLIC_KEY } from 'src/auth/decorators/public.decorator';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { CakeController } from 'src/cake/cake.controller';
 import { CakeService } from 'src/cake/cake.service';
+import { CakeMediaService } from 'src/cake/cake-media.service';
+import { CakeImportService } from 'src/cake/cake-import.service';
 import { CurationController } from 'src/curation/curation.controller';
 import { CurationService } from 'src/curation/curation.service';
 import { HomeFeedService } from 'src/home/home-feed.service';
@@ -23,6 +25,7 @@ import { SearchController } from 'src/search/search.controller';
 import { SearchService } from 'src/search/search.service';
 import { StoreController } from 'src/store/store.controller';
 import { StoreService } from 'src/store/store.service';
+import { StoreMediaService } from 'src/store/store-media.service';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UserController } from 'src/user/user.controller';
 import { UserService } from 'src/user/user.service';
@@ -136,7 +139,10 @@ describe('Type-A read HTTP contract baseline', () => {
       ],
       providers: [
         { provide: CakeService, useValue: cakeService },
+        { provide: CakeMediaService, useValue: {} },
+        { provide: CakeImportService, useValue: {} },
         { provide: StoreService, useValue: storeService },
+        { provide: StoreMediaService, useValue: {} },
         { provide: UserService, useValue: userService },
         { provide: SearchService, useValue: searchService },
         { provide: RankingQueryService, useValue: rankingQuery },

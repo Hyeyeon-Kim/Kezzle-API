@@ -9,12 +9,14 @@ import { StoreCakeWriteContextRepositoryAdapter } from './store-cake-write-conte
 import { StoreCakeWriteContextReader } from './store-cake-write-context.reader';
 import { StoreLikeRepositoryAdapter } from './store-like.adapter';
 import { StoreLikePort } from './store-like.port';
+import { StoreMediaService } from './store-media.service';
 
 @Module({
   imports: [UploadModule, StoreRepositoryModule],
   controllers: [StoreController],
   providers: [
     StoreService,
+    StoreMediaService,
     StoreCatalogRepositoryAdapter,
     { provide: StoreCatalogReader, useExisting: StoreCatalogRepositoryAdapter },
     StoreCakeWriteContextRepositoryAdapter,

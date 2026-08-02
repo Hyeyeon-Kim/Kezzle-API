@@ -34,6 +34,8 @@ import {
 import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
 import { CakePresenter } from './cake.presenter';
 import { MulterMediaFileMapper } from 'src/upload/api/multer-media-file.mapper';
+import { CakeMediaService } from './cake-media.service';
+import { CakeImportService } from './cake-import.service';
 
 const cakeIdParams = {
   name: 'id',
@@ -46,7 +48,11 @@ const cakeIdParams = {
 @Controller()
 @ApiBearerAuth()
 export class CakeController {
-  constructor(private readonly cakeService: CakeService) {}
+  constructor(
+    private readonly cakeService: CakeService,
+    private readonly cakeMediaService: CakeMediaService,
+    private readonly cakeImportService: CakeImportService,
+  ) {}
 
   @ApiQuery({
     name: 'after',
@@ -131,7 +137,7 @@ export class CakeController {
     @UploadedFile() file,
     @GetUser() userDto: AuthenticatedUser,
   ) {
-    return this.cakeService.changeContent(
+    return this.cakeMediaService.replaceImage(
       cakeId,
       userDto,
       MulterMediaFileMapper.toMediaFile(file),
@@ -145,7 +151,7 @@ export class CakeController {
     description:
       'ID를 이용하여 케이크 정보를 삭제합니다.' +
       '\n\n' +
-      'Admin 권한이 필요합니다.',
+      'Admin 또는 Seller 권한이 필요합니다.',
   })
   @ApiParam(cakeIdParams)
   @ApiOkResponse({
@@ -153,7 +159,7 @@ export class CakeController {
   })
   @ApiNotFoundResponse({ description: '케이크를 찾을 수 없습니다.' })
   delete(@Param('id') cakeId: string, @GetUser() userDto: AuthenticatedUser) {
-    return this.cakeService.removeContent(cakeId, userDto);
+    return this.cakeMediaService.softDelete(cakeId, userDto);
   }
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER)
@@ -181,7 +187,7 @@ export class CakeController {
     @GetUser() userDto: AuthenticatedUser,
     @UploadedFiles() files,
   ) {
-    return this.cakeService.createCake(storeId, userDto, {
+    return this.cakeImportService.import(storeId, userDto, {
       image: MulterMediaFileMapper.toMediaFiles(files?.image),
       excel: MulterMediaFileMapper.toMediaFiles(files?.excel),
     });
