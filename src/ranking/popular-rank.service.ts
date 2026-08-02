@@ -9,8 +9,8 @@ import {
   toDateString,
 } from './rank-window';
 
-// read model 에 미리 적재해 둘 상위 랭킹 수. standalone 페이지네이션 여유분을 포함한다.
-const POPULAR_RANK_TOP_N = 100;
+// 대표 fixture의 대규모 동점 score bucket 뒤 다음 page까지 포함하되 source/read model은 bounded 상태를 유지한다.
+const POPULAR_RANK_TOP_N = 1000;
 const configuredSourceMaxTimeMs = Number(
   process.env.POPULAR_RANK_SOURCE_MAX_TIME_MS ?? 5000,
 );

@@ -98,7 +98,7 @@ describe('PopularRankService', () => {
     ]);
   });
 
-  it('builds one ranked batch from the bounded source reader order', async () => {
+  it('builds one pagination batch from the bounded source reader order', async () => {
     const built = freshBatch();
     const { service, rankModel, sourceReader } = createMocks({
       latestResults: [null, built],
@@ -133,7 +133,7 @@ describe('PopularRankService', () => {
     expect(sourceReader.findTop).toHaveBeenCalledTimes(1);
     const query = sourceReader.findTop.mock.calls[0][0];
     expect(query.end.getTime() - query.start.getTime()).toBe(30 * DAY_MS);
-    expect(query).toMatchObject({ limit: 100, maxTimeMs: 5000 });
+    expect(query).toMatchObject({ limit: 1000, maxTimeMs: 5000 });
     expect(rankModel.insertMany).toHaveBeenCalledWith([
       expect.objectContaining({ rank: 1, cakeId: 'cake-high', total: 4 }),
       expect.objectContaining({ rank: 2, cakeId: 'cake-a', total: 2.9 }),

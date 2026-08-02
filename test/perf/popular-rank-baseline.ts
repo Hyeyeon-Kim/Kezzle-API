@@ -29,6 +29,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_CAKE_COUNT = 25_000;
 const DEFAULT_EVENT_COUNT = 100_000;
 const INSERT_BATCH_SIZE = 10_000;
+const FIRST_PAGE_LIMIT = 100;
+const NEXT_PAGE_LIMIT = 20;
+const READ_MODEL_BATCH_SIZE = 1000;
 
 function positiveInteger(name: string, fallback: number): number {
   const value = Number(process.env[name]);
@@ -182,7 +185,7 @@ async function main(): Promise<void> {
 
     const legacyStartedAt = process.hrtime.bigint();
     const legacyRanked = (await cakeLikeEvents
-      .aggregate([...legacyPipeline(start, now), { $limit: 100 }])
+      .aggregate([...legacyPipeline(start, now), { $limit: FIRST_PAGE_LIMIT }])
       .toArray()) as RankedCake[];
     const legacyWallMs =
       Number(process.hrtime.bigint() - legacyStartedAt) / 1_000_000;
@@ -237,11 +240,17 @@ async function main(): Promise<void> {
     const boundedWallMs =
       Number(process.hrtime.bigint() - boundedStartedAt) / 1_000_000;
 
-    assertParity(legacyRanked, builtRanks);
+    assertParity(legacyRanked, builtRanks.slice(0, FIRST_PAGE_LIMIT));
     if (sourceQueryCount !== 1) {
       throw new Error(
         `Popular source query count changed: ${sourceQueryCount}`,
       );
+    }
+    const sourceLimit = Number(
+      sourcePipeline.find((stage) => '$limit' in stage)?.$limit,
+    );
+    if (sourceLimit !== READ_MODEL_BATCH_SIZE) {
+      throw new Error(`Popular source limit changed: ${sourceLimit}`);
     }
     if (sourceMaxTimeMs !== 5000) {
       throw new Error(`Popular source maxTimeMS changed: ${sourceMaxTimeMs}`);
@@ -283,21 +292,21 @@ async function main(): Promise<void> {
 
     const cursor = legacyRanked[Math.min(9, legacyRanked.length - 1)].total;
     const legacyNextPage = (await cakeLikeEvents
-      .aggregate([...legacyPipeline(start, now, cursor), { $limit: 20 }])
+      .aggregate([
+        ...legacyPipeline(start, now, cursor),
+        { $limit: NEXT_PAGE_LIMIT },
+      ])
       .toArray()) as RankedCake[];
-    const legacyReadModelNextPage = legacyRanked
-      .filter((item) => item.total < cursor)
-      .slice(0, 20);
     const boundedNextPage = builtRanks
       .filter((item) => item.total < cursor)
-      .slice(0, 20);
-    assertParity(legacyReadModelNextPage, boundedNextPage);
+      .slice(0, NEXT_PAGE_LIMIT);
+    assertParity(legacyNextPage, boundedNextPage);
     if (legacyNextPage.some((item) => item.total >= cursor)) {
       throw new Error('Popular source after pagination contract changed');
     }
 
     const legacyExplain = (await cakeLikeEvents
-      .aggregate([...legacyPipeline(start, now), { $limit: 100 }])
+      .aggregate([...legacyPipeline(start, now), { $limit: FIRST_PAGE_LIMIT }])
       .explain('executionStats')) as Record<string, any>;
     const sourceExplain = (await cakeLikeEvents
       .aggregate(sourcePipeline, { maxTimeMS: sourceMaxTimeMs })
@@ -322,10 +331,11 @@ async function main(): Promise<void> {
             expectedFirstTotal: expectedTotal,
             deletedRankCount,
             afterCursor: cursor,
+            paginationParity: true,
             sourceNextPageResultCount: legacyNextPage.length,
             readModelNextPageResultCount: boundedNextPage.length,
             sourceQueryCount,
-            sourceLimit: 100,
+            sourceLimit,
             sourceMaxTimeMs,
           },
           performance: {
