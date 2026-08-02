@@ -1,24 +1,28 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CakeLikePort, CakeLikeView } from 'src/cake/cake-like.port';
 import { CakeAlredyLikeException } from 'src/cake/exceptions/cake-already-like.exception';
 import {
   LikedStoreCatalogReader,
   LikedStoreCatalogView,
 } from 'src/catalog/liked-store-catalog.reader';
-import { LogService } from 'src/log/log.service';
+import { MetricsService } from 'src/metrics/metrics.service';
 import { StoreAlredyLikeException } from 'src/store/exceptions/store-already-like.exception';
 import { StoreLikePort } from 'src/store/store-like.port';
 import { UserLikePort } from 'src/user/user-like.port';
 import { AuthenticatedUser } from 'src/user/application/authenticated-user';
+import { CakeLikeEventRecorder } from './application/port/cake-like-event-recorder.port';
 
 @Injectable()
 export class LikeService {
+  private readonly logger = new Logger(LikeService.name);
+
   constructor(
     private readonly userLikePort: UserLikePort,
     private readonly cakeLikePort: CakeLikePort,
     private readonly storeLikePort: StoreLikePort,
     private readonly likedStoreReader: LikedStoreCatalogReader,
-    private readonly logService: LogService,
+    private readonly cakeLikeEventRecorder: CakeLikeEventRecorder,
+    private readonly metricsService: MetricsService,
   ) {}
 
   async findUserLikeCake(userid: string): Promise<CakeLikeView[]> {
@@ -46,7 +50,7 @@ export class LikeService {
     } else throw new CakeAlredyLikeException(cakeid);
 
     await this.userLikePort.addCakeLike(userId, cakeid);
-    this.logService.cakeLikelog(userId, cakeid, true);
+    this.recordCakeLikeEvent(userId, cakeid, true);
     return true;
   }
 
@@ -59,7 +63,7 @@ export class LikeService {
 
     await this.cakeLikePort.removeUserLike(cakeid, userId);
     await this.userLikePort.removeCakeLike(userId, cakeid);
-    this.logService.cakeLikelog(userId, cakeid, false);
+    this.recordCakeLikeEvent(userId, cakeid, false);
     return true;
   }
 
@@ -88,5 +92,21 @@ export class LikeService {
     await this.storeLikePort.removeUserLike(storeid, userId);
     await this.userLikePort.removeStoreLike(userId, storeid);
     return true;
+  }
+
+  private recordCakeLikeEvent(
+    userId: string,
+    cakeId: string,
+    type: boolean,
+  ): void {
+    void this.cakeLikeEventRecorder
+      .record(userId, cakeId, type)
+      .catch((error: unknown) => {
+        this.metricsService.cakeLikeEventRecordFailures.inc();
+        this.logger.error({
+          event: 'cake_like_event_record_failed',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
   }
 }

@@ -12,15 +12,20 @@ import { IS_PUBLIC_KEY } from 'src/auth/decorators/public.decorator';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { CakeController } from 'src/cake/cake.controller';
 import { CakeService } from 'src/cake/cake.service';
+import { CakeMediaService } from 'src/cake/cake-media.service';
+import { CakeImportService } from 'src/cake/cake-import.service';
 import { CurationController } from 'src/curation/curation.controller';
 import { CurationService } from 'src/curation/curation.service';
 import { HomeFeedService } from 'src/home/home-feed.service';
 import { HomeController } from 'src/home/home.controller';
 import { HomePresenter } from 'src/home/api/home.presenter';
+import { RankingController } from 'src/ranking/ranking.controller';
+import { RankingQueryService } from 'src/ranking/ranking-query.service';
 import { SearchController } from 'src/search/search.controller';
 import { SearchService } from 'src/search/search.service';
 import { StoreController } from 'src/store/store.controller';
 import { StoreService } from 'src/store/store.service';
+import { StoreMediaService } from 'src/store/store-media.service';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UserController } from 'src/user/user.controller';
 import { UserService } from 'src/user/user.service';
@@ -102,7 +107,6 @@ describe('Type-A read HTTP contract baseline', () => {
 
   const cakeService = {
     findAllByNewest: jest.fn(),
-    popular: jest.fn(),
     anniversary: jest.fn(),
     findOne: jest.fn(),
   };
@@ -113,8 +117,11 @@ describe('Type-A read HTTP contract baseline', () => {
   };
   const searchService = {
     search: jest.fn(),
-    getRank: jest.fn(),
     getLatest: jest.fn(),
+  };
+  const rankingQuery = {
+    getPopularCakes: jest.fn(),
+    getKeywordRank: jest.fn(),
   };
   const curationService = { showCuration: jest.fn() };
   const homeFeedService = { getHome: jest.fn() };
@@ -122,6 +129,7 @@ describe('Type-A read HTTP contract baseline', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [
+        RankingController,
         CakeController,
         StoreController,
         UserController,
@@ -131,9 +139,13 @@ describe('Type-A read HTTP contract baseline', () => {
       ],
       providers: [
         { provide: CakeService, useValue: cakeService },
+        { provide: CakeMediaService, useValue: {} },
+        { provide: CakeImportService, useValue: {} },
         { provide: StoreService, useValue: storeService },
+        { provide: StoreMediaService, useValue: {} },
         { provide: UserService, useValue: userService },
         { provide: SearchService, useValue: searchService },
+        { provide: RankingQueryService, useValue: rankingQuery },
         { provide: CurationService, useValue: curationService },
         { provide: HomeFeedService, useValue: homeFeedService },
         HomePresenter,
@@ -155,7 +167,7 @@ describe('Type-A read HTTP contract baseline', () => {
       hasMore: fixtures.newestCakes.hasMore,
       cakes: fixtures.newestCakes.cakes.map((cake) => cakeView(cake)),
     });
-    cakeService.popular.mockResolvedValue({
+    rankingQuery.getPopularCakes.mockResolvedValue({
       startDate: fixtures.popularCakes.startDate,
       endDate: fixtures.popularCakes.endDate,
       cakes: fixtures.popularCakes.cakes.map((cake) => cakeView(cake)),
@@ -196,7 +208,7 @@ describe('Type-A read HTTP contract baseline', () => {
       nextPage: fixtures.searchResult.nextPage,
       cakes: fixtures.searchResult.cakes.map((cake) => cakeView(cake)),
     });
-    searchService.getRank.mockResolvedValue({
+    rankingQuery.getKeywordRank.mockResolvedValue({
       ...fixtures.searchRank,
       ranking: fixtures.searchRank.ranking.map((rank) => ({
         id: rank._id,
@@ -275,7 +287,7 @@ describe('Type-A read HTTP contract baseline', () => {
       .expect(200);
 
     expect(response.body).toEqual(fixtures.popularCakes);
-    expect(cakeService.popular).toHaveBeenCalledWith(12.5, 3);
+    expect(rankingQuery.getPopularCakes).toHaveBeenCalledWith(12.5, 3);
   });
 
   it('keeps anniversary viewer context, page conversion, and isLiked', async () => {
@@ -367,10 +379,11 @@ describe('Type-A read HTTP contract baseline', () => {
       .expect(200);
 
     expect(response.body).toEqual(fixtures.searchRank);
-    expect(searchService.getRank).toHaveBeenCalledWith(
+    expect(rankingQuery.getKeywordRank).toHaveBeenCalledWith(
       '2026-07-01',
       '2026-07-20',
     );
+    expect(searchService.getLatest).not.toHaveBeenCalledWith('rank');
   });
 
   it('keeps self-owned latest Search empty array shape', async () => {

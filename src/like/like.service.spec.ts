@@ -1,5 +1,6 @@
 import { CakeAlredyLikeException } from 'src/cake/exceptions/cake-already-like.exception';
 import { StoreAlredyLikeException } from 'src/store/exceptions/store-already-like.exception';
+import { Logger } from '@nestjs/common';
 import { LikeService } from './like.service';
 
 const viewer = { firebaseUid: 'viewer-user', roles: [] };
@@ -9,14 +10,16 @@ const buildService = ({
   cakeLikePort = {},
   storeLikePort = {},
   likedStoreReader = {},
-  logService = {},
+  cakeLikeEventRecorder = { record: jest.fn().mockResolvedValue(undefined) },
+  metricsService = { cakeLikeEventRecordFailures: { inc: jest.fn() } },
 }: Record<string, any>) =>
   new LikeService(
     userLikePort as any,
     cakeLikePort as any,
     storeLikePort as any,
     likedStoreReader as any,
-    logService as any,
+    cakeLikeEventRecorder as any,
+    metricsService as any,
   );
 
 const expectCallOrder = (...mocks: jest.Mock[]) => {
@@ -105,11 +108,13 @@ describe('LikeService public port boundary', () => {
     const userLikePort = {
       addCakeLike: jest.fn().mockResolvedValue(undefined),
     };
-    const logService = { cakeLikelog: jest.fn() };
+    const cakeLikeEventRecorder = {
+      record: jest.fn().mockResolvedValue(undefined),
+    };
     const service = buildService({
       cakeLikePort,
       userLikePort,
-      logService,
+      cakeLikeEventRecorder,
     });
 
     await expect(
@@ -120,9 +125,9 @@ describe('LikeService public port boundary', () => {
       cakeLikePort.findTargetOrThrow,
       cakeLikePort.addUserLike,
       userLikePort.addCakeLike,
-      logService.cakeLikelog,
+      cakeLikeEventRecorder.record,
     );
-    expect(logService.cakeLikelog).toHaveBeenCalledWith(
+    expect(cakeLikeEventRecorder.record).toHaveBeenCalledWith(
       'viewer-user',
       'cake-1',
       true,
@@ -154,11 +159,13 @@ describe('LikeService public port boundary', () => {
     const userLikePort = {
       removeCakeLike: jest.fn().mockResolvedValue(undefined),
     };
-    const logService = { cakeLikelog: jest.fn() };
+    const cakeLikeEventRecorder = {
+      record: jest.fn().mockResolvedValue(undefined),
+    };
     const service = buildService({
       cakeLikePort,
       userLikePort,
-      logService,
+      cakeLikeEventRecorder,
     });
 
     await service.cakeRemoveLikeList('cake-1', viewer as any);
@@ -167,7 +174,73 @@ describe('LikeService public port boundary', () => {
       cakeLikePort.findTargetOrThrow,
       cakeLikePort.removeUserLike,
       userLikePort.removeCakeLike,
-      logService.cakeLikelog,
+      cakeLikeEventRecorder.record,
+    );
+    expect(cakeLikeEventRecorder.record).toHaveBeenCalledWith(
+      'viewer-user',
+      'cake-1',
+      false,
+    );
+  });
+
+  it('keeps cake add success independent from an observed event create failure', async () => {
+    const logger = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const cakeLikeEventRecorder = {
+      record: jest.fn().mockRejectedValue(new Error('event create failed')),
+    };
+    const metricsService = {
+      cakeLikeEventRecordFailures: { inc: jest.fn() },
+    };
+    const service = buildService({
+      cakeLikePort: {
+        findTargetOrThrow: jest.fn().mockResolvedValue({ likedUserIds: [] }),
+        addUserLike: jest.fn().mockResolvedValue(undefined),
+      },
+      userLikePort: {
+        addCakeLike: jest.fn().mockResolvedValue(undefined),
+      },
+      cakeLikeEventRecorder,
+      metricsService,
+    });
+
+    await expect(
+      service.cakeAddLikeList('cake-1', viewer as any),
+    ).resolves.toBe(true);
+    await new Promise(setImmediate);
+
+    expect(
+      metricsService.cakeLikeEventRecordFailures.inc,
+    ).toHaveBeenCalledTimes(1);
+    expect(logger).toHaveBeenCalledWith({
+      event: 'cake_like_event_record_failed',
+      error: 'event create failed',
+    });
+    logger.mockRestore();
+  });
+
+  it('keeps cake remove success independent from an observed event create failure', async () => {
+    const cakeLikeEventRecorder = {
+      record: jest.fn().mockRejectedValue(new Error('event create failed')),
+    };
+    const service = buildService({
+      cakeLikePort: {
+        findTargetOrThrow: jest.fn().mockResolvedValue({ likedUserIds: [] }),
+        removeUserLike: jest.fn().mockResolvedValue(undefined),
+      },
+      userLikePort: {
+        removeCakeLike: jest.fn().mockResolvedValue(undefined),
+      },
+      cakeLikeEventRecorder,
+    });
+
+    await expect(
+      service.cakeRemoveLikeList('cake-1', viewer as any),
+    ).resolves.toBe(true);
+    await new Promise(setImmediate);
+    expect(cakeLikeEventRecorder.record).toHaveBeenCalledWith(
+      'viewer-user',
+      'cake-1',
+      false,
     );
   });
 

@@ -1,16 +1,19 @@
-import {
-  ImageMapper,
-  ImagePersistenceRecord,
-} from 'src/common/image/image.mapper';
 import { ImageValue } from 'src/common/image/application/image.value';
 import { CreateStoreData, UpdateStoreData } from './application/store.command';
 import { StoreSummaryView, StoreView } from './application/store.view';
+
+export interface StoreImagePersistenceRecord {
+  readonly name: string;
+  readonly converte_name: string;
+  readonly key: string;
+  readonly s3Url: string;
+}
 
 interface StorePersistenceSource {
   readonly _id?: unknown;
   readonly id?: unknown;
   readonly name?: string;
-  readonly logo?: ImagePersistenceRecord | null;
+  readonly logo?: StoreImagePersistenceRecord | null;
   readonly store_feature?: string;
   readonly store_description?: string;
   readonly insta_url?: string;
@@ -20,7 +23,7 @@ interface StorePersistenceSource {
   readonly address?: string;
   readonly phone_number?: string;
   readonly owner_user_id?: string;
-  readonly detail_images?: ImagePersistenceRecord[];
+  readonly detail_images?: StoreImagePersistenceRecord[];
   readonly operating_time?: string[];
   readonly user_like_ids?: string[];
   readonly taste?: string[];
@@ -38,21 +41,13 @@ function dateValue(value: Date | string | undefined): Date | undefined {
   return typeof value === 'string' ? new Date(value) : value;
 }
 
-function imageValueOrNull(
-  image: ImagePersistenceRecord | null | undefined,
-): ImageValue | null | undefined {
-  if (image === null) return null;
-  if (image === undefined) return undefined;
-  return ImageMapper.toValue(image);
-}
-
 export class StorePersistenceMapper {
   static toView(source: StorePersistenceSource): StoreView {
     const logo = source?.logo;
     return {
       id: identifier(source?._id) ?? identifier(source?.id),
       name: source?.name,
-      logo: imageValueOrNull(logo),
+      logo: this.toImageValueOrNull(logo),
       feature: source?.store_feature ?? '',
       description: source?.store_description ?? '',
       instagramUrl: source?.insta_url ?? '',
@@ -68,7 +63,7 @@ export class StorePersistenceMapper {
       phoneNumber: source?.phone_number ?? '',
       ownerUserId: source?.owner_user_id,
       detailImages: (source?.detail_images ?? []).map((image) =>
-        ImageMapper.toValue(image),
+        this.toImageValue(image),
       ),
       operatingTime: [...(source?.operating_time ?? [])],
       likedUserIds: [...(source?.user_like_ids ?? [])],
@@ -93,7 +88,7 @@ export class StorePersistenceMapper {
   static toCreatePersistence(data: CreateStoreData) {
     return {
       name: data.name,
-      logo: data.logo ? ImageMapper.toPersistence(data.logo) : undefined,
+      logo: data.logo ? this.toImagePersistence(data.logo) : undefined,
       store_feature: data.feature,
       store_description: data.description,
       insta_url: data.instagramUrl,
@@ -106,7 +101,7 @@ export class StorePersistenceMapper {
       phone_number: data.phoneNumber,
       owner_user_id: data.ownerUserId,
       detail_images: data.detailImages?.map((image) =>
-        ImageMapper.toPersistence(image),
+        this.toImagePersistence(image),
       ),
       operating_time: data.operatingTime,
       taste: data.taste,
@@ -141,7 +136,7 @@ export class StorePersistenceMapper {
         ? {}
         : {
             detail_images: data.detailImages.map((image) =>
-              ImageMapper.toPersistence(image),
+              this.toImagePersistence(image),
             ),
           }),
       ...(data.operatingTime === undefined
@@ -150,7 +145,35 @@ export class StorePersistenceMapper {
       ...(data.taste === undefined ? {} : { taste: data.taste }),
       ...(data.logo === undefined
         ? {}
-        : { logo: ImageMapper.toPersistence(data.logo) }),
+        : { logo: this.toImagePersistence(data.logo) }),
+    };
+  }
+
+  private static toImageValue(image: StoreImagePersistenceRecord): ImageValue {
+    return {
+      name: image.name,
+      converteName: image.converte_name,
+      key: image.key,
+      s3Url: image.s3Url,
+    };
+  }
+
+  private static toImageValueOrNull(
+    image: StoreImagePersistenceRecord | null | undefined,
+  ): ImageValue | null | undefined {
+    if (image === null) return null;
+    if (image === undefined) return undefined;
+    return this.toImageValue(image);
+  }
+
+  private static toImagePersistence(
+    image: ImageValue,
+  ): StoreImagePersistenceRecord {
+    return {
+      name: image.name,
+      converte_name: image.converteName,
+      key: image.key,
+      s3Url: image.s3Url,
     };
   }
 }

@@ -1,4 +1,5 @@
 import { Connection, Model, createConnection } from 'mongoose';
+import { ObjectId } from 'mongodb';
 import { Cake, CakeSchema } from 'src/cake/entities/cake.schema';
 import { CurationPersistenceMapper } from 'src/curation/curation.persistence-mapper';
 import { CurationRepository } from 'src/curation/curation.repository';
@@ -7,6 +8,28 @@ import {
   CurationSchema,
 } from 'src/curation/entities/curation.schema';
 import { Store, StoreSchema } from 'src/store/entities/store.schema';
+import { SearchEventRepository } from 'src/search/infrastructure/persistence/search-event.repository';
+import {
+  KeywordLog,
+  KeywordLogSchema,
+} from 'src/search/infrastructure/persistence/search-event.schema';
+import { CakeLikeEventRepository } from 'src/like/infrastructure/persistence/cake-like-event.repository';
+import {
+  CakeLikeLog,
+  CakeLikeLogSchema,
+} from 'src/like/infrastructure/persistence/cake-like-event.schema';
+import {
+  KeywordRank,
+  KeywordRankSchema,
+} from 'src/ranking/infrastructure/persistence/keyword-rank.schema';
+import {
+  PopularCakeRank,
+  PopularCakeRankSchema,
+} from 'src/ranking/infrastructure/persistence/popular-cake-rank.schema';
+import { KeywordRankService } from 'src/ranking/keyword-rank.service';
+import { PopularRankService } from 'src/ranking/popular-rank.service';
+import { RankingQueryService } from 'src/ranking/ranking-query.service';
+import { MongoPopularRankingSourceAdapter } from 'src/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
 import { User, UserSchema } from 'src/user/entities/user.schema';
 import fixtures from './fixtures/legacy-persistence.contract.json';
 
@@ -20,6 +43,10 @@ describe('Persistence Mongo integration contract', () => {
   let storeModel: Model<Store>;
   let userModel: Model<User>;
   let curationModel: Model<Curation>;
+  let keywordLogModel: Model<KeywordLog>;
+  let cakeLikeLogModel: Model<CakeLikeLog>;
+  let keywordRankModel: Model<KeywordRank>;
+  let popularCakeRankModel: Model<PopularCakeRank>;
 
   beforeAll(async () => {
     if (!process.env.MONGODB_URL) {
@@ -39,6 +66,19 @@ describe('Persistence Mongo integration contract', () => {
       CurationSchema,
       'curations',
     );
+    keywordLogModel = connection.model('ContractKeywordLog', KeywordLogSchema);
+    cakeLikeLogModel = connection.model(
+      'ContractCakeLikeLog',
+      CakeLikeLogSchema,
+    );
+    keywordRankModel = connection.model(
+      'ContractKeywordRank',
+      KeywordRankSchema,
+    );
+    popularCakeRankModel = connection.model(
+      'ContractPopularCakeRank',
+      PopularCakeRankSchema,
+    );
   });
 
   beforeEach(async () => {
@@ -47,6 +87,10 @@ describe('Persistence Mongo integration contract', () => {
       storeModel.deleteMany({}),
       userModel.deleteMany({}),
       curationModel.deleteMany({}),
+      keywordLogModel.deleteMany({}),
+      cakeLikeLogModel.deleteMany({}),
+      keywordRankModel.deleteMany({}),
+      popularCakeRankModel.deleteMany({}),
     ]);
   });
 
@@ -75,6 +119,9 @@ describe('Persistence Mongo integration contract', () => {
     expect(jsonValue(user)).toEqual(fixtures.user);
     expect(jsonValue(curation)).toEqual(fixtures.curation);
     expect(curation.cakes[0]).toHaveProperty('legacy_extra', 'must-stay');
+    expect(cake.image).not.toHaveProperty('_id');
+    expect(store.logo).not.toHaveProperty('_id');
+    expect(store.detail_images[0]).not.toHaveProperty('_id');
   });
 
   it('applies defaults and casting on real Mongo writes', async () => {
@@ -137,5 +184,230 @@ describe('Persistence Mongo integration contract', () => {
       originalUpdatedAt.getTime(),
     );
     expect(updated.cakes[0]).toHaveProperty('legacy_extra', 'must-stay');
+  });
+
+  it('reads and writes legacy keywordlogs documents without migration', async () => {
+    const createdAt = new Date('2026-07-31T12:00:00.000Z');
+    await keywordLogModel.collection.insertOne({
+      userId: 'legacy-user',
+      searchWord: 'legacy-keyword',
+      relatedWord: ['cream'],
+      createdAt,
+      updatedAt: createdAt,
+    });
+    const repository = new SearchEventRepository(keywordLogModel);
+
+    const latest = await repository.findLatest('legacy-user');
+    await repository.record('legacy-user', 'new-keyword', ['chocolate']);
+    const inserted = await keywordLogModel
+      .findOne({ searchWord: 'new-keyword' })
+      .lean();
+
+    expect(keywordLogModel.collection.collectionName).toBe('keywordlogs');
+    expect(latest[0]).toMatchObject({
+      userId: 'legacy-user',
+      searchWord: 'legacy-keyword',
+      relatedWord: ['cream'],
+    });
+    expect(inserted).toMatchObject({
+      userId: 'legacy-user',
+      searchWord: 'new-keyword',
+      relatedWord: ['chocolate'],
+    });
+    expect(inserted.createdAt).toBeInstanceOf(Date);
+    expect(inserted.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it('reads and writes legacy cakelikelogs documents without migration', async () => {
+    const cakeId = '65a000000000000000000001';
+    const createdAt = new Date('2026-07-31T12:00:00.000Z');
+    await cakeLikeLogModel.collection.insertOne({
+      userId: 'legacy-user',
+      cakeId: new ObjectId(cakeId),
+      type: true,
+      createdAt,
+      updatedAt: createdAt,
+    });
+    const repository = new CakeLikeEventRepository(cakeLikeLogModel);
+
+    await repository.record('legacy-user', cakeId, false);
+    const inserted = await cakeLikeLogModel.findOne({ type: false }).lean();
+
+    expect(cakeLikeLogModel.collection.collectionName).toBe('cakelikelogs');
+    expect(inserted).toMatchObject({
+      userId: 'legacy-user',
+      cakeId: new ObjectId(cakeId),
+      type: false,
+    });
+    expect(inserted.createdAt).toBeInstanceOf(Date);
+    expect(inserted.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it('bounds popular source results and normalizes invalid legacy like scores', async () => {
+    const ids = {
+      invalid: new ObjectId('65a000000000000000000001'),
+      missing: new ObjectId('65a000000000000000000002'),
+      numeric: new ObjectId('65a000000000000000000003'),
+      deleted: new ObjectId('65a000000000000000000004'),
+      infinite: new ObjectId('65a000000000000000000005'),
+    };
+    const image = {
+      name: 'cake.png',
+      converte_name: 'cake-converted.png',
+      key: 'store-1/cakes/cake-converted.png',
+      s3Url: 'https://cdn.example.com/cake.png',
+    };
+    const createdAt = new Date('2026-08-01T12:00:00.000Z');
+    await cakeModel.collection.insertMany([
+      {
+        _id: ids.invalid,
+        image,
+        owner_store_id: 'store-1',
+        like_ins: 'not-a-number',
+        tag_ins: ['invalid'],
+        is_delete: false,
+        faiss_id: 1001,
+      },
+      {
+        _id: ids.missing,
+        image,
+        owner_store_id: 'store-1',
+        tag_ins: ['missing'],
+        is_delete: false,
+        faiss_id: 1002,
+      },
+      {
+        _id: ids.numeric,
+        image,
+        owner_store_id: 'store-1',
+        like_ins: '20',
+        tag_ins: ['numeric'],
+        is_delete: false,
+        faiss_id: 1003,
+      },
+      {
+        _id: ids.deleted,
+        image,
+        owner_store_id: 'store-1',
+        like_ins: '1000',
+        tag_ins: ['deleted'],
+        is_delete: true,
+        faiss_id: 1004,
+      },
+      {
+        _id: ids.infinite,
+        image,
+        owner_store_id: 'store-1',
+        like_ins: 'Infinity',
+        tag_ins: ['infinite'],
+        is_delete: false,
+        faiss_id: 1005,
+      },
+    ]);
+    await cakeLikeLogModel.collection.insertMany(
+      Object.values(ids).map((cakeId) => ({
+        userId: `user-${cakeId}`,
+        cakeId,
+        type: true,
+        createdAt,
+        updatedAt: createdAt,
+      })),
+    );
+    const reader = new MongoPopularRankingSourceAdapter(connection);
+
+    const ranked = await reader.findTop({
+      start: new Date('2026-08-01T00:00:00.000Z'),
+      end: new Date('2026-08-02T00:00:00.000Z'),
+      limit: 4,
+      maxTimeMs: 1000,
+    });
+
+    expect(ranked).toHaveLength(4);
+    expect(ranked).toEqual([
+      expect.objectContaining({
+        cakeId: String(ids.numeric),
+        total: 4.9,
+        tags: ['numeric'],
+      }),
+      expect.objectContaining({
+        cakeId: String(ids.invalid),
+        total: 0.9,
+        tags: ['invalid'],
+      }),
+      expect.objectContaining({
+        cakeId: String(ids.missing),
+        total: 0.9,
+        tags: ['missing'],
+      }),
+      expect.objectContaining({
+        cakeId: String(ids.infinite),
+        total: 0.9,
+        tags: ['infinite'],
+      }),
+    ]);
+    expect(ranked.every((cake) => Number.isFinite(cake.total))).toBe(true);
+    expect(ranked.some((cake) => cake.cakeId === String(ids.deleted))).toBe(
+      false,
+    );
+  });
+
+  it('reuses legacy keyword and popular rank read models without migration', async () => {
+    const cakeId = '65a000000000000000000002';
+    const computedAt = new Date('2026-07-31T12:00:00.000Z');
+    await keywordRankModel.collection.insertOne({
+      rank: 1,
+      searchWord: 'legacy-rank',
+      count: 8,
+      computedAt,
+      isEmptyBatch: false,
+    });
+    await popularCakeRankModel.collection.insertOne({
+      rank: 1,
+      cakeId: new ObjectId(cakeId),
+      total: 12.5,
+      image: {
+        name: 'legacy.png',
+        converte_name: 'legacy-converted.png',
+        key: 'cakes/legacy-converted.png',
+        s3Url: 'https://cdn.example.com/legacy.png',
+      },
+      owner_store_id: 'store-legacy',
+      tag_ins: [],
+      computedAt,
+      isEmptyBatch: false,
+    });
+
+    const keywordRankService = new KeywordRankService(keywordRankModel, {
+      getRanked: jest.fn(),
+    } as never);
+    const popularRankService = new PopularRankService(popularCakeRankModel, {
+      findTop: jest.fn(),
+    } as never);
+    const query = new RankingQueryService(
+      keywordRankService,
+      popularRankService,
+      { getRanked: jest.fn() } as never,
+    );
+
+    const [keyword, popular] = await Promise.all([
+      query.getKeywordRank(undefined, undefined, 10),
+      query.getPopularCakes(NaN, 20),
+    ]);
+
+    expect(keywordRankModel.collection.collectionName).toBe('keywordranks');
+    expect(popularCakeRankModel.collection.collectionName).toBe(
+      'popularcakeranks',
+    );
+    expect(keyword.ranking).toEqual([{ id: 'legacy-rank', count: 8 }]);
+    expect(popular.cakes).toEqual([
+      expect.objectContaining({
+        id: cakeId,
+        ownerStoreId: 'store-legacy',
+        tags: [],
+        calculatedLikes: 12.5,
+      }),
+    ]);
+    expect(keyword.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(popular.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

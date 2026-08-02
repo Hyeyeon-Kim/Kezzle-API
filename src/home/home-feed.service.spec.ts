@@ -53,7 +53,6 @@ describe('HomeFeedService', () => {
       findRecommendationSeed: jest.fn().mockResolvedValue('seed-cake'),
       findAllByRecommend:
         overrides?.recommend ?? jest.fn().mockResolvedValue([]),
-      popular: overrides?.popular ?? jest.fn().mockResolvedValue(popularCakes),
       findAllByNewest:
         overrides?.newest ?? jest.fn().mockResolvedValue(newestCakes),
     };
@@ -72,9 +71,21 @@ describe('HomeFeedService', () => {
         overrides?.anniversaryRecommendations ??
         jest.fn().mockResolvedValue(anniversary),
     };
-    const searchService = {
-      getRank:
+    const rankingQuery = {
+      getPopularCakes:
+        overrides?.popular ?? jest.fn().mockResolvedValue(popularCakes),
+      getKeywordRank:
         overrides?.keywordRanks ?? jest.fn().mockResolvedValue(keywordRanks),
+      getPopularFallback: jest.fn().mockReturnValue({
+        cakes: [],
+        startDate: '2023-01-01',
+        endDate: '2023-12-31',
+      }),
+      getKeywordFallback: jest.fn().mockReturnValue({
+        ranking: [],
+        startDate: '2023-01-01',
+        endDate: '2023-11-25',
+      }),
     };
     const curationQuery = {
       findFeatured: jest.fn().mockResolvedValue([]),
@@ -101,7 +112,7 @@ describe('HomeFeedService', () => {
     const service = new HomeFeedService(
       cakeService as never,
       anniversaryService as never,
-      searchService as never,
+      rankingQuery as never,
       curationQuery as never,
       homeMetrics as never,
       homeCache as never,
@@ -112,7 +123,7 @@ describe('HomeFeedService', () => {
       service,
       cakeService,
       anniversaryService,
-      searchService,
+      rankingQuery,
       curationQuery,
       homeMetrics,
       homeCache,
@@ -229,7 +240,7 @@ describe('HomeFeedService', () => {
       service,
       cakeService,
       anniversaryService,
-      searchService,
+      rankingQuery,
       curationQuery,
     } = createService();
 
@@ -246,8 +257,8 @@ describe('HomeFeedService', () => {
       expect.objectContaining({ id: 'anniversary-id' }),
       expect.any(AbortSignal),
     );
-    expect(cakeService.popular).toHaveBeenCalledWith(NaN, 3, 50);
-    expect(searchService.getRank).toHaveBeenCalledWith(
+    expect(rankingQuery.getPopularCakes).toHaveBeenCalledWith(NaN, 3, 50);
+    expect(rankingQuery.getKeywordRank).toHaveBeenCalledWith(
       undefined,
       undefined,
       4,

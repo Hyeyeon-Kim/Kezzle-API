@@ -16,7 +16,6 @@ export class StoreCakeWriteContextRepositoryAdapter
     return {
       storeId: store.id,
       ownerUserId: store.ownerUserId,
-      storeName: store.name,
     };
   }
 }

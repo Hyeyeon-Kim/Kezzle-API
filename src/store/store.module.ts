@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { StoreController } from './store.controller';
 import { StoreService } from './store.service';
-import { UploadModule } from 'src/upload/upload.module';
+import { ObjectStorageModule } from 'src/media/object-storage.module';
 import { StoreRepositoryModule } from './store-repository.module';
 import { StoreCatalogRepositoryAdapter } from './store-catalog.adapter';
 import { StoreCatalogReader } from './store-catalog.reader';
@@ -9,12 +9,15 @@ import { StoreCakeWriteContextRepositoryAdapter } from './store-cake-write-conte
 import { StoreCakeWriteContextReader } from './store-cake-write-context.reader';
 import { StoreLikeRepositoryAdapter } from './store-like.adapter';
 import { StoreLikePort } from './store-like.port';
+import { StoreMediaService } from './store-media.service';
+import { MetricsModule } from 'src/metrics/metrics.module';
 
 @Module({
-  imports: [UploadModule, StoreRepositoryModule],
+  imports: [ObjectStorageModule, StoreRepositoryModule, MetricsModule],
   controllers: [StoreController],
   providers: [
     StoreService,
+    StoreMediaService,
     StoreCatalogRepositoryAdapter,
     { provide: StoreCatalogReader, useExisting: StoreCatalogRepositoryAdapter },
     StoreCakeWriteContextRepositoryAdapter,

@@ -10,6 +10,8 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { CakeController } from 'src/cake/cake.controller';
 import { CakeService } from 'src/cake/cake.service';
+import { CakeMediaService } from 'src/cake/cake-media.service';
+import { CakeImportService } from 'src/cake/cake-import.service';
 import { CurationController } from 'src/curation/curation.controller';
 import { CurationService } from 'src/curation/curation.service';
 import { createValidationPipe } from 'src/app.validation';
@@ -17,6 +19,7 @@ import { IS_PUBLIC_KEY } from 'src/auth/decorators/public.decorator';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { StoreController } from 'src/store/store.controller';
 import { StoreService } from 'src/store/store.service';
+import { StoreMediaService } from 'src/store/store-media.service';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UserController } from 'src/user/user.controller';
 import { UserService } from 'src/user/user.service';
@@ -69,8 +72,18 @@ class ContractAuthenticationGuard implements CanActivate {
 describe('Type boundary write HTTP contract', () => {
   let app: INestApplication;
 
-  const cakeService = { createCake: jest.fn() };
+  const cakeService = {};
+  const cakeMediaService = {
+    replaceImage: jest.fn(),
+    softDelete: jest.fn(),
+  };
+  const cakeImportService = { import: jest.fn() };
   const storeService = { create: jest.fn() };
+  const storeMediaService = {
+    replaceLogo: jest.fn(),
+    addDetailImage: jest.fn(),
+    removeDetailImage: jest.fn(),
+  };
   const userService = { create: jest.fn() };
   const curationService = { createCuration: jest.fn() };
 
@@ -84,7 +97,10 @@ describe('Type boundary write HTTP contract', () => {
       ],
       providers: [
         { provide: CakeService, useValue: cakeService },
+        { provide: CakeMediaService, useValue: cakeMediaService },
+        { provide: CakeImportService, useValue: cakeImportService },
         { provide: StoreService, useValue: storeService },
+        { provide: StoreMediaService, useValue: storeMediaService },
         { provide: UserService, useValue: userService },
         { provide: CurationService, useValue: curationService },
         { provide: APP_GUARD, useClass: ContractAuthenticationGuard },
@@ -99,7 +115,14 @@ describe('Type boundary write HTTP contract', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    cakeService.createCake.mockResolvedValue(fixtures.cakeCreate);
+    cakeImportService.import.mockResolvedValue(fixtures.cakeCreate);
+    cakeMediaService.replaceImage.mockResolvedValue({ acknowledged: true });
+    cakeMediaService.softDelete.mockResolvedValue({ acknowledged: true });
+    storeMediaService.replaceLogo.mockResolvedValue({ acknowledged: true });
+    storeMediaService.addDetailImage.mockResolvedValue({ acknowledged: true });
+    storeMediaService.removeDetailImage.mockResolvedValue({
+      acknowledged: true,
+    });
     storeService.create.mockResolvedValue({
       id: 'store-created-1',
       name: 'Created Store',
@@ -172,16 +195,94 @@ describe('Type boundary write HTTP contract', () => {
       .expect(201);
 
     expect(response.text).toBe(fixtures.cakeCreate);
-    expect(cakeService.createCake).toHaveBeenCalledWith(
+    expect(cakeImportService.import).toHaveBeenCalledWith(
       'store-created-1',
       expect.objectContaining({
         firebaseUid: 'seller-1',
         roles: [Roles.SELLER],
       }),
       expect.objectContaining({
-        image: [expect.objectContaining({ originalname: 'cake.png' })],
-        excel: [expect.objectContaining({ originalname: 'cakes.xlsx' })],
+        image: [
+          expect.objectContaining({
+            originalName: 'cake.png',
+            contentType: 'image/png',
+          }),
+        ],
+        excel: [
+          expect.objectContaining({
+            originalName: 'cakes.xlsx',
+            contentType:
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          }),
+        ],
       }),
+    );
+  });
+
+  it('keeps Cake media route status, response, and Multer mapping', async () => {
+    await request(app.getHttpServer())
+      .patch('/cakes/cake-1')
+      .set('Authorization', 'Bearer seller:seller-1')
+      .attach('file', Buffer.from('image'), 'cake.jpg')
+      .expect(200, { acknowledged: true });
+
+    expect(cakeMediaService.replaceImage).toHaveBeenCalledWith(
+      'cake-1',
+      expect.objectContaining({ firebaseUid: 'seller-1' }),
+      expect.objectContaining({
+        originalName: 'cake.jpg',
+        contentType: 'image/jpeg',
+      }),
+    );
+
+    await request(app.getHttpServer())
+      .delete('/cakes/cake-1')
+      .set('Authorization', 'Bearer seller:seller-1')
+      .expect(200, { acknowledged: true });
+    expect(cakeMediaService.softDelete).toHaveBeenCalledWith(
+      'cake-1',
+      expect.objectContaining({ firebaseUid: 'seller-1' }),
+    );
+  });
+
+  it('keeps Store media route status, response, and input mapping', async () => {
+    await request(app.getHttpServer())
+      .patch('/stores/store-1/uploads/logo')
+      .set('Authorization', 'Bearer seller:seller-1')
+      .attach('file', Buffer.from('logo'), 'logo.png')
+      .expect(200, { acknowledged: true });
+    expect(storeMediaService.replaceLogo).toHaveBeenCalledWith(
+      'store-1',
+      expect.objectContaining({ firebaseUid: 'seller-1' }),
+      expect.objectContaining({
+        originalName: 'logo.png',
+        contentType: 'image/png',
+      }),
+    );
+
+    await request(app.getHttpServer())
+      .patch('/stores/store-1/uploads/storeimage')
+      .set('Authorization', 'Bearer seller:seller-1')
+      .attach('file', Buffer.from('detail'), 'detail.webp')
+      .expect(200, { acknowledged: true });
+    expect(storeMediaService.addDetailImage).toHaveBeenCalledWith(
+      'store-1',
+      expect.objectContaining({ firebaseUid: 'seller-1' }),
+      expect.objectContaining({
+        originalName: 'detail.webp',
+        contentType: 'image/webp',
+      }),
+    );
+
+    await request(app.getHttpServer())
+      .delete('/stores/store-1/deletes/storeimage')
+      .query({ index: '1' })
+      .set('Authorization', 'Bearer seller:seller-1')
+      .expect(200, { acknowledged: true });
+    expect(storeMediaService.removeDetailImage).toHaveBeenCalledWith(
+      'store-1',
+      expect.objectContaining({ firebaseUid: 'seller-1' }),
+      1,
     );
   });
 

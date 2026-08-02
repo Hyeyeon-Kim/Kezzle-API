@@ -1,20 +1,47 @@
 import { MODULE_METADATA } from '@nestjs/common/constants';
-import { readdirSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { dirname, join, normalize, relative, sep } from 'path';
 import { CakeCatalogReader } from 'src/cake/cake-catalog.reader';
 import { CakeLikePort } from 'src/cake/cake-like.port';
 import { CakeRepositoryModule } from 'src/cake/cake-repository.module';
 import { CakeModule } from 'src/cake/cake.module';
+import { CakeImageEmbeddedSchema } from 'src/cake/entities/cake-image.schema';
+import { AppModule } from 'src/app.module';
 import { CatalogQueryModule } from 'src/catalog/catalog-query.module';
 import { LikeModule } from 'src/like/like.module';
+import { CakeLikeEventRecorder } from 'src/like/application/port/cake-like-event-recorder.port';
+import { LikeEventModule } from 'src/like/infrastructure/persistence/like-event.module';
+import { CakeLikeEventRepository } from 'src/like/infrastructure/persistence/cake-like-event.repository';
+import { HomeModule } from 'src/home/home.module';
+import { RankingModule } from 'src/ranking/ranking.module';
+import { RankingQueryService } from 'src/ranking/ranking-query.service';
+import { PopularRankingSourceReader } from 'src/ranking/application/popular-ranking-source.reader';
+import { MongoPopularRankingSourceAdapter } from 'src/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
+import { SearchModule } from 'src/search/search.module';
 import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.reader';
 import { StoreCatalogReader } from 'src/store/store-catalog.reader';
 import { StoreLikePort } from 'src/store/store-like.port';
 import { StoreRepositoryModule } from 'src/store/store-repository.module';
 import { StoreModule } from 'src/store/store.module';
+import { StoreImageEmbeddedSchema } from 'src/store/entities/store-image.schema';
 import { UserLikePort } from 'src/user/user-like.port';
 import { UserRepositoryModule } from 'src/user/user-repository.module';
 import { UserModule } from 'src/user/user.module';
+import { KeywordEventReader } from 'src/search/application/port/keyword-event.reader';
+import { SearchEventRecorder } from 'src/search/application/port/search-event-recorder.port';
+import { SearchHistoryReader } from 'src/search/application/port/search-history.reader';
+import { SearchEventModule } from 'src/search/infrastructure/persistence/search-event.module';
+import { SearchEventRepository } from 'src/search/infrastructure/persistence/search-event.repository';
+import { ObjectStoragePort } from 'src/media/application/object-storage.port';
+import {
+  S3_CLIENT,
+  S3ObjectStorageAdapter,
+} from 'src/media/infrastructure/s3-object-storage.adapter';
+import { ObjectStorageModule } from 'src/media/object-storage.module';
+import { CakeMediaService } from 'src/cake/cake-media.service';
+import { CakeImportService } from 'src/cake/cake-import.service';
+import { StoreMediaService } from 'src/store/store-media.service';
+import { MetricsModule } from 'src/metrics/metrics.module';
 
 type SourceFile = {
   path: string;
@@ -22,6 +49,10 @@ type SourceFile = {
 };
 
 const srcRoot = join(__dirname, '..', '..', 'src');
+const legacyLogProviderPattern = new RegExp(
+  [['L', 'ogModule'].join(''), ['L', 'ogService'].join('')].join('|'),
+);
+const legacyStorageFacadeIdentifier = ['Up', 'loadService'].join('');
 
 function readSourceFiles(directory = srcRoot): SourceFile[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -373,6 +404,7 @@ describe('Feature boundary architecture', () => {
       'curation',
       'home',
       'like',
+      'ranking',
       'search',
       'store',
       'user',
@@ -440,5 +472,451 @@ describe('Feature boundary architecture', () => {
     expect(composingImports).not.toContain(CakeRepositoryModule);
     expect(composingImports).not.toContain(StoreRepositoryModule);
     expect(composingImports).not.toContain(UserRepositoryModule);
+  });
+
+  it('keeps keyword event persistence and recent history owned by Search', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const persistenceViolations = productionSources
+      .filter((source) => !source.path.startsWith('search/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter((value) =>
+            /^search\/infrastructure\/persistence\/search-event\.(?:schema|repository)/.test(
+              value,
+            ),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const recorderOrHistoryViolations = productionSources
+      .filter((source) => !source.path.startsWith('search/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter((value) =>
+            /^search\/application\/port\/(?:search-event-recorder\.port|search-history\.reader)/.test(
+              value,
+            ),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const logService = productionSources.find(
+      (source) => source.path === 'log/log.service.ts',
+    );
+    const eventModuleExports = moduleMetadata(
+      SearchEventModule,
+      MODULE_METADATA.EXPORTS,
+    );
+
+    expect([...persistenceViolations, ...recorderOrHistoryViolations]).toEqual(
+      [],
+    );
+    expect(logService?.content ?? '').not.toMatch(
+      /KeywordLog|searchlog|getLatestWord|getRankWord/,
+    );
+    expect(eventModuleExports).toEqual(
+      expect.arrayContaining([
+        SearchEventRecorder,
+        SearchHistoryReader,
+        KeywordEventReader,
+      ]),
+    );
+    expect(eventModuleExports).not.toContain(SearchEventRepository);
+  });
+
+  it('keeps cake-like writes owned by Like and bounded source reads isolated in Ranking', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const persistenceViolations = productionSources
+      .filter((source) => !source.path.startsWith('like/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter((value) =>
+            /^like\/infrastructure\/persistence\/cake-like-event\.(?:schema|repository)/.test(
+              value,
+            ),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const recorderViolations = productionSources
+      .filter((source) => !source.path.startsWith('like/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter((value) =>
+            /^like\/application\/port\/cake-like-event-recorder\.port/.test(
+              value,
+            ),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const directCollectionReads = productionSources
+      .filter(
+        (source) =>
+          source.path !==
+            'like/infrastructure/persistence/cake-like-event.schema.ts' &&
+          source.path !==
+            'ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter.ts',
+      )
+      .filter((source) => /['"]cakelikelogs['"]/.test(source.content))
+      .map((source) => source.path);
+    const likeService = productionSources.find(
+      (source) => source.path === 'like/like.service.ts',
+    );
+    const likeImports = moduleMetadata(LikeModule, MODULE_METADATA.IMPORTS);
+    const rankingImports = moduleMetadata(
+      RankingModule,
+      MODULE_METADATA.IMPORTS,
+    );
+    const eventExports = moduleMetadata(
+      LikeEventModule,
+      MODULE_METADATA.EXPORTS,
+    );
+    const rankingProviders = moduleMetadata(
+      RankingModule,
+      MODULE_METADATA.PROVIDERS,
+    );
+    const sourceAdapter = productionSources.find(
+      (source) =>
+        source.path ===
+        'ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter.ts',
+    );
+    const sourceAdapterOwnerImports = normalizedImports(sourceAdapter).filter(
+      (value) => /^(cake|like|search)\//.test(value),
+    );
+
+    expect([
+      ...persistenceViolations,
+      ...recorderViolations,
+      ...directCollectionReads,
+    ]).toEqual([]);
+    expect(likeService?.content ?? '').not.toMatch(legacyLogProviderPattern);
+    expect(likeImports).not.toContain(RankingModule);
+    expect(rankingImports).not.toContain(LikeEventModule);
+    expect(eventExports).toEqual([CakeLikeEventRecorder]);
+    expect(eventExports).not.toContain(CakeLikeEventRepository);
+    expect(rankingProviders).toContain(MongoPopularRankingSourceAdapter);
+    expect(rankingProviders).toContainEqual({
+      provide: PopularRankingSourceReader,
+      useExisting: MongoPopularRankingSourceAdapter,
+    });
+    expect(sourceAdapterOwnerImports).toEqual([]);
+    expect(sourceAdapter?.content).toMatch(/['"]cakelikelogs['"]/);
+    expect(sourceAdapter?.content).toMatch(/['"]cakes['"]/);
+    expect(sourceAdapter?.content).toMatch(/\$limit: query\.limit/);
+    expect(sourceAdapter?.content).toMatch(/onError: 0/);
+    expect(sourceAdapter?.content).toMatch(/onNull: 0/);
+    expect(sourceAdapter?.content).not.toMatch(
+      /insertOne|insertMany|updateOne|updateMany|deleteOne|deleteMany|replaceOne/,
+    );
+  });
+
+  it('keeps rank internals, read models, and routes owned by Ranking', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const rankingImportsOutsideOwner = productionSources
+      .filter((source) => !source.path.startsWith('ranking/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter((value) => value.startsWith('ranking/'))
+          .filter((value) => {
+            if (source.path === 'app.module.ts') {
+              return value !== 'ranking/ranking.module';
+            }
+            if (source.path === 'home/home.module.ts') {
+              return value !== 'ranking/ranking.module';
+            }
+            if (source.path.startsWith('home/')) {
+              return ![
+                'ranking/ranking-query.service',
+                'ranking/application/ranking.view',
+              ].includes(value);
+            }
+            return true;
+          })
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const rankWindowImportsOutsideOwner = productionSources
+      .filter((source) => !source.path.startsWith('ranking/'))
+      .filter((source) =>
+        normalizedImports(source).some((value) =>
+          value.endsWith('rank-window'),
+        ),
+      )
+      .map((source) => source.path);
+    const directReadModelCollections = productionSources
+      .filter(
+        (source) =>
+          source.path !==
+            'ranking/infrastructure/persistence/keyword-rank.schema.ts' &&
+          source.path !==
+            'ranking/infrastructure/persistence/popular-cake-rank.schema.ts',
+      )
+      .filter((source) =>
+        /['"](?:keywordranks|popularcakeranks)['"]/.test(source.content),
+      )
+      .map((source) => source.path);
+    const rankingExports = moduleMetadata(
+      RankingModule,
+      MODULE_METADATA.EXPORTS,
+    );
+    const homeImports = moduleMetadata(HomeModule, MODULE_METADATA.IMPORTS);
+    const searchImports = moduleMetadata(SearchModule, MODULE_METADATA.IMPORTS);
+    const cakeImports = moduleMetadata(CakeModule, MODULE_METADATA.IMPORTS);
+    const appImports = moduleMetadata(AppModule, MODULE_METADATA.IMPORTS);
+    const sourceByPath = new Map(
+      productionSources.map((source) => [source.path, source.content]),
+    );
+
+    expect(existsSync(join(srcRoot, 'log'))).toBe(false);
+    expect([
+      ...rankingImportsOutsideOwner,
+      ...rankWindowImportsOutsideOwner,
+      ...directReadModelCollections,
+    ]).toEqual([]);
+    expect(rankingExports).toEqual([RankingQueryService]);
+    expect(homeImports).toContain(RankingModule);
+    expect(searchImports).not.toContain(RankingModule);
+    expect(cakeImports).not.toContain(RankingModule);
+    expect(appImports).toContain(RankingModule);
+    expect(appImports.indexOf(RankingModule)).toBeLessThan(
+      appImports.indexOf(SearchModule),
+    );
+    expect(appImports.indexOf(RankingModule)).toBeLessThan(
+      appImports.indexOf(CakeModule),
+    );
+    expect(appImports.indexOf(RankingModule)).toBeLessThan(
+      appImports.indexOf(CatalogQueryModule),
+    );
+    expect(sourceByPath.get('ranking/ranking.controller.ts')).toMatch(
+      /Get\('search\/rank'\)/,
+    );
+    expect(sourceByPath.get('ranking/ranking.controller.ts')).toMatch(
+      /Get\('cakes\/popular'\)/,
+    );
+    expect(sourceByPath.get('search/search.controller.ts')).not.toMatch(
+      /Get\('rank'\)/,
+    );
+    expect(sourceByPath.get('cake/cake.controller.ts')).not.toMatch(
+      /Get\('cakes\/popular'\)/,
+    );
+    expect(sourceByPath.get('home/home-feed.service.ts')).not.toMatch(
+      /rank-window|SearchService|\.popular\(/,
+    );
+  });
+
+  it('keeps Cake and Store image persistence owned by each feature', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const sourceByPath = new Map(
+      productionSources.map((source) => [source.path, source]),
+    );
+    const cakeSchema = sourceByPath.get('cake/entities/cake.schema.ts');
+    const storeSchema = sourceByPath.get('store/entities/store.schema.ts');
+    const cakeExternalMapper = sourceByPath.get('cake/cake-external.mapper.ts');
+    const commonImageMongooseImports = productionSources
+      .filter((source) => source.path.startsWith('common/image/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(
+            (value) => value === '@nestjs/mongoose' || value === 'mongoose',
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const imageFields = ['converte_name', 'key', 'name', 's3Url'];
+
+    expect(normalizedImports(cakeSchema)).toContain(
+      'cake/entities/cake-image.schema',
+    );
+    expect(normalizedImports(storeSchema)).toContain(
+      'store/entities/store-image.schema',
+    );
+    expect(normalizedImports(cakeSchema)).not.toContain(
+      'store/entities/store-image.schema',
+    );
+    expect(normalizedImports(storeSchema)).not.toContain(
+      'cake/entities/cake-image.schema',
+    );
+    expect(commonImageMongooseImports).toEqual([]);
+    expect(existsSync(join(srcRoot, 'common/image/persistence'))).toBe(false);
+    expect(normalizedImports(cakeExternalMapper)).toContain(
+      'common/image/image-external.mapper',
+    );
+    expect(normalizedImports(cakeExternalMapper)).not.toContain(
+      'cake/cake.persistence-mapper',
+    );
+    expect(CakeImageEmbeddedSchema.get('_id')).toBe(false);
+    expect(StoreImageEmbeddedSchema.get('_id')).toBe(false);
+    expect(Object.keys(CakeImageEmbeddedSchema.paths).sort()).toEqual(
+      imageFields,
+    );
+    expect(Object.keys(StoreImageEmbeddedSchema.paths).sort()).toEqual(
+      imageFields,
+    );
+    expect(CakeImageEmbeddedSchema).not.toBe(StoreImageEmbeddedSchema);
+  });
+
+  it('keeps object storage application contracts pure and AWS access in the S3 adapter', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const awsImports = productionSources
+      .filter((source) => normalizedImports(source).includes('aws-sdk'))
+      .map((source) => source.path);
+    const applicationFrameworkImports = productionSources
+      .filter((source) => source.path.startsWith('media/application/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(
+            (value) =>
+              value.startsWith('@nestjs/') ||
+              value === 'aws-sdk' ||
+              value === 'express' ||
+              value.includes('multer'),
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const featureStorageViolations = productionSources
+      .filter((source) => /^(cake|store)\//.test(source.path))
+      .filter(
+        (source) =>
+          normalizedImports(source).includes('aws-sdk') ||
+          /\bnew\s+S3\b|A_BUCKET_NAME|process\.env/.test(source.content),
+      )
+      .map((source) => source.path);
+    const adapter = productionSources.find(
+      (source) =>
+        source.path === 'media/infrastructure/s3-object-storage.adapter.ts',
+    );
+    const storageProviders = moduleMetadata(
+      ObjectStorageModule,
+      MODULE_METADATA.PROVIDERS,
+    );
+    const storageImports = moduleMetadata(
+      ObjectStorageModule,
+      MODULE_METADATA.IMPORTS,
+    );
+    const storageExports = moduleMetadata(
+      ObjectStorageModule,
+      MODULE_METADATA.EXPORTS,
+    );
+
+    expect(awsImports).toEqual([
+      'media/infrastructure/s3-object-storage.adapter.ts',
+    ]);
+    expect(applicationFrameworkImports).toEqual([]);
+    expect(featureStorageViolations).toEqual([]);
+    expect(adapter?.content).not.toContain('process.env');
+    expect(storageImports).toContain(MetricsModule);
+    expect(storageProviders).toContain(S3ObjectStorageAdapter);
+    expect(storageProviders).toContainEqual({
+      provide: ObjectStoragePort,
+      useExisting: S3ObjectStorageAdapter,
+    });
+    expect(storageExports).toEqual([ObjectStoragePort]);
+    expect(
+      storageProviders.filter(
+        (provider) =>
+          typeof provider === 'object' &&
+          provider !== null &&
+          'provide' in provider &&
+          provider.provide === S3_CLIENT,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('keeps Cake and Store media orchestration in feature media services', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const sourceByPath = new Map(
+      productionSources.map((source) => [source.path, source]),
+    );
+    const objectStorageConsumers = productionSources
+      .filter((source) => /^(cake|store)\//.test(source.path))
+      .filter((source) =>
+        normalizedImports(source).includes(
+          'media/application/object-storage.port',
+        ),
+      )
+      .map((source) => source.path)
+      .sort();
+    const cakeService = sourceByPath.get('cake/cake.service.ts');
+    const storeService = sourceByPath.get('store/store.service.ts');
+    const cakeImport = sourceByPath.get('cake/cake-import.service.ts');
+    const cakeProviders = moduleMetadata(CakeModule, MODULE_METADATA.PROVIDERS);
+    const cakeImports = moduleMetadata(CakeModule, MODULE_METADATA.IMPORTS);
+    const storeProviders = moduleMetadata(
+      StoreModule,
+      MODULE_METADATA.PROVIDERS,
+    );
+    const storeImports = moduleMetadata(StoreModule, MODULE_METADATA.IMPORTS);
+
+    expect(objectStorageConsumers).toEqual([
+      'cake/cake-media.service.ts',
+      'store/store-media.service.ts',
+    ]);
+    expect(cakeService?.content).not.toMatch(
+      new RegExp(
+        [legacyStorageFacadeIdentifier, 'ObjectStoragePort', 'xlsx'].join('|'),
+      ),
+    );
+    expect(storeService?.content).not.toMatch(
+      new RegExp(
+        [legacyStorageFacadeIdentifier, 'ObjectStoragePort'].join('|'),
+      ),
+    );
+    expect(normalizedImports(cakeImport)).toContain('cake/cake-media.service');
+    expect(normalizedImports(cakeImport)).not.toContain(
+      'media/application/object-storage.port',
+    );
+    expect(cakeProviders).toEqual(
+      expect.arrayContaining([CakeMediaService, CakeImportService]),
+    );
+    expect(cakeImports).toContain(MetricsModule);
+    expect(storeProviders).toContain(StoreMediaService);
+    expect(storeImports).toContain(MetricsModule);
+  });
+
+  it('keeps removed legacy log and upload modules out of the source tree', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const removedDirectories = [['l', 'og'].join(''), ['up', 'load'].join('')];
+    const removedIdentifiers = [
+      ...legacyLogProviderPattern.source.split('|'),
+      ['Up', 'loadModule'].join(''),
+      legacyStorageFacadeIdentifier,
+    ];
+    const removedIdentifierPattern = new RegExp(removedIdentifiers.join('|'));
+    const identifierViolations = productionSources
+      .filter((source) => removedIdentifierPattern.test(source.content))
+      .map((source) => source.path);
+    const legacyPathViolations = productionSources.flatMap((source) =>
+      normalizedImports(source)
+        .filter((value) =>
+          removedDirectories.some(
+            (directory) =>
+              value === directory || value.startsWith(`${directory}/`),
+          ),
+        )
+        .map((value) => `${source.path}: ${value}`),
+    );
+    const appImports = moduleMetadata(AppModule, MODULE_METADATA.IMPORTS);
+    const cakeImports = moduleMetadata(CakeModule, MODULE_METADATA.IMPORTS);
+    const storeImports = moduleMetadata(StoreModule, MODULE_METADATA.IMPORTS);
+
+    expect(
+      removedDirectories.map((directory) =>
+        existsSync(join(srcRoot, directory)),
+      ),
+    ).toEqual([false, false]);
+    expect(identifierViolations).toEqual([]);
+    expect(legacyPathViolations).toEqual([]);
+    expect(appImports).not.toContain(ObjectStorageModule);
+    expect(cakeImports).toContain(ObjectStorageModule);
+    expect(storeImports).toContain(ObjectStorageModule);
   });
 });

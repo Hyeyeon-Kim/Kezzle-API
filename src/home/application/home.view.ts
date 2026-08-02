@@ -1,11 +1,11 @@
 import { AnniversaryRecommendationView } from 'src/anniversary/application/anniversary.view';
-import {
-  CakePageView,
-  PopularCakesView,
-} from 'src/cake/application/cake-result.view';
+import { CakePageView } from 'src/cake/application/cake-result.view';
 import { CakeView } from 'src/cake/application/cake.view';
 import { CurationView } from 'src/curation/application/curation.view';
-import { SearchRankView } from 'src/search/application/search.view';
+import {
+  KeywordRankingView,
+  PopularRankingView,
+} from 'src/ranking/application/ranking.view';
 import {
   HomeSectionFallbackReason,
   HomeSectionStatus,
@@ -29,8 +29,8 @@ export interface HomeSectionsView {
 export interface HomeView {
   readonly anniversary: AnniversaryRecommendationView;
   readonly recommendCakes: CakeView[];
-  readonly popularCakes: PopularCakesView;
-  readonly keywordRanks: SearchRankView;
+  readonly popularCakes: PopularRankingView;
+  readonly keywordRanks: KeywordRankingView;
   readonly newestCakes: CakePageView;
   readonly curations: CurationView[];
   readonly degraded: boolean;

@@ -1,0 +1,21 @@
+{
+  "collections": {
+    "searchEvents": "keywordlogs",
+    "cakeLikeEvents": "cakelikelogs",
+    "keywordRanks": "keywordranks",
+    "popularCakeRanks": "popularcakeranks"
+  },
+  "imageJsonKeys": ["name", "converte_name", "key", "s3Url"],
+  "mediaPaths": {
+    "cakeCreate": "store-1/cakes",
+    "cakeReplace": "Store Name/cakes",
+    "cakeRemove": "Store Name/cakes",
+    "storeLogo": "Store Name/logo",
+    "storeDetail": "Store Name/detail"
+  },
+  "mediaFailureStages": {
+    "replace": ["delete-existing", "upload-new", "persist-reference"],
+    "create": ["upload-new", "persist-reference"],
+    "remove": ["delete-object", "persist-removal"]
+  }
+}

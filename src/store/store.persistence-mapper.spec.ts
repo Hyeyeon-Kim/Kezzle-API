@@ -62,4 +62,51 @@ describe('StorePersistenceMapper', () => {
       location: { type: 'Point', coordinates: [128, 38] },
     });
   });
+
+  it('owns image persistence keys and keeps null and empty-array policy', () => {
+    const image = {
+      name: 'store.png',
+      converteName: 'store-converted.png',
+      key: 'stores/store-converted.png',
+      s3Url: 'https://cdn.example.com/stores/store-converted.png',
+    };
+
+    expect(
+      StorePersistenceMapper.toCreatePersistence({
+        name: 'Image Store',
+        logo: image,
+        location: { longitude: 127.2, latitude: 37.6 },
+        address: 'Seoul',
+        ownerUserId: 'seller-1',
+        detailImages: [image],
+        operatingTime: [],
+        taste: [],
+      }),
+    ).toMatchObject({
+      logo: {
+        name: 'store.png',
+        converte_name: 'store-converted.png',
+        key: 'stores/store-converted.png',
+        s3Url: 'https://cdn.example.com/stores/store-converted.png',
+      },
+      detail_images: [
+        {
+          name: 'store.png',
+          converte_name: 'store-converted.png',
+          key: 'stores/store-converted.png',
+          s3Url: 'https://cdn.example.com/stores/store-converted.png',
+        },
+      ],
+    });
+    expect(
+      StorePersistenceMapper.toView({
+        id: 'store-empty-images',
+        logo: null,
+        detail_images: [],
+      }),
+    ).toMatchObject({
+      logo: null,
+      detailImages: [],
+    });
+  });
 });
