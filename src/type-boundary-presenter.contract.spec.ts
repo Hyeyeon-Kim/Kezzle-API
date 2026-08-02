@@ -1,6 +1,6 @@
 import fixtures from '../test/fixtures/type-boundary-read.contract.json';
 import { CakePresenter } from './cake/cake.presenter';
-import { ImageMapper } from './common/image/image.mapper';
+import { ImageExternalMapper } from './common/image/image-external.mapper';
 import { CurationPresenter } from './curation/curation.presenter';
 import { RankingPresenter } from './ranking/api/ranking.presenter';
 import { SearchPresenter } from './search/search.presenter';
@@ -10,7 +10,7 @@ import { UserPresenter } from './user/user.presenter';
 
 const toCakeView = (cake: any, liked = false) => ({
   id: cake._id,
-  image: ImageMapper.toValue(cake.image),
+  image: ImageExternalMapper.toValue(cake.image),
   ownerStoreId: cake.owner_store_id,
   likedUserIds: liked ? ['user-1'] : [],
   cursor: cake.cursor,

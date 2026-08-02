@@ -2,9 +2,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { LocationSchema, Location } from './location.schema';
 import {
-  ImageEmbedded,
-  ImageEmbeddedSchema,
-} from 'src/common/image/persistence/image.schema';
+  StoreImageEmbedded,
+  StoreImageEmbeddedSchema,
+} from './store-image.schema';
 
 export type StoreDocument = Store & Document;
 @Schema({ timestamps: true, versionKey: false })
@@ -12,8 +12,8 @@ export class Store {
   @Prop({ type: String, required: true })
   name: string;
 
-  @Prop({ type: ImageEmbeddedSchema })
-  logo: ImageEmbedded;
+  @Prop({ type: StoreImageEmbeddedSchema })
+  logo: StoreImageEmbedded;
 
   @Prop({ type: String, default: '' })
   store_feature: string;
@@ -44,8 +44,8 @@ export class Store {
   @Prop({ type: String, ref: 'User', required: true })
   owner_user_id: string;
 
-  @Prop({ type: [ImageEmbeddedSchema] })
-  detail_images: ImageEmbedded[];
+  @Prop({ type: [StoreImageEmbeddedSchema] })
+  detail_images: StoreImageEmbedded[];
 
   @Prop({ type: [{ type: String }] })
   operating_time: string[];

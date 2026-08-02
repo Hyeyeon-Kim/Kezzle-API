@@ -118,6 +118,9 @@ describe('Persistence Mongo integration contract', () => {
     expect(jsonValue(user)).toEqual(fixtures.user);
     expect(jsonValue(curation)).toEqual(fixtures.curation);
     expect(curation.cakes[0]).toHaveProperty('legacy_extra', 'must-stay');
+    expect(cake.image).not.toHaveProperty('_id');
+    expect(store.logo).not.toHaveProperty('_id');
+    expect(store.detail_images[0]).not.toHaveProperty('_id');
   });
 
   it('applies defaults and casting on real Mongo writes', async () => {

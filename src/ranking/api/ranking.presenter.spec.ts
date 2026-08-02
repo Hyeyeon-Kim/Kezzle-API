@@ -1,5 +1,5 @@
 import fixtures from '../../../test/fixtures/type-boundary-read.contract.json';
-import { ImageMapper } from 'src/common/image/image.mapper';
+import { ImageExternalMapper } from 'src/common/image/image-external.mapper';
 import { RankingPresenter } from './ranking.presenter';
 
 describe('RankingPresenter', () => {
@@ -21,7 +21,7 @@ describe('RankingPresenter', () => {
       RankingPresenter.popular({
         cakes: fixtures.popularCakes.cakes.map((cake) => ({
           id: cake._id,
-          image: ImageMapper.toValue(cake.image),
+          image: ImageExternalMapper.toValue(cake.image),
           ownerStoreId: cake.owner_store_id,
           likedUserIds: [],
           tags: cake.hashtag,

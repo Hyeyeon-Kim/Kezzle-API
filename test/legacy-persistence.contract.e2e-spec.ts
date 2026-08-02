@@ -55,6 +55,21 @@ describe('Type-A legacy persistence contract baseline', () => {
     expect(roundTripped.detail_images[0]).toHaveProperty('converte_name');
   });
 
+  it('keeps Store null logo and empty detail image array unchanged', () => {
+    const roundTripped = hydrateToJson(storeModel, {
+      _id: '65a000000000000000000099',
+      name: 'No Image Store',
+      logo: null,
+      address: '서울시 강남구',
+      owner_user_id: 'seller-1',
+      detail_images: [],
+      taste: [],
+    });
+
+    expect(roundTripped.logo).toBeNull();
+    expect(roundTripped.detail_images).toEqual([]);
+  });
+
   it('keeps User roles and like identifiers as arrays', () => {
     const roundTripped = hydrateToJson(userModel, fixtures.user);
 

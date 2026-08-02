@@ -1,8 +1,8 @@
 import { ImageValue } from 'src/common/image/application/image.value';
 import {
-  ImageMapper,
-  ImagePersistenceRecord,
-} from 'src/common/image/image.mapper';
+  ExternalImageContract,
+  ImageExternalMapper,
+} from 'src/common/image/image-external.mapper';
 import { CakeView } from './application/cake.view';
 
 interface CakeExternalSource {
@@ -59,9 +59,6 @@ export class CakeExternalMapper {
     if (image == null || typeof image !== 'object') {
       return image as ImageValue;
     }
-    if ('converteName' in image) {
-      return image as ImageValue;
-    }
-    return ImageMapper.toValue(image as ImagePersistenceRecord);
+    return ImageExternalMapper.toValue(image as ExternalImageContract);
   }
 }

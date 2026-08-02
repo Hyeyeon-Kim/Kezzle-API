@@ -8,6 +8,7 @@ import { CakeModule } from 'src/cake/cake.module';
 import { CakeRankingModule } from 'src/cake/cake-ranking.module';
 import { CakeRankingReader } from 'src/cake/cake-ranking.reader';
 import { CakeRankingRepositoryAdapter } from 'src/cake/cake-ranking.adapter';
+import { CakeImageEmbeddedSchema } from 'src/cake/entities/cake-image.schema';
 import { AppModule } from 'src/app.module';
 import { CatalogQueryModule } from 'src/catalog/catalog-query.module';
 import { LikeModule } from 'src/like/like.module';
@@ -24,6 +25,7 @@ import { StoreCatalogReader } from 'src/store/store-catalog.reader';
 import { StoreLikePort } from 'src/store/store-like.port';
 import { StoreRepositoryModule } from 'src/store/store-repository.module';
 import { StoreModule } from 'src/store/store.module';
+import { StoreImageEmbeddedSchema } from 'src/store/entities/store-image.schema';
 import { UserLikePort } from 'src/user/user-like.port';
 import { UserRepositoryModule } from 'src/user/user-repository.module';
 import { UserModule } from 'src/user/user.module';
@@ -674,5 +676,57 @@ describe('Feature boundary architecture', () => {
     expect(sourceByPath.get('home/home-feed.service.ts')).not.toMatch(
       /rank-window|SearchService|\.popular\(/,
     );
+  });
+
+  it('keeps Cake and Store image persistence owned by each feature', () => {
+    const productionSources = sourceFiles.filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const sourceByPath = new Map(
+      productionSources.map((source) => [source.path, source]),
+    );
+    const cakeSchema = sourceByPath.get('cake/entities/cake.schema.ts');
+    const storeSchema = sourceByPath.get('store/entities/store.schema.ts');
+    const cakeExternalMapper = sourceByPath.get('cake/cake-external.mapper.ts');
+    const commonImageMongooseImports = productionSources
+      .filter((source) => source.path.startsWith('common/image/'))
+      .flatMap((source) =>
+        normalizedImports(source)
+          .filter(
+            (value) => value === '@nestjs/mongoose' || value === 'mongoose',
+          )
+          .map((value) => `${source.path}: ${value}`),
+      );
+    const imageFields = ['converte_name', 'key', 'name', 's3Url'];
+
+    expect(normalizedImports(cakeSchema)).toContain(
+      'cake/entities/cake-image.schema',
+    );
+    expect(normalizedImports(storeSchema)).toContain(
+      'store/entities/store-image.schema',
+    );
+    expect(normalizedImports(cakeSchema)).not.toContain(
+      'store/entities/store-image.schema',
+    );
+    expect(normalizedImports(storeSchema)).not.toContain(
+      'cake/entities/cake-image.schema',
+    );
+    expect(commonImageMongooseImports).toEqual([]);
+    expect(existsSync(join(srcRoot, 'common/image/persistence'))).toBe(false);
+    expect(normalizedImports(cakeExternalMapper)).toContain(
+      'common/image/image-external.mapper',
+    );
+    expect(normalizedImports(cakeExternalMapper)).not.toContain(
+      'cake/cake.persistence-mapper',
+    );
+    expect(CakeImageEmbeddedSchema.get('_id')).toBe(false);
+    expect(StoreImageEmbeddedSchema.get('_id')).toBe(false);
+    expect(Object.keys(CakeImageEmbeddedSchema.paths).sort()).toEqual(
+      imageFields,
+    );
+    expect(Object.keys(StoreImageEmbeddedSchema.paths).sort()).toEqual(
+      imageFields,
+    );
+    expect(CakeImageEmbeddedSchema).not.toBe(StoreImageEmbeddedSchema);
   });
 });
