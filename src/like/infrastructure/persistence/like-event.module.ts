@@ -1,14 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { CakeLikeEventReader } from '../../application/port/cake-like-event.reader';
 import { CakeLikeEventRecorder } from '../../application/port/cake-like-event-recorder.port';
 import { CakeLikeEventRepository } from './cake-like-event.repository';
 import { CakeLikeLog, CakeLikeLogSchema } from './cake-like-event.schema';
-
-const likeEventPorts = [
-  { provide: CakeLikeEventRecorder, useExisting: CakeLikeEventRepository },
-  { provide: CakeLikeEventReader, useExisting: CakeLikeEventRepository },
-];
 
 @Module({
   imports: [
@@ -17,7 +11,10 @@ const likeEventPorts = [
       'kezzle',
     ),
   ],
-  providers: [CakeLikeEventRepository, ...likeEventPorts],
-  exports: [CakeLikeEventRecorder, CakeLikeEventReader],
+  providers: [
+    CakeLikeEventRepository,
+    { provide: CakeLikeEventRecorder, useExisting: CakeLikeEventRepository },
+  ],
+  exports: [CakeLikeEventRecorder],
 })
 export class LikeEventModule {}

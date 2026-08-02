@@ -5,20 +5,18 @@ import { CakeCatalogReader } from 'src/cake/cake-catalog.reader';
 import { CakeLikePort } from 'src/cake/cake-like.port';
 import { CakeRepositoryModule } from 'src/cake/cake-repository.module';
 import { CakeModule } from 'src/cake/cake.module';
-import { CakeRankingModule } from 'src/cake/cake-ranking.module';
-import { CakeRankingReader } from 'src/cake/cake-ranking.reader';
-import { CakeRankingRepositoryAdapter } from 'src/cake/cake-ranking.adapter';
 import { CakeImageEmbeddedSchema } from 'src/cake/entities/cake-image.schema';
 import { AppModule } from 'src/app.module';
 import { CatalogQueryModule } from 'src/catalog/catalog-query.module';
 import { LikeModule } from 'src/like/like.module';
-import { CakeLikeEventReader } from 'src/like/application/port/cake-like-event.reader';
 import { CakeLikeEventRecorder } from 'src/like/application/port/cake-like-event-recorder.port';
 import { LikeEventModule } from 'src/like/infrastructure/persistence/like-event.module';
 import { CakeLikeEventRepository } from 'src/like/infrastructure/persistence/cake-like-event.repository';
 import { HomeModule } from 'src/home/home.module';
 import { RankingModule } from 'src/ranking/ranking.module';
 import { RankingQueryService } from 'src/ranking/ranking-query.service';
+import { PopularRankingSourceReader } from 'src/ranking/application/popular-ranking-source.reader';
+import { MongoPopularRankingSourceAdapter } from 'src/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
 import { SearchModule } from 'src/search/search.module';
 import { StoreCakeWriteContextReader } from 'src/store/store-cake-write-context.reader';
 import { StoreCatalogReader } from 'src/store/store-catalog.reader';
@@ -525,7 +523,7 @@ describe('Feature boundary architecture', () => {
     expect(eventModuleExports).not.toContain(SearchEventRepository);
   });
 
-  it('keeps cake-like event writes owned by Like and ranking Cake reads batched', () => {
+  it('keeps cake-like writes owned by Like and bounded source reads isolated in Ranking', () => {
     const productionSources = sourceFiles.filter(
       (source) => !source.path.endsWith('.spec.ts'),
     );
@@ -557,7 +555,7 @@ describe('Feature boundary architecture', () => {
           source.path !==
             'like/infrastructure/persistence/cake-like-event.schema.ts' &&
           source.path !==
-            'like/infrastructure/persistence/cake-like-event.repository.ts',
+            'ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter.ts',
       )
       .filter((source) => /['"]cakelikelogs['"]/.test(source.content))
       .map((source) => source.path);
@@ -573,9 +571,17 @@ describe('Feature boundary architecture', () => {
       LikeEventModule,
       MODULE_METADATA.EXPORTS,
     );
-    const rankingExports = moduleMetadata(
-      CakeRankingModule,
-      MODULE_METADATA.EXPORTS,
+    const rankingProviders = moduleMetadata(
+      RankingModule,
+      MODULE_METADATA.PROVIDERS,
+    );
+    const sourceAdapter = productionSources.find(
+      (source) =>
+        source.path ===
+        'ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter.ts',
+    );
+    const sourceAdapterOwnerImports = normalizedImports(sourceAdapter).filter(
+      (value) => /^(cake|like|search)\//.test(value),
     );
 
     expect([
@@ -585,15 +591,23 @@ describe('Feature boundary architecture', () => {
     ]).toEqual([]);
     expect(likeService?.content ?? '').not.toMatch(legacyLogProviderPattern);
     expect(likeImports).not.toContain(RankingModule);
-    expect(rankingImports).toEqual(
-      expect.arrayContaining([LikeEventModule, CakeRankingModule]),
-    );
-    expect(eventExports).toEqual(
-      expect.arrayContaining([CakeLikeEventRecorder, CakeLikeEventReader]),
-    );
+    expect(rankingImports).not.toContain(LikeEventModule);
+    expect(eventExports).toEqual([CakeLikeEventRecorder]);
     expect(eventExports).not.toContain(CakeLikeEventRepository);
-    expect(rankingExports).toContain(CakeRankingReader);
-    expect(rankingExports).not.toContain(CakeRankingRepositoryAdapter);
+    expect(rankingProviders).toContain(MongoPopularRankingSourceAdapter);
+    expect(rankingProviders).toContainEqual({
+      provide: PopularRankingSourceReader,
+      useExisting: MongoPopularRankingSourceAdapter,
+    });
+    expect(sourceAdapterOwnerImports).toEqual([]);
+    expect(sourceAdapter?.content).toMatch(/['"]cakelikelogs['"]/);
+    expect(sourceAdapter?.content).toMatch(/['"]cakes['"]/);
+    expect(sourceAdapter?.content).toMatch(/\$limit: query\.limit/);
+    expect(sourceAdapter?.content).toMatch(/onError: 0/);
+    expect(sourceAdapter?.content).toMatch(/onNull: 0/);
+    expect(sourceAdapter?.content).not.toMatch(
+      /insertOne|insertMany|updateOne|updateMany|deleteOne|deleteMany|replaceOne/,
+    );
   });
 
   it('keeps rank internals, read models, and routes owned by Ranking', () => {

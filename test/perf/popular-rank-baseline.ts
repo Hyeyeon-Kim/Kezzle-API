@@ -5,9 +5,7 @@ import {
   ObjectId,
   OptionalUnlessRequiredId,
 } from 'mongodb';
-import { CakeRankingRepositoryAdapter } from '../../src/cake/cake-ranking.adapter';
-import { CakeRepository } from '../../src/cake/cake.repository';
-import { CakeLikeEventRepository } from '../../src/like/infrastructure/persistence/cake-like-event.repository';
+import { MongoPopularRankingSourceAdapter } from '../../src/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
 import { PopularRankService } from '../../src/ranking/popular-rank.service';
 
 type Pipeline = Record<string, unknown>[];
@@ -189,49 +187,33 @@ async function main(): Promise<void> {
     const legacyWallMs =
       Number(process.hrtime.bigint() - legacyStartedAt) / 1_000_000;
 
-    let eventQueryCount = 0;
-    let cakeQueryCount = 0;
-    let eventQueryMs = 0;
-    let cakeQueryMs = 0;
-    let eventPipeline: Pipeline = [];
-    let eventCakeIds: ObjectId[] = [];
+    let sourceQueryCount = 0;
+    let sourceQueryMs = 0;
+    let sourcePipeline: Pipeline = [];
+    let sourceMaxTimeMs: number | undefined;
     let builtRanks: BuiltRank[] = [];
 
-    const eventModel = {
-      aggregate: (pipeline: Pipeline) => {
-        eventQueryCount += 1;
-        eventPipeline = pipeline;
-        const queryStartedAt = process.hrtime.bigint();
-        const aggregate = cakeLikeEvents
-          .aggregate(pipeline)
-          .toArray()
-          .then((rows) => {
-            eventQueryMs =
-              Number(process.hrtime.bigint() - queryStartedAt) / 1_000_000;
-            eventCakeIds = rows.map((row) => row._id as ObjectId);
-            return rows;
-          }) as Promise<Record<string, unknown>[]> & {
-          option: () => Promise<Record<string, unknown>[]>;
-        };
-        aggregate.option = () => aggregate;
-        return aggregate;
-      },
-    };
-    const cakeModel = {
-      find: (filter: Record<string, unknown>, projection: Document) => {
-        cakeQueryCount += 1;
-        const ids = (filter._id as { $in: string[] }).$in;
-        const castFilter = {
-          ...filter,
-          _id: { $in: ids.map((id) => new ObjectId(id)) },
-        };
+    const sourceConnection = {
+      collection: (name: string) => {
+        if (name !== 'cakelikelogs') {
+          throw new Error(`Unexpected source collection: ${name}`);
+        }
         return {
-          lean: async () => {
-            const queryStartedAt = process.hrtime.bigint();
-            const rows = await cakes.find(castFilter, { projection }).toArray();
-            cakeQueryMs =
-              Number(process.hrtime.bigint() - queryStartedAt) / 1_000_000;
-            return rows;
+          aggregate: (pipeline: Pipeline, options?: { maxTimeMS?: number }) => {
+            sourceQueryCount += 1;
+            sourcePipeline = pipeline;
+            sourceMaxTimeMs = options?.maxTimeMS;
+            return {
+              toArray: async () => {
+                const queryStartedAt = process.hrtime.bigint();
+                const rows = await cakeLikeEvents
+                  .aggregate(pipeline, options)
+                  .toArray();
+                sourceQueryMs =
+                  Number(process.hrtime.bigint() - queryStartedAt) / 1_000_000;
+                return rows;
+              },
+            };
           },
         };
       },
@@ -242,25 +224,27 @@ async function main(): Promise<void> {
       },
       deleteMany: async () => undefined,
     };
-    const eventReader = new CakeLikeEventRepository(eventModel as never);
-    const cakeRepository = new CakeRepository(cakeModel as never);
-    const cakeReader = new CakeRankingRepositoryAdapter(cakeRepository);
+    const sourceReader = new MongoPopularRankingSourceAdapter(
+      sourceConnection as never,
+    );
     const popularRank = new PopularRankService(
       rankModel as never,
-      eventReader,
-      cakeReader,
+      sourceReader,
     );
 
-    const twoStepStartedAt = process.hrtime.bigint();
+    const boundedStartedAt = process.hrtime.bigint();
     await popularRank.refresh();
-    const twoStepWallMs =
-      Number(process.hrtime.bigint() - twoStepStartedAt) / 1_000_000;
+    const boundedWallMs =
+      Number(process.hrtime.bigint() - boundedStartedAt) / 1_000_000;
 
     assertParity(legacyRanked, builtRanks);
-    if (eventQueryCount !== 1 || cakeQueryCount !== 1) {
+    if (sourceQueryCount !== 1) {
       throw new Error(
-        `Popular two-step query count changed: event=${eventQueryCount}, cake=${cakeQueryCount}`,
+        `Popular source query count changed: ${sourceQueryCount}`,
       );
+    }
+    if (sourceMaxTimeMs !== 5000) {
+      throw new Error(`Popular source maxTimeMS changed: ${sourceMaxTimeMs}`);
     }
 
     const first = legacyRanked[0];
@@ -304,10 +288,10 @@ async function main(): Promise<void> {
     const legacyReadModelNextPage = legacyRanked
       .filter((item) => item.total < cursor)
       .slice(0, 20);
-    const twoStepNextPage = builtRanks
+    const boundedNextPage = builtRanks
       .filter((item) => item.total < cursor)
       .slice(0, 20);
-    assertParity(legacyReadModelNextPage, twoStepNextPage);
+    assertParity(legacyReadModelNextPage, boundedNextPage);
     if (legacyNextPage.some((item) => item.total >= cursor)) {
       throw new Error('Popular source after pagination contract changed');
     }
@@ -315,25 +299,11 @@ async function main(): Promise<void> {
     const legacyExplain = (await cakeLikeEvents
       .aggregate([...legacyPipeline(start, now), { $limit: 100 }])
       .explain('executionStats')) as Record<string, any>;
-    const eventExplain = (await cakeLikeEvents
-      .aggregate(eventPipeline)
-      .explain('executionStats')) as Record<string, any>;
-    const cakeExplain = (await cakes
-      .find(
-        { _id: { $in: eventCakeIds }, is_delete: { $ne: true } },
-        {
-          projection: {
-            image: 1,
-            owner_store_id: 1,
-            like_ins: 1,
-            tag_ins: 1,
-          },
-        },
-      )
+    const sourceExplain = (await cakeLikeEvents
+      .aggregate(sourcePipeline, { maxTimeMS: sourceMaxTimeMs })
       .explain('executionStats')) as Record<string, any>;
     const legacyStats = executionStats(legacyExplain);
-    const eventStats = executionStats(eventExplain);
-    const cakeStats = executionStats(cakeExplain);
+    const sourceStats = executionStats(sourceExplain);
 
     console.log(
       JSON.stringify(
@@ -353,9 +323,10 @@ async function main(): Promise<void> {
             deletedRankCount,
             afterCursor: cursor,
             sourceNextPageResultCount: legacyNextPage.length,
-            readModelNextPageResultCount: twoStepNextPage.length,
-            eventQueryCount,
-            cakeQueryCount,
+            readModelNextPageResultCount: boundedNextPage.length,
+            sourceQueryCount,
+            sourceLimit: 100,
+            sourceMaxTimeMs,
           },
           performance: {
             legacy: {
@@ -365,21 +336,16 @@ async function main(): Promise<void> {
               totalKeysExamined: legacyStats.totalKeysExamined ?? null,
               totalDocsExamined: legacyStats.totalDocsExamined ?? null,
             },
-            twoStep: {
-              wallDurationMs: Number(twoStepWallMs.toFixed(2)),
-              eventQueryMs: Number(eventQueryMs.toFixed(2)),
-              cakeQueryMs: Number(cakeQueryMs.toFixed(2)),
-              eventExplainExecutionTimeMillis:
-                eventStats.executionTimeMillis ?? null,
-              eventKeysExamined: eventStats.totalKeysExamined ?? null,
-              eventDocsExamined: eventStats.totalDocsExamined ?? null,
-              cakeExplainExecutionTimeMillis:
-                cakeStats.executionTimeMillis ?? null,
-              cakeKeysExamined: cakeStats.totalKeysExamined ?? null,
-              cakeDocsExamined: cakeStats.totalDocsExamined ?? null,
+            boundedSource: {
+              wallDurationMs: Number(boundedWallMs.toFixed(2)),
+              sourceQueryMs: Number(sourceQueryMs.toFixed(2)),
+              explainExecutionTimeMillis:
+                sourceStats.executionTimeMillis ?? null,
+              totalKeysExamined: sourceStats.totalKeysExamined ?? null,
+              totalDocsExamined: sourceStats.totalDocsExamined ?? null,
             },
-            wallDeltaMs: Number((twoStepWallMs - legacyWallMs).toFixed(2)),
-            wallRatio: Number((twoStepWallMs / legacyWallMs).toFixed(3)),
+            wallDeltaMs: Number((boundedWallMs - legacyWallMs).toFixed(2)),
+            wallRatio: Number((boundedWallMs / legacyWallMs).toFixed(3)),
           },
         },
         null,

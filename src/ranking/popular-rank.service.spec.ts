@@ -11,8 +11,7 @@ describe('PopularRankService', () => {
   function createMocks(options?: {
     latestResults?: unknown[];
     docs?: unknown[];
-    netCounts?: Array<{ cakeId: string; appLike: number }>;
-    cakes?: Array<Record<string, unknown>>;
+    candidates?: Array<Record<string, unknown>>;
   }) {
     const findOneQuery = {
       sort: jest.fn().mockReturnThis(),
@@ -34,22 +33,17 @@ describe('PopularRankService', () => {
       insertMany: jest.fn().mockResolvedValue(undefined),
       deleteMany: jest.fn().mockResolvedValue(undefined),
     };
-    const cakeLikeEventReader = {
-      getNetCounts: jest.fn().mockResolvedValue(options?.netCounts ?? []),
-    };
-    const cakeRankingReader = {
-      findByIds: jest.fn().mockResolvedValue(options?.cakes ?? []),
+    const sourceReader = {
+      findTop: jest.fn().mockResolvedValue(options?.candidates ?? []),
     };
     const service = new PopularRankService(
       rankModel as never,
-      cakeLikeEventReader as never,
-      cakeRankingReader as never,
+      sourceReader as never,
     );
     return {
       service,
       rankModel,
-      cakeLikeEventReader,
-      cakeRankingReader,
+      sourceReader,
       findOneQuery,
       findQuery,
     };
@@ -67,30 +61,23 @@ describe('PopularRankService', () => {
 
   it('reads only the latest batch with after, limit, and maxTimeMS', async () => {
     const latest = freshBatch();
-    const {
-      service,
-      rankModel,
-      cakeLikeEventReader,
-      cakeRankingReader,
-      findOneQuery,
-      findQuery,
-    } = createMocks({
-      latestResults: [latest],
-      docs: [
-        {
-          cakeId: 'cake-1',
-          total: 9.9,
-          image: { s3Url: 'cake.jpg' },
-          owner_store_id: 'store-1',
-          tag_ins: ['birthday'],
-        },
-      ],
-    });
+    const { service, rankModel, sourceReader, findOneQuery, findQuery } =
+      createMocks({
+        latestResults: [latest],
+        docs: [
+          {
+            cakeId: 'cake-1',
+            total: 9.9,
+            image: { s3Url: 'cake.jpg' },
+            owner_store_id: 'store-1',
+            tag_ins: ['birthday'],
+          },
+        ],
+      });
 
     const result = await service.getRanked(10, 4, 400);
 
-    expect(cakeLikeEventReader.getNetCounts).not.toHaveBeenCalled();
-    expect(cakeRankingReader.findByIds).not.toHaveBeenCalled();
+    expect(sourceReader.findTop).not.toHaveBeenCalled();
     expect(findOneQuery.maxTimeMS).toHaveBeenCalledWith(400);
     expect(rankModel.find).toHaveBeenCalledWith({
       computedAt: latest.computedAt,
@@ -111,55 +98,42 @@ describe('PopularRankService', () => {
     ]);
   });
 
-  it('builds one ranked batch with the legacy score and Cake ID tie-break', async () => {
+  it('builds one ranked batch from the bounded source reader order', async () => {
     const built = freshBatch();
-    const { service, rankModel, cakeLikeEventReader, cakeRankingReader } =
-      createMocks({
-        latestResults: [null, built],
-        netCounts: [
-          { cakeId: 'cake-b', appLike: 1 },
-          { cakeId: 'cake-high', appLike: 0 },
-          { cakeId: 'cake-a', appLike: 1 },
-        ],
-        cakes: [
-          {
-            id: 'cake-b',
-            likeText: '10',
-            image: {},
-            ownerStoreId: 'store-1',
-            tags: [],
-          },
-          {
-            id: 'cake-high',
-            likeText: '20',
-            image: {},
-            ownerStoreId: 'store-1',
-            tags: [],
-          },
-          {
-            id: 'cake-a',
-            likeText: '10',
-            image: {},
-            ownerStoreId: 'store-1',
-            tags: [],
-          },
-        ],
-        docs: [],
-      });
+    const { service, rankModel, sourceReader } = createMocks({
+      latestResults: [null, built],
+      candidates: [
+        {
+          cakeId: 'cake-high',
+          total: 4,
+          image: {},
+          ownerStoreId: 'store-1',
+          tags: [],
+        },
+        {
+          cakeId: 'cake-a',
+          total: 2.9,
+          image: {},
+          ownerStoreId: 'store-1',
+          tags: [],
+        },
+        {
+          cakeId: 'cake-b',
+          total: 2.9,
+          image: {},
+          ownerStoreId: 'store-1',
+          tags: [],
+        },
+      ],
+      docs: [],
+    });
 
     await service.getRanked(NaN, 4);
 
-    expect(cakeLikeEventReader.getNetCounts).toHaveBeenCalledTimes(1);
-    const [start, end] = cakeLikeEventReader.getNetCounts.mock.calls[0];
-    expect(new Date(end).getTime() - new Date(start).getTime()).toBe(
-      30 * DAY_MS,
-    );
-    expect(cakeRankingReader.findByIds).toHaveBeenCalledTimes(1);
-    expect(cakeRankingReader.findByIds).toHaveBeenCalledWith([
-      'cake-b',
-      'cake-high',
-      'cake-a',
-    ]);
+    expect(sourceReader.findTop).toHaveBeenCalledTimes(1);
+    const query = sourceReader.findTop.mock.calls[0][0];
+    expect(query.end.getTime() - query.start.getTime()).toBe(30 * DAY_MS);
+    expect(query).toMatchObject({ limit: 100, maxTimeMs: 5000 });
     expect(rankModel.insertMany).toHaveBeenCalledWith([
       expect.objectContaining({ rank: 1, cakeId: 'cake-high', total: 4 }),
       expect.objectContaining({ rank: 2, cakeId: 'cake-a', total: 2.9 }),
@@ -174,7 +148,7 @@ describe('PopularRankService', () => {
     const stale = freshBatch({
       computedAt: new Date(Date.now() - 11 * 60 * 1000),
     });
-    const { service, cakeLikeEventReader, cakeRankingReader } = createMocks({
+    const { service, sourceReader } = createMocks({
       latestResults: [stale],
       docs: [
         {
@@ -185,11 +159,10 @@ describe('PopularRankService', () => {
           tag_ins: [],
         },
       ],
-      netCounts: [{ cakeId: 'cake-1', appLike: 1 }],
-      cakes: [
+      candidates: [
         {
-          id: 'cake-1',
-          likeText: '10',
+          cakeId: 'cake-1',
+          total: 2.9,
           image: {},
           ownerStoreId: 'store-1',
           tags: [],
@@ -203,24 +176,18 @@ describe('PopularRankService', () => {
     expect(result.cakes).toEqual([
       expect.objectContaining({ _id: 'stale-cake', total: 1 }),
     ]);
-    expect(cakeLikeEventReader.getNetCounts).toHaveBeenCalledTimes(1);
-    expect(cakeRankingReader.findByIds).toHaveBeenCalledTimes(1);
+    expect(sourceReader.findTop).toHaveBeenCalledTimes(1);
   });
 
   it('serves an empty latest batch without aggregation or a refresh loop', async () => {
     const latest = freshBatch({ isEmptyBatch: true });
-    const {
-      service,
-      rankModel,
-      cakeLikeEventReader,
-      cakeRankingReader,
-      findQuery,
-    } = createMocks({ latestResults: [latest] });
+    const { service, rankModel, sourceReader, findQuery } = createMocks({
+      latestResults: [latest],
+    });
 
     const result = await service.getRanked(NaN, 10, 400);
 
-    expect(cakeLikeEventReader.getNetCounts).not.toHaveBeenCalled();
-    expect(cakeRankingReader.findByIds).not.toHaveBeenCalled();
+    expect(sourceReader.findTop).not.toHaveBeenCalled();
     expect(rankModel.find).toHaveBeenCalledWith({
       computedAt: latest.computedAt,
       isEmptyBatch: { $ne: true },
@@ -233,13 +200,13 @@ describe('PopularRankService', () => {
   });
 
   it('writes an empty marker without issuing a Cake query', async () => {
-    const { service, rankModel, cakeLikeEventReader, cakeRankingReader } =
-      createMocks({ netCounts: [] });
+    const { service, rankModel, sourceReader } = createMocks({
+      candidates: [],
+    });
 
     await service.refresh();
 
-    expect(cakeLikeEventReader.getNetCounts).toHaveBeenCalledTimes(1);
-    expect(cakeRankingReader.findByIds).not.toHaveBeenCalled();
+    expect(sourceReader.findTop).toHaveBeenCalledTimes(1);
     expect(rankModel.insertMany).toHaveBeenCalledWith([
       expect.objectContaining({
         windowStart: expect.any(Date),

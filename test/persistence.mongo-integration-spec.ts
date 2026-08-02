@@ -29,6 +29,7 @@ import {
 import { KeywordRankService } from 'src/ranking/keyword-rank.service';
 import { PopularRankService } from 'src/ranking/popular-rank.service';
 import { RankingQueryService } from 'src/ranking/ranking-query.service';
+import { MongoPopularRankingSourceAdapter } from 'src/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
 import { User, UserSchema } from 'src/user/entities/user.schema';
 import fixtures from './fixtures/legacy-persistence.contract.json';
 
@@ -229,15 +230,10 @@ describe('Persistence Mongo integration contract', () => {
     });
     const repository = new CakeLikeEventRepository(cakeLikeLogModel);
 
-    const counts = await repository.getNetCounts(
-      '2026-07-31T00:00:00.000Z',
-      '2026-08-01T00:00:00.000Z',
-    );
     await repository.record('legacy-user', cakeId, false);
     const inserted = await cakeLikeLogModel.findOne({ type: false }).lean();
 
     expect(cakeLikeLogModel.collection.collectionName).toBe('cakelikelogs');
-    expect(counts).toEqual([{ cakeId, appLike: 1 }]);
     expect(inserted).toMatchObject({
       userId: 'legacy-user',
       cakeId: new ObjectId(cakeId),
@@ -245,6 +241,114 @@ describe('Persistence Mongo integration contract', () => {
     });
     expect(inserted.createdAt).toBeInstanceOf(Date);
     expect(inserted.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it('bounds popular source results and normalizes invalid legacy like scores', async () => {
+    const ids = {
+      invalid: new ObjectId('65a000000000000000000001'),
+      missing: new ObjectId('65a000000000000000000002'),
+      numeric: new ObjectId('65a000000000000000000003'),
+      deleted: new ObjectId('65a000000000000000000004'),
+      infinite: new ObjectId('65a000000000000000000005'),
+    };
+    const image = {
+      name: 'cake.png',
+      converte_name: 'cake-converted.png',
+      key: 'store-1/cakes/cake-converted.png',
+      s3Url: 'https://cdn.example.com/cake.png',
+    };
+    const createdAt = new Date('2026-08-01T12:00:00.000Z');
+    await cakeModel.collection.insertMany([
+      {
+        _id: ids.invalid,
+        image,
+        owner_store_id: 'store-1',
+        like_ins: 'not-a-number',
+        tag_ins: ['invalid'],
+        is_delete: false,
+        faiss_id: 1001,
+      },
+      {
+        _id: ids.missing,
+        image,
+        owner_store_id: 'store-1',
+        tag_ins: ['missing'],
+        is_delete: false,
+        faiss_id: 1002,
+      },
+      {
+        _id: ids.numeric,
+        image,
+        owner_store_id: 'store-1',
+        like_ins: '20',
+        tag_ins: ['numeric'],
+        is_delete: false,
+        faiss_id: 1003,
+      },
+      {
+        _id: ids.deleted,
+        image,
+        owner_store_id: 'store-1',
+        like_ins: '1000',
+        tag_ins: ['deleted'],
+        is_delete: true,
+        faiss_id: 1004,
+      },
+      {
+        _id: ids.infinite,
+        image,
+        owner_store_id: 'store-1',
+        like_ins: 'Infinity',
+        tag_ins: ['infinite'],
+        is_delete: false,
+        faiss_id: 1005,
+      },
+    ]);
+    await cakeLikeLogModel.collection.insertMany(
+      Object.values(ids).map((cakeId) => ({
+        userId: `user-${cakeId}`,
+        cakeId,
+        type: true,
+        createdAt,
+        updatedAt: createdAt,
+      })),
+    );
+    const reader = new MongoPopularRankingSourceAdapter(connection);
+
+    const ranked = await reader.findTop({
+      start: new Date('2026-08-01T00:00:00.000Z'),
+      end: new Date('2026-08-02T00:00:00.000Z'),
+      limit: 4,
+      maxTimeMs: 1000,
+    });
+
+    expect(ranked).toHaveLength(4);
+    expect(ranked).toEqual([
+      expect.objectContaining({
+        cakeId: String(ids.numeric),
+        total: 4.9,
+        tags: ['numeric'],
+      }),
+      expect.objectContaining({
+        cakeId: String(ids.invalid),
+        total: 0.9,
+        tags: ['invalid'],
+      }),
+      expect.objectContaining({
+        cakeId: String(ids.missing),
+        total: 0.9,
+        tags: ['missing'],
+      }),
+      expect.objectContaining({
+        cakeId: String(ids.infinite),
+        total: 0.9,
+        tags: ['infinite'],
+      }),
+    ]);
+    expect(ranked.every((cake) => Number.isFinite(cake.total))).toBe(true);
+    expect(ranked.some((cake) => cake.cakeId === String(ids.deleted))).toBe(
+      false,
+    );
   });
 
   it('reuses legacy keyword and popular rank read models without migration', async () => {
@@ -276,11 +380,9 @@ describe('Persistence Mongo integration contract', () => {
     const keywordRankService = new KeywordRankService(keywordRankModel, {
       getRanked: jest.fn(),
     } as never);
-    const popularRankService = new PopularRankService(
-      popularCakeRankModel,
-      { getNetCounts: jest.fn() } as never,
-      { findByIds: jest.fn() } as never,
-    );
+    const popularRankService = new PopularRankService(popularCakeRankModel, {
+      findTop: jest.fn(),
+    } as never);
     const query = new RankingQueryService(
       keywordRankService,
       popularRankService,

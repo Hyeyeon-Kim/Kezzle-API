@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { CakeRankingReader } from 'src/cake/cake-ranking.reader';
-import { CakeLikeEventReader } from 'src/like/application/port/cake-like-event.reader';
+import { PopularRankingSourceReader } from './application/popular-ranking-source.reader';
 import { PopularCakeRank } from './infrastructure/persistence/popular-cake-rank.schema';
 import {
   computeRankWindow,
@@ -12,6 +11,13 @@ import {
 
 // read model 에 미리 적재해 둘 상위 랭킹 수. standalone 페이지네이션 여유분을 포함한다.
 const POPULAR_RANK_TOP_N = 100;
+const configuredSourceMaxTimeMs = Number(
+  process.env.POPULAR_RANK_SOURCE_MAX_TIME_MS ?? 5000,
+);
+const POPULAR_RANK_SOURCE_MAX_TIME_MS =
+  Number.isFinite(configuredSourceMaxTimeMs) && configuredSourceMaxTimeMs > 0
+    ? configuredSourceMaxTimeMs
+    : 5000;
 // staleness 임계. 이 시간이 지나면 다음 조회에서 백그라운드 갱신을 1회 트리거한다.
 const POPULAR_RANK_TTL_MS = Number(process.env.POPULAR_RANK_TTL_MS ?? 600000);
 
@@ -30,8 +36,7 @@ export class PopularRankService {
   constructor(
     @InjectModel(PopularCakeRank.name, 'kezzle')
     private readonly rankModel: Model<PopularCakeRank>,
-    private readonly cakeLikeEventReader: CakeLikeEventReader,
-    private readonly cakeRankingReader: CakeRankingReader,
+    private readonly sourceReader: PopularRankingSourceReader,
   ) {}
 
   /**
@@ -130,44 +135,21 @@ export class PopularRankService {
     this.refreshing = true;
     try {
       const window = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
-      const netCounts = await this.cakeLikeEventReader.getNetCounts(
-        window.start.toISOString(),
-        window.end.toISOString(),
-      );
-      const cakes =
-        netCounts.length === 0
-          ? []
-          : await this.cakeRankingReader.findByIds(
-              netCounts.map((event) => event.cakeId),
-            );
-      const appLikesByCakeId = new Map(
-        netCounts.map((event) => [event.cakeId, event.appLike]),
-      );
-      const ranked = cakes
-        .map((cake) => ({
-          _id: cake.id,
-          total:
-            Number(cake.likeText) * 0.2 +
-            (appLikesByCakeId.get(cake.id) ?? 0) * 0.9,
-          image: cake.image,
-          owner_store_id: cake.ownerStoreId,
-          tag_ins: [...cake.tags],
-        }))
-        .sort((left, right) => {
-          if (left.total !== right.total) return right.total - left.total;
-          if (left._id === right._id) return 0;
-          return left._id < right._id ? -1 : 1;
-        })
-        .slice(0, POPULAR_RANK_TOP_N);
+      const ranked = await this.sourceReader.findTop({
+        start: window.start,
+        end: window.end,
+        limit: POPULAR_RANK_TOP_N,
+        maxTimeMs: POPULAR_RANK_SOURCE_MAX_TIME_MS,
+      });
 
       const computedAt = new Date();
       const docs = ranked.map((cake, index) => ({
         rank: index + 1,
-        cakeId: cake._id,
+        cakeId: cake.cakeId,
         total: cake.total,
         image: cake.image,
-        owner_store_id: cake.owner_store_id,
-        tag_ins: cake.tag_ins ?? [],
+        owner_store_id: cake.ownerStoreId,
+        tag_ins: [...cake.tags],
         windowStart: window.start,
         windowEnd: window.end,
         computedAt,

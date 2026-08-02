@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { CakeRankingModule } from 'src/cake/cake-ranking.module';
-import { LikeEventModule } from 'src/like/infrastructure/persistence/like-event.module';
 import { SearchEventModule } from 'src/search/infrastructure/persistence/search-event.module';
+import { PopularRankingSourceReader } from './application/popular-ranking-source.reader';
 import {
   KeywordRank,
   KeywordRankSchema,
@@ -12,6 +11,7 @@ import {
   PopularCakeRankSchema,
 } from './infrastructure/persistence/popular-cake-rank.schema';
 import { KeywordRankService } from './keyword-rank.service';
+import { MongoPopularRankingSourceAdapter } from './infrastructure/persistence/mongo-popular-ranking-source.adapter';
 import { PopularRankService } from './popular-rank.service';
 import { RankingController } from './ranking.controller';
 import { RankingQueryService } from './ranking-query.service';
@@ -19,8 +19,6 @@ import { RankingQueryService } from './ranking-query.service';
 @Module({
   imports: [
     SearchEventModule,
-    LikeEventModule,
-    CakeRankingModule,
     MongooseModule.forFeature(
       [{ name: KeywordRank.name, schema: KeywordRankSchema }],
       'kezzle',
@@ -31,7 +29,16 @@ import { RankingQueryService } from './ranking-query.service';
     ),
   ],
   controllers: [RankingController],
-  providers: [KeywordRankService, PopularRankService, RankingQueryService],
+  providers: [
+    KeywordRankService,
+    PopularRankService,
+    RankingQueryService,
+    MongoPopularRankingSourceAdapter,
+    {
+      provide: PopularRankingSourceReader,
+      useExisting: MongoPopularRankingSourceAdapter,
+    },
+  ],
   exports: [RankingQueryService],
 })
 export class RankingModule {}
