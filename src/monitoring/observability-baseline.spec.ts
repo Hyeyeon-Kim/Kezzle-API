@@ -10,9 +10,11 @@ import { ConfigService } from '@nestjs/config';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
+import { AiSearchMetricsAdapter } from 'src/ai-search/ai-search-metrics.adapter';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
 import { AppModule } from 'src/app.module';
 import { CakeModule } from 'src/cake/cake.module';
+import { CatalogMetricsAdapter } from 'src/catalog/catalog-metrics.adapter';
 import { CatalogQueryModule } from 'src/catalog/catalog-query.module';
 import { CurationModule } from 'src/curation/curation.module';
 import { CurationRefreshService } from 'src/curation/curation-refresh.service';
@@ -20,14 +22,16 @@ import { HomeModule } from 'src/home/home.module';
 import { HomeFeedService } from 'src/home/home-feed.service';
 import { HomeResilienceMetricsModule } from 'src/home-resilience/home-resilience-metrics.module';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
+import { CakeLikeEventMetricsAdapter } from 'src/like/cake-like-event-metrics.adapter';
 import { LikeModule } from 'src/like/like.module';
+import { MediaMetricsAdapter } from 'src/media/media-metrics.adapter';
+import { MediaObservabilityModule } from 'src/media/media-observability.module';
 import { ObjectStorageModule } from 'src/media/object-storage.module';
-import { MetricsModule } from 'src/metrics/metrics.module';
-import { MetricsService } from 'src/metrics/metrics.service';
 import { PROMETHEUS_REGISTRY } from 'src/observability/prometheus/prometheus.constants';
 import { PrometheusEndpointModule } from 'src/observability/prometheus/prometheus-endpoint.module';
 import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
 import { createPrometheusRegistry } from 'src/observability/prometheus/prometheus-registry.provider';
+import { SearchEventMetricsAdapter } from 'src/search/search-event-metrics.adapter';
 import { SearchModule } from 'src/search/search.module';
 import { StoreModule } from 'src/store/store.module';
 import observabilityBaseline from '../../test/fixtures/observability-baseline.contract.json';
@@ -105,6 +109,16 @@ function isRuntimeMetric(value: unknown): value is RuntimeMetric {
   );
 }
 
+function metricContracts(descriptors: readonly MetricDescriptor[]) {
+  return descriptors.map(({ name, help, type, labelNames, buckets }) => ({
+    name,
+    help,
+    type,
+    labelNames,
+    ...(buckets === undefined ? {} : { buckets }),
+  }));
+}
+
 async function defaultMetricFamilies(
   registry: Registry,
   customMetrics: readonly MetricDescriptor[],
@@ -124,23 +138,45 @@ function metricTokens(path: string): string[] {
   return [...new Set(content.match(metricTokenPattern) ?? [])].sort();
 }
 
-describe('Observability Phase C explicit module wiring', () => {
-  it('uses one registry for compatibility services and keeps only prefixed defaults', async () => {
+describe('Observability Phase D feature metric adapters', () => {
+  it('registers every feature adapter and compatibility service in one registry', async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [MetricsModule, MonitoringModule, PrometheusEndpointModule],
+      imports: [
+        PrometheusRegistryModule,
+        MonitoringModule,
+        PrometheusEndpointModule,
+      ],
+      providers: [
+        AiSearchMetricsAdapter,
+        CatalogMetricsAdapter,
+        SearchEventMetricsAdapter,
+        CakeLikeEventMetricsAdapter,
+        MediaMetricsAdapter,
+      ],
     }).compile();
     const registry = moduleRef.get<Registry>(PROMETHEUS_REGISTRY);
-    const metricsService = moduleRef.get(MetricsService);
     const monitoringService = moduleRef.get(MonitoringService);
-    const metricsCustom = customMetricDescriptors(metricsService);
+    const featureCustom = [
+      AiSearchMetricsAdapter,
+      CatalogMetricsAdapter,
+      SearchEventMetricsAdapter,
+      CakeLikeEventMetricsAdapter,
+      MediaMetricsAdapter,
+    ]
+      .flatMap((adapter) => customMetricDescriptors(moduleRef.get(adapter)))
+      .sort((left, right) => left.name.localeCompare(right.name));
     const monitoringCustom = customMetricDescriptors(monitoringService);
     const defaultMetrics = await defaultMetricFamilies(registry, [
-      ...metricsCustom,
+      ...featureCustom,
       ...monitoringCustom,
     ]);
 
-    expect(metricsService.registry).toBe(registry);
     expect(monitoringService.registry).toBe(registry);
+    expect(metricContracts(featureCustom)).toEqual(
+      metricContracts(
+        observabilityBaseline.registries.metricsService.customMetrics,
+      ),
+    );
     expect(defaultMetrics).toEqual(
       expect.arrayContaining(
         observabilityBaseline.registries.monitoringService
@@ -161,14 +197,30 @@ describe('Observability Phase C explicit module wiring', () => {
 
   it('freezes custom metric names, HELP/TYPE, labels, and histogram buckets', () => {
     const registry = createPrometheusRegistry();
-    const metricsService = new MetricsService(registry);
+    const featureAdapters = [
+      new AiSearchMetricsAdapter(registry),
+      new CatalogMetricsAdapter(registry),
+      new SearchEventMetricsAdapter(registry),
+      new CakeLikeEventMetricsAdapter(registry),
+      new MediaMetricsAdapter(registry),
+    ];
     const monitoringService = new MonitoringService(registry);
 
-    expect(customMetricDescriptors(metricsService)).toEqual(
-      observabilityBaseline.registries.metricsService.customMetrics,
+    expect(
+      metricContracts(
+        featureAdapters
+          .flatMap((adapter) => customMetricDescriptors(adapter))
+          .sort((left, right) => left.name.localeCompare(right.name)),
+      ),
+    ).toEqual(
+      metricContracts(
+        observabilityBaseline.registries.metricsService.customMetrics,
+      ),
     );
-    expect(customMetricDescriptors(monitoringService)).toEqual(
-      observabilityBaseline.registries.monitoringService.customMetrics,
+    expect(metricContracts(customMetricDescriptors(monitoringService))).toEqual(
+      metricContracts(
+        observabilityBaseline.registries.monitoringService.customMetrics,
+      ),
     );
   });
 
@@ -180,21 +232,12 @@ describe('Observability Phase C explicit module wiring', () => {
     }
   });
 
-  it('records the Phase C explicit observability module ownership', () => {
+  it('records the Phase D feature adapter module ownership', () => {
     const moduleSources = readSourceFiles().filter((source) =>
       source.path.endsWith('.module.ts'),
     );
     const decoratedGlobalModules = moduleSources
       .filter((source) => /@Global\(\)/.test(source.content))
-      .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
-      .filter(Boolean)
-      .sort();
-    const metricsModuleConsumers = moduleSources
-      .filter((source) =>
-        /(?:src\/metrics\/metrics\.module|\.\/metrics\/metrics\.module)/.test(
-          source.content,
-        ),
-      )
       .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
       .filter(Boolean)
       .sort();
@@ -225,16 +268,18 @@ describe('Observability Phase C explicit module wiring', () => {
       .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
       .filter(Boolean)
       .sort();
+    const mediaObservabilityModuleConsumers = moduleSources
+      .filter((source) =>
+        /(?:src\/media\/|\.\/)media-observability\.module/.test(source.content),
+      )
+      .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
+      .filter(Boolean)
+      .sort();
 
     expect(
       Reflect.getMetadata(GLOBAL_MODULE_METADATA, MonitoringModule),
     ).not.toBe(true);
     expect(decoratedGlobalModules).toEqual([]);
-    expect(metricsModuleConsumers).toEqual(
-      observabilityBaseline.moduleDependencies.metricsModuleExplicitConsumers.filter(
-        (moduleName) => moduleName !== 'MonitoringModule',
-      ),
-    );
     expect(monitoringModuleConsumers).toEqual([
       'CurationModule',
       'HomeModule',
@@ -242,9 +287,18 @@ describe('Observability Phase C explicit module wiring', () => {
     ]);
     expect(prometheusEndpointModuleConsumers).toEqual(['AppModule']);
     expect(prometheusRegistryModuleConsumers).toEqual([
-      'MetricsModule',
+      'AiSearchModule',
+      'CatalogQueryModule',
+      'LikeModule',
+      'MediaObservabilityModule',
       'MonitoringModule',
       'PrometheusEndpointModule',
+      'SearchModule',
+    ]);
+    expect(mediaObservabilityModuleConsumers).toEqual([
+      'CakeModule',
+      'ObjectStorageModule',
+      'StoreModule',
     ]);
     expect(
       Reflect.getMetadata(GLOBAL_MODULE_METADATA, PrometheusRegistryModule),
@@ -255,9 +309,6 @@ describe('Observability Phase C explicit module wiring', () => {
 
     expect(moduleMetadata(AppModule, MODULE_METADATA.IMPORTS)).toContain(
       PrometheusEndpointModule,
-    );
-    expect(moduleMetadata(MetricsModule, MODULE_METADATA.IMPORTS)).toContain(
-      PrometheusRegistryModule,
     );
     expect(moduleMetadata(MonitoringModule, MODULE_METADATA.IMPORTS)).toContain(
       PrometheusRegistryModule,
@@ -322,31 +373,46 @@ describe('Observability Phase C explicit module wiring', () => {
     ]);
   });
 
-  it('keeps every MetricsService consumer behind an explicit MetricsModule import', () => {
-    const consumers = new Map([
-      ['ai-search/clip-client.ts', AiSearchModule],
-      ['ai-search/vit-client.ts', AiSearchModule],
-      ['cake/cake-media.service.ts', CakeModule],
-      ['catalog/similar-cake-catalog-query.service.ts', CatalogQueryModule],
-      ['like/like.service.ts', LikeModule],
+  it('removes MetricsService and keeps consumers on their semantic adapter', () => {
+    const consumers = [
+      ['ai-search/clip-client.ts', AiSearchModule, AiSearchMetricsAdapter],
+      ['ai-search/vit-client.ts', AiSearchModule, AiSearchMetricsAdapter],
+      ['cake/cake-media.service.ts', CakeModule, MediaMetricsAdapter],
+      [
+        'catalog/similar-cake-catalog-query.service.ts',
+        CatalogQueryModule,
+        CatalogMetricsAdapter,
+      ],
+      ['like/like.service.ts', LikeModule, CakeLikeEventMetricsAdapter],
       [
         'media/infrastructure/s3-object-storage.adapter.ts',
         ObjectStorageModule,
+        MediaMetricsAdapter,
       ],
-      ['search/search.service.ts', SearchModule],
-      ['store/store-media.service.ts', StoreModule],
-    ]);
-    const consumerPaths = readSourceFiles()
-      .filter((source) => !source.path.endsWith('.spec.ts'))
-      .filter((source) => /src\/metrics\/metrics\.service/.test(source.content))
-      .map((source) => source.path)
-      .sort();
+      ['search/search.service.ts', SearchModule, SearchEventMetricsAdapter],
+      ['store/store-media.service.ts', StoreModule, MediaMetricsAdapter],
+    ] as const;
 
-    expect(consumerPaths).toEqual([...consumers.keys()].sort());
-    for (const ownerModule of consumers.values()) {
-      expect(moduleMetadata(ownerModule, MODULE_METADATA.IMPORTS)).toContain(
-        MetricsModule,
-      );
+    expect(
+      readSourceFiles().filter((source) => source.path.startsWith('metrics/')),
+    ).toEqual([]);
+    for (const [path, ownerModule, adapter] of consumers) {
+      const source = readFileSync(join(sourceRoot, path), 'utf8');
+      expect(source).not.toContain('MetricsService');
+      expect(source).toContain(adapter.name);
+
+      if (adapter === MediaMetricsAdapter) {
+        expect(moduleMetadata(ownerModule, MODULE_METADATA.IMPORTS)).toContain(
+          MediaObservabilityModule,
+        );
+      } else {
+        expect(
+          moduleMetadata(ownerModule, MODULE_METADATA.PROVIDERS),
+        ).toContain(adapter);
+        expect(moduleMetadata(ownerModule, MODULE_METADATA.IMPORTS)).toContain(
+          PrometheusRegistryModule,
+        );
+      }
     }
   });
 

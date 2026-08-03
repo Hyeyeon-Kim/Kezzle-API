@@ -22,7 +22,7 @@ describe('SearchService', () => {
       findLatest: jest.fn().mockResolvedValue(options?.latest ?? []),
     };
     const metricsService = {
-      searchEventRecordFailures: { inc: jest.fn() },
+      countRecordFailure: jest.fn(),
     };
     const service = new SearchService(
       clipClient as never,
@@ -110,9 +110,7 @@ describe('SearchService', () => {
     });
     await new Promise(setImmediate);
 
-    expect(metricsService.searchEventRecordFailures.inc).toHaveBeenCalledTimes(
-      1,
-    );
+    expect(metricsService.countRecordFailure).toHaveBeenCalledTimes(1);
     expect(logger).toHaveBeenCalledWith({
       event: 'search_event_record_failed',
       error: 'event create failed',

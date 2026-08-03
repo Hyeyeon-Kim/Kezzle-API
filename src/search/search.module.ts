@@ -2,13 +2,14 @@ import { Module } from '@nestjs/common';
 import { SearchController } from './search.controller';
 import { SearchService } from './search.service';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
-import { MetricsModule } from 'src/metrics/metrics.module';
+import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
 import { SearchEventModule } from './infrastructure/persistence/search-event.module';
+import { SearchEventMetricsAdapter } from './search-event-metrics.adapter';
 
 @Module({
-  imports: [AiSearchModule, MetricsModule, SearchEventModule],
+  imports: [AiSearchModule, PrometheusRegistryModule, SearchEventModule],
   controllers: [SearchController],
-  providers: [SearchService],
+  providers: [SearchService, SearchEventMetricsAdapter],
   exports: [SearchService],
 })
 export class SearchModule {}

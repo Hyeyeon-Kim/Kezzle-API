@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ClipClient } from 'src/ai-search/clip-client';
 import { CakeExternalMapper } from 'src/cake/cake-external.mapper';
-import { MetricsService } from 'src/metrics/metrics.service';
 import { SearchEventRecorder } from './application/port/search-event-recorder.port';
 import { SearchHistoryReader } from './application/port/search-history.reader';
 import { LatestSearchView, SearchResultView } from './application/search.view';
+import { SearchEventMetricsAdapter } from './search-event-metrics.adapter';
 
 @Injectable()
 export class SearchService {
@@ -14,7 +14,7 @@ export class SearchService {
     private readonly clipClient: ClipClient,
     private readonly searchEventRecorder: SearchEventRecorder,
     private readonly searchHistoryReader: SearchHistoryReader,
-    private readonly metricsService: MetricsService,
+    private readonly metrics: SearchEventMetricsAdapter,
   ) {}
 
   async search(
@@ -60,7 +60,7 @@ export class SearchService {
   }
 
   private reportRecordFailure(error: unknown): void {
-    this.metricsService.searchEventRecordFailures.inc();
+    this.metrics.countRecordFailure();
     this.logger.error({
       event: 'search_event_record_failed',
       error: error instanceof Error ? error.message : String(error),

@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { VitClient } from 'src/ai-search/vit-client';
-import { MetricsService } from 'src/metrics/metrics.service';
 import { StoreCatalogReader } from 'src/store/store-catalog.reader';
 import { CatalogSimilarCakePageView } from './application/catalog.view';
+import { CatalogMetricsAdapter } from './catalog-metrics.adapter';
 
 @Injectable()
 export class SimilarCakeCatalogQueryService {
   constructor(
     private readonly storeReader: StoreCatalogReader,
     private readonly vitClient: VitClient,
-    private readonly metricsService: MetricsService,
+    private readonly metrics: CatalogMetricsAdapter,
   ) {}
 
   async execute(
@@ -19,8 +19,7 @@ export class SimilarCakeCatalogQueryService {
     distance: number,
     size: number,
   ): Promise<CatalogSimilarCakePageView> {
-    const endSimilarSearch =
-      this.metricsService.similarSearchDuration.startTimer();
+    const endSimilarSearch = this.metrics.startSimilarSearch();
 
     try {
       const cakes = await this.vitClient.similarSearchWithLocation(
@@ -33,7 +32,7 @@ export class SimilarCakeCatalogQueryService {
       const storeIds = [
         ...new Set(cakes.map((cake) => cake.owner_store_id).filter(Boolean)),
       ] as string[];
-      const endStoreQuery = this.metricsService.storeQueryDuration.startTimer();
+      const endStoreQuery = this.metrics.startStoreQuery();
       const stores = await this.storeReader.findSummariesByIds(storeIds);
       endStoreQuery();
 
@@ -56,10 +55,10 @@ export class SimilarCakeCatalogQueryService {
         })
         .filter((cake) => cake !== null);
 
-      endSimilarSearch({ status: 'success' });
+      endSimilarSearch('success');
       return { cakes: response, hasMore: false };
     } catch (error) {
-      endSimilarSearch({ status: 'error' });
+      endSimilarSearch('error');
       throw error;
     }
   }

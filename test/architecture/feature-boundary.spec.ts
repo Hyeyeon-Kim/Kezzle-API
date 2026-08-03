@@ -41,7 +41,7 @@ import { ObjectStorageModule } from 'src/media/object-storage.module';
 import { CakeMediaService } from 'src/cake/cake-media.service';
 import { CakeImportService } from 'src/cake/cake-import.service';
 import { StoreMediaService } from 'src/store/store-media.service';
-import { MetricsModule } from 'src/metrics/metrics.module';
+import { MediaObservabilityModule } from 'src/media/media-observability.module';
 
 type SourceFile = {
   path: string;
@@ -809,7 +809,7 @@ describe('Feature boundary architecture', () => {
     expect(applicationFrameworkImports).toEqual([]);
     expect(featureStorageViolations).toEqual([]);
     expect(adapter?.content).not.toContain('process.env');
-    expect(storageImports).toContain(MetricsModule);
+    expect(storageImports).toContain(MediaObservabilityModule);
     expect(storageProviders).toContain(S3ObjectStorageAdapter);
     expect(storageProviders).toContainEqual({
       provide: ObjectStoragePort,
@@ -875,9 +875,9 @@ describe('Feature boundary architecture', () => {
     expect(cakeProviders).toEqual(
       expect.arrayContaining([CakeMediaService, CakeImportService]),
     );
-    expect(cakeImports).toContain(MetricsModule);
+    expect(cakeImports).toContain(MediaObservabilityModule);
     expect(storeProviders).toContain(StoreMediaService);
-    expect(storeImports).toContain(MetricsModule);
+    expect(storeImports).toContain(MediaObservabilityModule);
   });
 
   it('keeps removed legacy log and upload modules out of the source tree', () => {

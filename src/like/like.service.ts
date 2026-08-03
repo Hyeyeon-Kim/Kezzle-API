@@ -5,12 +5,12 @@ import {
   LikedStoreCatalogReader,
   LikedStoreCatalogView,
 } from 'src/catalog/liked-store-catalog.reader';
-import { MetricsService } from 'src/metrics/metrics.service';
 import { StoreAlredyLikeException } from 'src/store/exceptions/store-already-like.exception';
 import { StoreLikePort } from 'src/store/store-like.port';
 import { UserLikePort } from 'src/user/user-like.port';
 import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { CakeLikeEventRecorder } from './application/port/cake-like-event-recorder.port';
+import { CakeLikeEventMetricsAdapter } from './cake-like-event-metrics.adapter';
 
 @Injectable()
 export class LikeService {
@@ -22,7 +22,7 @@ export class LikeService {
     private readonly storeLikePort: StoreLikePort,
     private readonly likedStoreReader: LikedStoreCatalogReader,
     private readonly cakeLikeEventRecorder: CakeLikeEventRecorder,
-    private readonly metricsService: MetricsService,
+    private readonly metrics: CakeLikeEventMetricsAdapter,
   ) {}
 
   async findUserLikeCake(userid: string): Promise<CakeLikeView[]> {
@@ -102,7 +102,7 @@ export class LikeService {
     void this.cakeLikeEventRecorder
       .record(userId, cakeId, type)
       .catch((error: unknown) => {
-        this.metricsService.cakeLikeEventRecordFailures.inc();
+        this.metrics.countRecordFailure();
         this.logger.error({
           event: 'cake_like_event_record_failed',
           error: error instanceof Error ? error.message : String(error),

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { MetricsService } from 'src/metrics/metrics.service';
+import { AiSearchMetricsAdapter } from './ai-search-metrics.adapter';
 
 const MODEL = 'clip';
 const ENDPOINT_KO_SEARCH = 'ko-search';
@@ -16,7 +16,7 @@ export interface ClipKoSearchPageResult {
 export class ClipClient {
   constructor(
     private readonly httpService: HttpService,
-    private readonly metricsService: MetricsService,
+    private readonly metrics: AiSearchMetricsAdapter,
   ) {}
 
   async koSearch(
@@ -62,18 +62,18 @@ export class ClipClient {
   }
 
   private async measure<T>(endpoint: string, fn: () => Promise<T>): Promise<T> {
-    const endTimer = this.metricsService.aiApiCallDuration.startTimer({
+    const endCall = this.metrics.startCall({
       model: MODEL,
       endpoint,
     });
     try {
       const result = await fn();
-      endTimer({ status: 'success' });
+      endCall('success');
       return result;
     } catch (err) {
       const reason = err?.code === 'ECONNABORTED' ? 'timeout' : 'error';
-      endTimer({ status: reason });
-      this.metricsService.aiApiErrors.inc({
+      endCall(reason);
+      this.metrics.countError({
         reason,
         model: MODEL,
         endpoint,

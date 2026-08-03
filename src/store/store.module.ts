@@ -10,10 +10,14 @@ import { StoreCakeWriteContextReader } from './store-cake-write-context.reader';
 import { StoreLikeRepositoryAdapter } from './store-like.adapter';
 import { StoreLikePort } from './store-like.port';
 import { StoreMediaService } from './store-media.service';
-import { MetricsModule } from 'src/metrics/metrics.module';
+import { MediaObservabilityModule } from 'src/media/media-observability.module';
 
 @Module({
-  imports: [ObjectStorageModule, StoreRepositoryModule, MetricsModule],
+  imports: [
+    ObjectStorageModule,
+    StoreRepositoryModule,
+    MediaObservabilityModule,
+  ],
   controllers: [StoreController],
   providers: [
     StoreService,

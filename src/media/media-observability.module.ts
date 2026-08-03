@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
-import { MetricsService } from './metrics.service';
+import { MediaMetricsAdapter } from './media-metrics.adapter';
 
 @Module({
   imports: [PrometheusRegistryModule],
-  providers: [MetricsService],
-  exports: [MetricsService],
+  providers: [MediaMetricsAdapter],
+  exports: [MediaMetricsAdapter],
 })
-export class MetricsModule {}
+export class MediaObservabilityModule {}

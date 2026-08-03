@@ -41,7 +41,7 @@ describe('CakeMediaService', () => {
       updateOneById: jest.fn().mockResolvedValue({ acknowledged: true }),
     };
     const metricsService = {
-      mediaObjectOrphans: { inc: jest.fn() },
+      countOrphan: jest.fn(),
     };
     return {
       service: new CakeMediaService(
@@ -113,10 +113,10 @@ describe('CakeMediaService', () => {
         operation: 'replace_previous_image',
       }),
     );
-    expect(metricsService.mediaObjectOrphans.inc).toHaveBeenCalledWith({
-      feature: 'cake',
-      operation: 'replace_previous_image',
-    });
+    expect(metricsService.countOrphan).toHaveBeenCalledWith(
+      'cake',
+      'replace_previous_image',
+    );
   });
 
   it('soft-deletes in Mongo before deleting the stored full key', async () => {
@@ -137,10 +137,10 @@ describe('CakeMediaService', () => {
     expect(
       cakeRepository.updateOneById.mock.invocationCallOrder[0],
     ).toBeLessThan(objectStorage.delete.mock.invocationCallOrder[0]);
-    expect(metricsService.mediaObjectOrphans.inc).toHaveBeenCalledWith({
-      feature: 'cake',
-      operation: 'soft_delete',
-    });
+    expect(metricsService.countOrphan).toHaveBeenCalledWith(
+      'cake',
+      'soft_delete',
+    );
   });
 
   it('does not delete the object when Cake soft-delete persistence fails', async () => {

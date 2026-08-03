@@ -11,7 +11,7 @@ const buildService = ({
   storeLikePort = {},
   likedStoreReader = {},
   cakeLikeEventRecorder = { record: jest.fn().mockResolvedValue(undefined) },
-  metricsService = { cakeLikeEventRecordFailures: { inc: jest.fn() } },
+  metricsService = { countRecordFailure: jest.fn() },
 }: Record<string, any>) =>
   new LikeService(
     userLikePort as any,
@@ -189,7 +189,7 @@ describe('LikeService public port boundary', () => {
       record: jest.fn().mockRejectedValue(new Error('event create failed')),
     };
     const metricsService = {
-      cakeLikeEventRecordFailures: { inc: jest.fn() },
+      countRecordFailure: jest.fn(),
     };
     const service = buildService({
       cakeLikePort: {
@@ -208,9 +208,7 @@ describe('LikeService public port boundary', () => {
     ).resolves.toBe(true);
     await new Promise(setImmediate);
 
-    expect(
-      metricsService.cakeLikeEventRecordFailures.inc,
-    ).toHaveBeenCalledTimes(1);
+    expect(metricsService.countRecordFailure).toHaveBeenCalledTimes(1);
     expect(logger).toHaveBeenCalledWith({
       event: 'cake_like_event_record_failed',
       error: 'event create failed',

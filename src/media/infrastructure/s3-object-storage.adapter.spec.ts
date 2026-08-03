@@ -17,7 +17,7 @@ describe('S3ObjectStorageAdapter', () => {
       deleteObject: jest.fn(),
     };
     const metricsService = {
-      objectStorageOperationFailures: { inc: jest.fn() },
+      countStorageFailure: jest.fn(),
     };
     const adapter = new S3ObjectStorageAdapter(
       client as never,
@@ -114,9 +114,9 @@ describe('S3ObjectStorageAdapter', () => {
           error: expect.objectContaining({ message: cause.message }),
         }),
       );
-      expect(
-        metricsService.objectStorageOperationFailures.inc,
-      ).toHaveBeenCalledWith({ operation });
+      expect(metricsService.countStorageFailure).toHaveBeenCalledWith(
+        operation,
+      );
     },
   );
 });
