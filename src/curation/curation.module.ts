@@ -7,6 +7,7 @@ import { CurationRefreshService } from './curation-refresh.service';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
 import { CurationQueryService } from './curation-query.service';
 import { CurationRepository } from './curation.repository';
+import { MonitoringModule } from 'src/monitoring/monitoring.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { CurationRepository } from './curation.repository';
       'kezzle',
     ),
     AiSearchModule,
+    MonitoringModule,
   ],
   controllers: [CurationController],
   providers: [

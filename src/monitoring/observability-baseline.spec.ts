@@ -6,18 +6,30 @@ import {
 import { readdirSync, readFileSync } from 'fs';
 import { join, relative, sep } from 'path';
 import { Registry } from 'prom-client';
+import { ConfigService } from '@nestjs/config';
+import { getConnectionToken } from '@nestjs/mongoose';
+import { SchedulerRegistry } from '@nestjs/schedule';
+import { Test } from '@nestjs/testing';
+import { AiSearchModule } from 'src/ai-search/ai-search.module';
+import { AppModule } from 'src/app.module';
+import { CakeModule } from 'src/cake/cake.module';
+import { CatalogQueryModule } from 'src/catalog/catalog-query.module';
 import { CurationModule } from 'src/curation/curation.module';
 import { CurationRefreshService } from 'src/curation/curation-refresh.service';
+import { HomeModule } from 'src/home/home.module';
+import { HomeFeedService } from 'src/home/home-feed.service';
 import { HomeResilienceMetricsModule } from 'src/home-resilience/home-resilience-metrics.module';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
-import { AppModule } from 'src/app.module';
+import { LikeModule } from 'src/like/like.module';
+import { ObjectStorageModule } from 'src/media/object-storage.module';
 import { MetricsModule } from 'src/metrics/metrics.module';
 import { MetricsService } from 'src/metrics/metrics.service';
 import { PROMETHEUS_REGISTRY } from 'src/observability/prometheus/prometheus.constants';
 import { PrometheusEndpointModule } from 'src/observability/prometheus/prometheus-endpoint.module';
 import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
 import { createPrometheusRegistry } from 'src/observability/prometheus/prometheus-registry.provider';
-import { Test } from '@nestjs/testing';
+import { SearchModule } from 'src/search/search.module';
+import { StoreModule } from 'src/store/store.module';
 import observabilityBaseline from '../../test/fixtures/observability-baseline.contract.json';
 import { MonitoringModule } from './monitoring.module';
 import { MonitoringService } from './monitoring.service';
@@ -112,7 +124,7 @@ function metricTokens(path: string): string[] {
   return [...new Set(content.match(metricTokenPattern) ?? [])].sort();
 }
 
-describe('Observability Phase B single registry', () => {
+describe('Observability Phase C explicit module wiring', () => {
   it('uses one registry for compatibility services and keeps only prefixed defaults', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [MetricsModule, MonitoringModule, PrometheusEndpointModule],
@@ -168,7 +180,7 @@ describe('Observability Phase B single registry', () => {
     }
   });
 
-  it('records the Phase B endpoint and registry module ownership', () => {
+  it('records the Phase C explicit observability module ownership', () => {
     const moduleSources = readSourceFiles().filter((source) =>
       source.path.endsWith('.module.ts'),
     );
@@ -214,18 +226,20 @@ describe('Observability Phase B single registry', () => {
       .filter(Boolean)
       .sort();
 
-    expect(Reflect.getMetadata(GLOBAL_MODULE_METADATA, MonitoringModule)).toBe(
-      true,
-    );
-    expect(decoratedGlobalModules).toEqual(
-      observabilityBaseline.moduleDependencies.decoratedGlobalModules,
-    );
+    expect(
+      Reflect.getMetadata(GLOBAL_MODULE_METADATA, MonitoringModule),
+    ).not.toBe(true);
+    expect(decoratedGlobalModules).toEqual([]);
     expect(metricsModuleConsumers).toEqual(
       observabilityBaseline.moduleDependencies.metricsModuleExplicitConsumers.filter(
         (moduleName) => moduleName !== 'MonitoringModule',
       ),
     );
-    expect(monitoringModuleConsumers).toEqual(['HomeModule']);
+    expect(monitoringModuleConsumers).toEqual([
+      'CurationModule',
+      'HomeModule',
+      'HomeResilienceMetricsModule',
+    ]);
     expect(prometheusEndpointModuleConsumers).toEqual(['AppModule']);
     expect(prometheusRegistryModuleConsumers).toEqual([
       'MetricsModule',
@@ -265,11 +279,15 @@ describe('Observability Phase B single registry', () => {
     );
   });
 
-  it('characterizes hidden MonitoringService consumers in HomeResilience and Curation', () => {
-    const hiddenConsumers = [
+  it('makes every MonitoringService dependency explicit in module metadata', () => {
+    const explicitConsumers = [
       {
         module: CurationModule,
         provider: CurationRefreshService,
+      },
+      {
+        module: HomeModule,
+        provider: HomeFeedService,
       },
       {
         module: HomeResilienceMetricsModule,
@@ -281,15 +299,93 @@ describe('Observability Phase B single registry', () => {
       const dependencies =
         (Reflect.getMetadata(PARAMTYPES_METADATA, provider) as unknown[]) ?? [];
 
-      expect(imports).not.toContain(MonitoringModule);
+      expect(imports).toContain(MonitoringModule);
       expect(providers).toContain(provider);
       expect(dependencies).toContain(MonitoringService);
 
       return { module: module.name, provider: provider.name };
     });
 
-    expect(hiddenConsumers).toEqual(
-      observabilityBaseline.moduleDependencies.hiddenMonitoringServiceConsumers,
-    );
+    expect(explicitConsumers).toEqual([
+      {
+        module: 'CurationModule',
+        provider: 'CurationRefreshService',
+      },
+      {
+        module: 'HomeModule',
+        provider: 'HomeFeedService',
+      },
+      {
+        module: 'HomeResilienceMetricsModule',
+        provider: 'HomeResilienceMetricsService',
+      },
+    ]);
+  });
+
+  it('keeps every MetricsService consumer behind an explicit MetricsModule import', () => {
+    const consumers = new Map([
+      ['ai-search/clip-client.ts', AiSearchModule],
+      ['ai-search/vit-client.ts', AiSearchModule],
+      ['cake/cake-media.service.ts', CakeModule],
+      ['catalog/similar-cake-catalog-query.service.ts', CatalogQueryModule],
+      ['like/like.service.ts', LikeModule],
+      [
+        'media/infrastructure/s3-object-storage.adapter.ts',
+        ObjectStorageModule,
+      ],
+      ['search/search.service.ts', SearchModule],
+      ['store/store-media.service.ts', StoreModule],
+    ]);
+    const consumerPaths = readSourceFiles()
+      .filter((source) => !source.path.endsWith('.spec.ts'))
+      .filter((source) => /src\/metrics\/metrics\.service/.test(source.content))
+      .map((source) => source.path)
+      .sort();
+
+    expect(consumerPaths).toEqual([...consumers.keys()].sort());
+    for (const ownerModule of consumers.values()) {
+      expect(moduleMetadata(ownerModule, MODULE_METADATA.IMPORTS)).toContain(
+        MetricsModule,
+      );
+    }
+  });
+
+  it('compiles HomeResilienceMetricsModule without AppModule globals', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [HomeResilienceMetricsModule],
+    }).compile();
+
+    expect(moduleRef.get(HomeResilienceMetricsService)).toBeDefined();
+    expect(moduleRef.get(MonitoringService)).toBeDefined();
+    await moduleRef.close();
+  });
+
+  it('compiles CurationModule with only non-observability platform stubs', async () => {
+    const connectionToken = getConnectionToken('kezzle');
+    const moduleRef = await Test.createTestingModule({
+      imports: [CurationModule],
+    })
+      .useMocker((token) => {
+        if (token === connectionToken) {
+          return { models: {}, model: jest.fn().mockReturnValue({}) };
+        }
+        if (token === ConfigService) {
+          return { get: jest.fn().mockReturnValue('0') };
+        }
+        if (token === SchedulerRegistry) {
+          return { addInterval: jest.fn() };
+        }
+        if (token === MonitoringService) {
+          throw new Error(
+            'MonitoringService must resolve from MonitoringModule',
+          );
+        }
+        throw new Error(`Unexpected missing provider: ${String(token)}`);
+      })
+      .compile();
+
+    expect(moduleRef.get(CurationRefreshService)).toBeDefined();
+    expect(moduleRef.get(MonitoringService)).toBeDefined();
+    await moduleRef.close();
   });
 });
