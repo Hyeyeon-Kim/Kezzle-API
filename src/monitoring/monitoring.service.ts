@@ -1,11 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import {
-  collectDefaultMetrics,
-  Counter,
-  Gauge,
-  Histogram,
-  Registry,
-} from 'prom-client';
+import { Inject, Injectable } from '@nestjs/common';
+import { Counter, Gauge, Histogram, Registry } from 'prom-client';
+import { PROMETHEUS_REGISTRY } from 'src/observability/prometheus/prometheus.constants';
 
 export type HomeRequestStatus = 'success' | 'error';
 export type HomeSectionName =
@@ -35,7 +30,10 @@ const SECTION_DURATION_BUCKETS = [
 
 @Injectable()
 export class MonitoringService {
-  readonly registry = new Registry();
+  constructor(
+    @Inject(PROMETHEUS_REGISTRY)
+    readonly registry: Registry,
+  ) {}
 
   private readonly homeRequests = new Counter({
     name: 'kezzle_home_requests_total',
@@ -113,10 +111,6 @@ export class MonitoringService {
     help: 'Stale curations found by the last refresh job run',
     registers: [this.registry],
   });
-
-  constructor() {
-    collectDefaultMetrics({ register: this.registry, prefix: 'kezzle_' });
-  }
 
   observeHomeRequest(status: HomeRequestStatus, durationSeconds: number): void {
     this.homeRequests.inc({ status });

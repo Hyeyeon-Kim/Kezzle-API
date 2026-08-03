@@ -1,5 +1,6 @@
 import { HomeResilienceMetricsService } from './home-resilience-metrics.service';
 import { MonitoringService } from 'src/monitoring/monitoring.service';
+import { Registry } from 'prom-client';
 
 describe('HomeResilienceMetricsService cache metrics', () => {
   const originalEnabled = process.env.HOME_RESILIENCE_METRICS_ENABLED;
@@ -16,7 +17,9 @@ describe('HomeResilienceMetricsService cache metrics', () => {
   it('keeps refreshes that finish outside a request in cumulative totals', async () => {
     process.env.HOME_RESILIENCE_METRICS_ENABLED = 'true';
     const log = jest.spyOn(console, 'log').mockImplementation();
-    const service = new HomeResilienceMetricsService(new MonitoringService());
+    const service = new HomeResilienceMetricsService(
+      new MonitoringService(new Registry()),
+    );
 
     service.countCache('refresh');
     await service.run(async () => {

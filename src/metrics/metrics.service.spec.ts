@@ -1,8 +1,9 @@
+import { Registry } from 'prom-client';
 import { MetricsService } from './metrics.service';
 
 describe('MetricsService media metrics', () => {
   it('exposes object storage failure counters by operation', async () => {
-    const service = new MetricsService();
+    const service = new MetricsService(new Registry());
 
     service.objectStorageOperationFailures.inc({ operation: 'put' });
     service.objectStorageOperationFailures.inc({ operation: 'delete' });
@@ -16,7 +17,7 @@ describe('MetricsService media metrics', () => {
   });
 
   it('exposes media orphan counters without object identifiers', async () => {
-    const service = new MetricsService();
+    const service = new MetricsService(new Registry());
 
     service.mediaObjectOrphans.inc({
       feature: 'cake',

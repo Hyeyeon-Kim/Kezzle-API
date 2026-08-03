@@ -1,20 +1,20 @@
+import { Registry } from 'prom-client';
 import { MonitoringService } from './monitoring.service';
 
 describe('MonitoringService', () => {
   let service: MonitoringService;
 
   beforeEach(() => {
-    service = new MonitoringService();
+    service = new MonitoringService(new Registry());
   });
 
-  it('exposes prometheus text format with kezzle prefix', async () => {
+  it('exposes prometheus text format from the injected registry', async () => {
     service.observeHomeRequest('success', 0.012);
     const output = await service.metrics();
 
     expect(service.contentType()).toContain('text/plain');
     expect(output).toContain('kezzle_home_requests_total{status="success"} 1');
     expect(output).toContain('kezzle_home_request_duration_seconds_bucket');
-    expect(output).toContain('kezzle_process_cpu_user_seconds_total');
   });
 
   it('counts home requests by status', async () => {

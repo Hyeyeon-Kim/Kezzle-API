@@ -10,7 +10,14 @@ import { CurationModule } from 'src/curation/curation.module';
 import { CurationRefreshService } from 'src/curation/curation-refresh.service';
 import { HomeResilienceMetricsModule } from 'src/home-resilience/home-resilience-metrics.module';
 import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
+import { AppModule } from 'src/app.module';
+import { MetricsModule } from 'src/metrics/metrics.module';
 import { MetricsService } from 'src/metrics/metrics.service';
+import { PROMETHEUS_REGISTRY } from 'src/observability/prometheus/prometheus.constants';
+import { PrometheusEndpointModule } from 'src/observability/prometheus/prometheus-endpoint.module';
+import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
+import { createPrometheusRegistry } from 'src/observability/prometheus/prometheus-registry.provider';
+import { Test } from '@nestjs/testing';
 import observabilityBaseline from '../../test/fixtures/observability-baseline.contract.json';
 import { MonitoringModule } from './monitoring.module';
 import { MonitoringService } from './monitoring.service';
@@ -105,36 +112,45 @@ function metricTokens(path: string): string[] {
   return [...new Set(content.match(metricTokenPattern) ?? [])].sort();
 }
 
-describe('Observability Phase A baseline', () => {
-  it('characterizes the two distinct registries and duplicated default metrics', async () => {
-    const metricsService = new MetricsService();
-    const monitoringService = new MonitoringService();
+describe('Observability Phase B single registry', () => {
+  it('uses one registry for compatibility services and keeps only prefixed defaults', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [MetricsModule, MonitoringModule, PrometheusEndpointModule],
+    }).compile();
+    const registry = moduleRef.get<Registry>(PROMETHEUS_REGISTRY);
+    const metricsService = moduleRef.get(MetricsService);
+    const monitoringService = moduleRef.get(MonitoringService);
     const metricsCustom = customMetricDescriptors(metricsService);
     const monitoringCustom = customMetricDescriptors(monitoringService);
-    const metricsDefaults = await defaultMetricFamilies(
-      metricsService.registry,
-      metricsCustom,
+    const defaultMetrics = await defaultMetricFamilies(registry, [
+      ...metricsCustom,
+      ...monitoringCustom,
+    ]);
+
+    expect(metricsService.registry).toBe(registry);
+    expect(monitoringService.registry).toBe(registry);
+    expect(defaultMetrics).toEqual(
+      expect.arrayContaining(
+        observabilityBaseline.registries.monitoringService
+          .defaultMetricFamilies,
+      ),
     );
-    const monitoringDefaults = await defaultMetricFamilies(
-      monitoringService.registry,
-      monitoringCustom,
+    expect(defaultMetrics.every((name) => name.startsWith('kezzle_'))).toBe(
+      true,
+    );
+    expect(defaultMetrics).not.toEqual(
+      expect.arrayContaining(
+        observabilityBaseline.registries.metricsService.defaultMetricFamilies,
+      ),
     );
 
-    expect(metricsService.registry).not.toBe(monitoringService.registry);
-    expect(metricsDefaults).toEqual(
-      observabilityBaseline.registries.metricsService.defaultMetricFamilies,
-    );
-    expect(monitoringDefaults).toEqual(
-      observabilityBaseline.registries.monitoringService.defaultMetricFamilies,
-    );
-    expect(monitoringDefaults).toEqual(
-      metricsDefaults.map((name) => `kezzle_${name}`),
-    );
+    await moduleRef.close();
   });
 
   it('freezes custom metric names, HELP/TYPE, labels, and histogram buckets', () => {
-    const metricsService = new MetricsService();
-    const monitoringService = new MonitoringService();
+    const registry = createPrometheusRegistry();
+    const metricsService = new MetricsService(registry);
+    const monitoringService = new MonitoringService(registry);
 
     expect(customMetricDescriptors(metricsService)).toEqual(
       observabilityBaseline.registries.metricsService.customMetrics,
@@ -152,7 +168,7 @@ describe('Observability Phase A baseline', () => {
     }
   });
 
-  it('freezes current global and explicit observability module imports', () => {
+  it('records the Phase B endpoint and registry module ownership', () => {
     const moduleSources = readSourceFiles().filter((source) =>
       source.path.endsWith('.module.ts'),
     );
@@ -179,6 +195,24 @@ describe('Observability Phase A baseline', () => {
       .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
       .filter(Boolean)
       .sort();
+    const prometheusEndpointModuleConsumers = moduleSources
+      .filter((source) =>
+        /observability\/prometheus\/prometheus-endpoint\.module/.test(
+          source.content,
+        ),
+      )
+      .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
+      .filter(Boolean)
+      .sort();
+    const prometheusRegistryModuleConsumers = moduleSources
+      .filter((source) =>
+        /(?:observability\/prometheus\/|\.\/)prometheus-registry\.module/.test(
+          source.content,
+        ),
+      )
+      .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
+      .filter(Boolean)
+      .sort();
 
     expect(Reflect.getMetadata(GLOBAL_MODULE_METADATA, MonitoringModule)).toBe(
       true,
@@ -187,11 +221,47 @@ describe('Observability Phase A baseline', () => {
       observabilityBaseline.moduleDependencies.decoratedGlobalModules,
     );
     expect(metricsModuleConsumers).toEqual(
-      observabilityBaseline.moduleDependencies.metricsModuleExplicitConsumers,
+      observabilityBaseline.moduleDependencies.metricsModuleExplicitConsumers.filter(
+        (moduleName) => moduleName !== 'MonitoringModule',
+      ),
     );
-    expect(monitoringModuleConsumers).toEqual(
-      observabilityBaseline.moduleDependencies
-        .monitoringModuleExplicitConsumers,
+    expect(monitoringModuleConsumers).toEqual(['HomeModule']);
+    expect(prometheusEndpointModuleConsumers).toEqual(['AppModule']);
+    expect(prometheusRegistryModuleConsumers).toEqual([
+      'MetricsModule',
+      'MonitoringModule',
+      'PrometheusEndpointModule',
+    ]);
+    expect(
+      Reflect.getMetadata(GLOBAL_MODULE_METADATA, PrometheusRegistryModule),
+    ).not.toBe(true);
+    expect(
+      Reflect.getMetadata(GLOBAL_MODULE_METADATA, PrometheusEndpointModule),
+    ).not.toBe(true);
+
+    expect(moduleMetadata(AppModule, MODULE_METADATA.IMPORTS)).toContain(
+      PrometheusEndpointModule,
+    );
+    expect(moduleMetadata(MetricsModule, MODULE_METADATA.IMPORTS)).toContain(
+      PrometheusRegistryModule,
+    );
+    expect(moduleMetadata(MonitoringModule, MODULE_METADATA.IMPORTS)).toContain(
+      PrometheusRegistryModule,
+    );
+    expect(
+      moduleMetadata(PrometheusEndpointModule, MODULE_METADATA.IMPORTS),
+    ).toEqual([PrometheusRegistryModule]);
+  });
+
+  it('keeps Registry construction and default collection in one production factory', () => {
+    const productionSource = readSourceFiles()
+      .filter((source) => !source.path.endsWith('.spec.ts'))
+      .map((source) => source.content)
+      .join('\n');
+
+    expect(productionSource.match(/new Registry\(\)/g)).toHaveLength(1);
+    expect(productionSource.match(/collectDefaultMetrics\s*\(/g)).toHaveLength(
+      1,
     );
   });
 

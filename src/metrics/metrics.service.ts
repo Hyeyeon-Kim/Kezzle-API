@@ -1,10 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import {
-  Counter,
-  Histogram,
-  Registry,
-  collectDefaultMetrics,
-} from 'prom-client';
+import { Inject, Injectable } from '@nestjs/common';
+import { Counter, Histogram, Registry } from 'prom-client';
+import { PROMETHEUS_REGISTRY } from 'src/observability/prometheus/prometheus.constants';
 
 @Injectable()
 export class MetricsService {
@@ -19,10 +15,11 @@ export class MetricsService {
   readonly objectStorageOperationFailures: Counter<'operation'>;
   readonly mediaObjectOrphans: Counter<'feature' | 'operation'>;
 
-  constructor() {
-    this.registry = new Registry();
-    collectDefaultMetrics({ register: this.registry });
-
+  constructor(
+    @Inject(PROMETHEUS_REGISTRY)
+    registry: Registry,
+  ) {
+    this.registry = registry;
     this.similarSearchDuration = new Histogram({
       name: 'similar_search_duration_seconds',
       help: 'Duration of GET /cakes/similar-search endpoint',

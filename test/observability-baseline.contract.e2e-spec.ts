@@ -8,9 +8,13 @@ import { APP_GUARD, Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { IS_PUBLIC_KEY } from 'src/auth/decorators/public.decorator';
+import { MetricsModule } from 'src/metrics/metrics.module';
 import { MetricsService } from 'src/metrics/metrics.service';
-import { MonitoringController } from 'src/monitoring/monitoring.controller';
+import { MonitoringModule } from 'src/monitoring/monitoring.module';
 import { MonitoringService } from 'src/monitoring/monitoring.service';
+import { PROMETHEUS_REGISTRY } from 'src/observability/prometheus/prometheus.constants';
+import { PrometheusEndpointModule } from 'src/observability/prometheus/prometheus-endpoint.module';
+import { Registry } from 'prom-client';
 import observabilityBaseline from './fixtures/observability-baseline.contract.json';
 
 @Injectable()
@@ -27,23 +31,21 @@ class PublicMetadataOnlyGuard implements CanActivate {
   }
 }
 
-describe('Observability Phase A HTTP contract', () => {
+describe('Observability Phase B HTTP contract', () => {
   let app: INestApplication;
   let metricsService: MetricsService;
   let monitoringService: MonitoringService;
+  let registry: Registry;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-      controllers: [MonitoringController],
-      providers: [
-        MetricsService,
-        MonitoringService,
-        { provide: APP_GUARD, useClass: PublicMetadataOnlyGuard },
-      ],
+      imports: [MetricsModule, MonitoringModule, PrometheusEndpointModule],
+      providers: [{ provide: APP_GUARD, useClass: PublicMetadataOnlyGuard }],
     }).compile();
 
     metricsService = moduleRef.get(MetricsService);
     monitoringService = moduleRef.get(MonitoringService);
+    registry = moduleRef.get(PROMETHEUS_REGISTRY);
     seedAllCustomMetrics(metricsService, monitoringService);
 
     app = moduleRef.createNestApplication();
@@ -67,10 +69,14 @@ describe('Observability Phase A HTTP contract', () => {
     );
   });
 
-  it('concatenates both current registries and exposes every custom metric contract', async () => {
+  it('serializes the single registry once and exposes every custom metric contract', async () => {
+    const metricsSpy = jest.spyOn(registry, 'metrics');
     const response = await request(app.getHttpServer())
       .get(observabilityBaseline.http.path)
       .expect(200);
+
+    expect(metricsSpy).toHaveBeenCalledTimes(1);
+    metricsSpy.mockRestore();
 
     const customMetrics = [
       ...observabilityBaseline.registries.metricsService.customMetrics,
@@ -82,7 +88,7 @@ describe('Observability Phase A HTTP contract', () => {
     }
   });
 
-  it('characterizes duplicate unprefixed and kezzle-prefixed default metrics', async () => {
+  it('keeps kezzle-prefixed defaults and removes unprefixed duplicates', async () => {
     const response = await request(app.getHttpServer())
       .get(observabilityBaseline.http.path)
       .expect(200);
@@ -92,10 +98,13 @@ describe('Observability Phase A HTTP contract', () => {
     const prefixed =
       observabilityBaseline.registries.monitoringService.defaultMetricFamilies;
 
-    expect(prefixed).toEqual(unprefixed.map((name) => `kezzle_${name}`));
-    for (const metricName of [...unprefixed, ...prefixed]) {
+    for (const metricName of prefixed) {
       expect(response.text).toContain(`# HELP ${metricName} `);
       expect(response.text).toContain(`# TYPE ${metricName} `);
+    }
+    for (const metricName of unprefixed) {
+      expect(response.text).not.toContain(`# HELP ${metricName} `);
+      expect(response.text).not.toContain(`# TYPE ${metricName} `);
     }
   });
 });

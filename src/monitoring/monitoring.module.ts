@@ -1,13 +1,12 @@
 import { Global, Module } from '@nestjs/common';
-import { MonitoringController } from './monitoring.controller';
 import { MonitoringService } from './monitoring.service';
-import { MetricsModule } from 'src/metrics/metrics.module';
+import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
 
-// registry와 metric 객체를 앱 전체에서 한 곳에서만 생성한다.
+// Phase B compatibility provider. @Global() 제거와 explicit import 전환은
+// Phase C에서 consumer module 단위로 수행한다.
 @Global()
 @Module({
-  imports: [MetricsModule],
-  controllers: [MonitoringController],
+  imports: [PrometheusRegistryModule],
   providers: [MonitoringService],
   exports: [MonitoringService],
 })
