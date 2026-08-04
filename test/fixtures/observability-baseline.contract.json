@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "capturedAt": "2026-08-03",
+  "schemaVersion": 2,
+  "capturedAt": "2026-08-04",
   "http": {
     "method": "GET",
     "path": "/metrics",
@@ -9,38 +9,8 @@
     "cacheControl": "no-store",
     "contentTypeIncludes": "text/plain"
   },
-  "registries": {
-    "metricsService": {
-      "defaultMetricPrefix": "",
-      "defaultMetricFamilies": [
-        "process_cpu_user_seconds_total",
-        "process_cpu_system_seconds_total",
-        "process_cpu_seconds_total",
-        "process_start_time_seconds",
-        "process_resident_memory_bytes",
-        "nodejs_eventloop_lag_seconds",
-        "nodejs_eventloop_lag_min_seconds",
-        "nodejs_eventloop_lag_max_seconds",
-        "nodejs_eventloop_lag_mean_seconds",
-        "nodejs_eventloop_lag_stddev_seconds",
-        "nodejs_eventloop_lag_p50_seconds",
-        "nodejs_eventloop_lag_p90_seconds",
-        "nodejs_eventloop_lag_p99_seconds",
-        "nodejs_active_resources",
-        "nodejs_active_resources_total",
-        "nodejs_active_handles",
-        "nodejs_active_handles_total",
-        "nodejs_active_requests",
-        "nodejs_active_requests_total",
-        "nodejs_heap_size_total_bytes",
-        "nodejs_heap_size_used_bytes",
-        "nodejs_external_memory_bytes",
-        "nodejs_heap_space_size_total_bytes",
-        "nodejs_heap_space_size_used_bytes",
-        "nodejs_heap_space_size_available_bytes",
-        "nodejs_version_info",
-        "nodejs_gc_duration_seconds"
-      ],
+  "customMetricGroups": {
+    "featureAdapters": {
       "customMetrics": [
         {
           "field": "aiApiCallDuration",
@@ -103,37 +73,7 @@
         }
       ]
     },
-    "monitoringService": {
-      "defaultMetricPrefix": "kezzle_",
-      "defaultMetricFamilies": [
-        "kezzle_process_cpu_user_seconds_total",
-        "kezzle_process_cpu_system_seconds_total",
-        "kezzle_process_cpu_seconds_total",
-        "kezzle_process_start_time_seconds",
-        "kezzle_process_resident_memory_bytes",
-        "kezzle_nodejs_eventloop_lag_seconds",
-        "kezzle_nodejs_eventloop_lag_min_seconds",
-        "kezzle_nodejs_eventloop_lag_max_seconds",
-        "kezzle_nodejs_eventloop_lag_mean_seconds",
-        "kezzle_nodejs_eventloop_lag_stddev_seconds",
-        "kezzle_nodejs_eventloop_lag_p50_seconds",
-        "kezzle_nodejs_eventloop_lag_p90_seconds",
-        "kezzle_nodejs_eventloop_lag_p99_seconds",
-        "kezzle_nodejs_active_resources",
-        "kezzle_nodejs_active_resources_total",
-        "kezzle_nodejs_active_handles",
-        "kezzle_nodejs_active_handles_total",
-        "kezzle_nodejs_active_requests",
-        "kezzle_nodejs_active_requests_total",
-        "kezzle_nodejs_heap_size_total_bytes",
-        "kezzle_nodejs_heap_size_used_bytes",
-        "kezzle_nodejs_external_memory_bytes",
-        "kezzle_nodejs_heap_space_size_total_bytes",
-        "kezzle_nodejs_heap_space_size_used_bytes",
-        "kezzle_nodejs_heap_space_size_available_bytes",
-        "kezzle_nodejs_version_info",
-        "kezzle_nodejs_gc_duration_seconds"
-      ],
+    "homeAndCurationAdapters": {
       "customMetrics": [
         {
           "field": "curationItems",
@@ -217,29 +157,117 @@
       ]
     }
   },
-  "moduleDependencies": {
-    "decoratedGlobalModules": ["MonitoringModule"],
-    "monitoringModuleExplicitConsumers": ["AppModule", "HomeModule"],
-    "metricsModuleExplicitConsumers": [
-      "AiSearchModule",
-      "CakeModule",
-      "CatalogQueryModule",
-      "LikeModule",
-      "MonitoringModule",
-      "ObjectStorageModule",
-      "SearchModule",
-      "StoreModule"
+  "canonicalRegistry": {
+    "registryCount": 1,
+    "defaultCollectorCount": 1,
+    "endpointSerializationCount": 1,
+    "endpointOwner": "PrometheusEndpointModule",
+    "defaultMetricPrefix": "kezzle_",
+    "defaultMetricFamilies": [
+      "kezzle_nodejs_active_handles",
+      "kezzle_nodejs_active_handles_total",
+      "kezzle_nodejs_active_requests",
+      "kezzle_nodejs_active_requests_total",
+      "kezzle_nodejs_active_resources",
+      "kezzle_nodejs_active_resources_total",
+      "kezzle_nodejs_eventloop_lag_max_seconds",
+      "kezzle_nodejs_eventloop_lag_mean_seconds",
+      "kezzle_nodejs_eventloop_lag_min_seconds",
+      "kezzle_nodejs_eventloop_lag_p50_seconds",
+      "kezzle_nodejs_eventloop_lag_p90_seconds",
+      "kezzle_nodejs_eventloop_lag_p99_seconds",
+      "kezzle_nodejs_eventloop_lag_seconds",
+      "kezzle_nodejs_eventloop_lag_stddev_seconds",
+      "kezzle_nodejs_external_memory_bytes",
+      "kezzle_nodejs_gc_duration_seconds",
+      "kezzle_nodejs_heap_size_total_bytes",
+      "kezzle_nodejs_heap_size_used_bytes",
+      "kezzle_nodejs_heap_space_size_available_bytes",
+      "kezzle_nodejs_heap_space_size_total_bytes",
+      "kezzle_nodejs_heap_space_size_used_bytes",
+      "kezzle_nodejs_version_info",
+      "kezzle_process_cpu_seconds_total",
+      "kezzle_process_cpu_system_seconds_total",
+      "kezzle_process_cpu_user_seconds_total",
+      "kezzle_process_heap_bytes",
+      "kezzle_process_max_fds",
+      "kezzle_process_open_fds",
+      "kezzle_process_resident_memory_bytes",
+      "kezzle_process_start_time_seconds",
+      "kezzle_process_virtual_memory_bytes"
     ],
-    "hiddenMonitoringServiceConsumers": [
-      {
-        "module": "CurationModule",
-        "provider": "CurationRefreshService"
-      },
-      {
-        "module": "HomeResilienceMetricsModule",
-        "provider": "HomeResilienceMetricsService"
-      }
-    ]
+    "customMetricFamilyCount": 19,
+    "defaultMetricFamilyCount": 31,
+    "metricFamilyCount": 50,
+    "duplicateMetricFamilyCount": 0,
+    "scrapePayloadBytes": 13050
+  },
+  "before": {
+    "registryCount": 2,
+    "defaultCollectorCount": 2,
+    "endpointSerializationCount": 2,
+    "customMetricFamilyCount": 19,
+    "defaultMetricFamilyCount": 62,
+    "metricFamilyCount": 81,
+    "scrapePayloadBytes": 21919
+  },
+  "externalMetricFamilies": [
+    "mongodb_connections",
+    "mongodb_op_counters_total",
+    "redis_commands_processed_total",
+    "redis_evicted_keys_total",
+    "redis_memory_used_bytes",
+    "redis_up"
+  ],
+  "moduleDependencies": {
+    "decoratedGlobalModules": [],
+    "prometheusEndpointModuleConsumers": ["AppModule"],
+    "prometheusRegistryModuleConsumers": [
+      "AiSearchModule",
+      "CatalogQueryModule",
+      "CurationModule",
+      "HomeObservabilityModule",
+      "LikeModule",
+      "MediaObservabilityModule",
+      "PrometheusEndpointModule",
+      "SearchModule"
+    ],
+    "hiddenObservabilityConsumers": [],
+    "featureMetricOwners": {
+      "src/ai-search/ai-search-metrics.adapter.ts": [
+        "ai_api_call_duration_seconds",
+        "ai_api_errors_total"
+      ],
+      "src/catalog/catalog-metrics.adapter.ts": [
+        "similar_search_duration_seconds",
+        "store_query_duration_seconds"
+      ],
+      "src/search/search-event-metrics.adapter.ts": [
+        "search_event_record_failures_total"
+      ],
+      "src/like/cake-like-event-metrics.adapter.ts": [
+        "cake_like_event_record_failures_total"
+      ],
+      "src/media/media-metrics.adapter.ts": [
+        "media_object_orphans_total",
+        "object_storage_operation_failures_total"
+      ],
+      "src/home/observability/prometheus-home-metrics.adapter.ts": [
+        "kezzle_home_ai_calls_total",
+        "kezzle_home_cache_events_total",
+        "kezzle_home_db_calls_total",
+        "kezzle_home_degraded_total",
+        "kezzle_home_request_duration_seconds",
+        "kezzle_home_requests_total",
+        "kezzle_home_section_duration_seconds",
+        "kezzle_home_section_requests_total"
+      ],
+      "src/curation/curation-refresh-metrics.adapter.ts": [
+        "kezzle_curation_refresh_items_total",
+        "kezzle_curation_refresh_runs_total",
+        "kezzle_curation_stale_backlog"
+      ]
+    }
   },
   "repositoryMetricConsumers": {
     "monitoring/rules/home-recording.rules.yml": [

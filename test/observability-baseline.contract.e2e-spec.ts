@@ -36,7 +36,7 @@ class PublicMetadataOnlyGuard implements CanActivate {
   }
 }
 
-describe('Observability Phase E HTTP contract', () => {
+describe('Observability Phase F canonical HTTP contract', () => {
   let app: INestApplication;
   let aiMetrics: AiSearchMetricsAdapter;
   let catalogMetrics: CatalogMetricsAdapter;
@@ -113,10 +113,7 @@ describe('Observability Phase E HTTP contract', () => {
     expect(metricsSpy).toHaveBeenCalledTimes(1);
     metricsSpy.mockRestore();
 
-    const customMetrics = [
-      ...observabilityBaseline.registries.metricsService.customMetrics,
-      ...observabilityBaseline.registries.monitoringService.customMetrics,
-    ];
+    const customMetrics = canonicalCustomMetrics();
     for (const metric of customMetrics) {
       expect(response.text).toContain(`# HELP ${metric.name} ${metric.help}`);
       expect(response.text).toContain(`# TYPE ${metric.name} ${metric.type}`);
@@ -128,10 +125,11 @@ describe('Observability Phase E HTTP contract', () => {
       .get(observabilityBaseline.http.path)
       .expect(200);
 
-    const unprefixed =
-      observabilityBaseline.registries.metricsService.defaultMetricFamilies;
     const prefixed =
-      observabilityBaseline.registries.monitoringService.defaultMetricFamilies;
+      observabilityBaseline.canonicalRegistry.defaultMetricFamilies;
+    const unprefixed = prefixed.map((metricName) =>
+      metricName.replace(/^kezzle_/, ''),
+    );
 
     for (const metricName of prefixed) {
       expect(response.text).toContain(`# HELP ${metricName} `);
@@ -142,7 +140,61 @@ describe('Observability Phase E HTTP contract', () => {
       expect(response.text).not.toContain(`# TYPE ${metricName} `);
     }
   });
+
+  it('exposes the exact canonical family set without duplicate HELP blocks', async () => {
+    const response = await request(app.getHttpServer())
+      .get(observabilityBaseline.http.path)
+      .expect(200);
+    const families = [...response.text.matchAll(/^# HELP (\S+) /gm)].map(
+      (match) => match[1],
+    );
+    const expectedFamilies = [
+      ...observabilityBaseline.canonicalRegistry.defaultMetricFamilies,
+      ...canonicalCustomMetrics().map((metric) => metric.name),
+    ].sort();
+
+    expect([...families].sort()).toEqual(expectedFamilies);
+    expect(new Set(families).size).toBe(families.length);
+    expect(families).toHaveLength(
+      observabilityBaseline.canonicalRegistry.metricFamilyCount,
+    );
+  });
+
+  it('exposes Home, AI, Search, Like, Media, and Curation events together', async () => {
+    const response = await request(app.getHttpServer())
+      .get(observabilityBaseline.http.path)
+      .expect(200);
+
+    expect(response.text).toContain(
+      'kezzle_home_requests_total{status="success"} 1',
+    );
+    expect(response.text).toContain(
+      'kezzle_home_ai_calls_total{dependency="vit",result="requested"} 1',
+    );
+    expect(response.text).toContain(
+      'ai_api_errors_total{reason="timeout",model="clip",endpoint="/search"} 1',
+    );
+    expect(response.text).toContain('search_event_record_failures_total 1');
+    expect(response.text).toContain('cake_like_event_record_failures_total 1');
+    expect(response.text).toContain(
+      'object_storage_operation_failures_total{operation="put"} 1',
+    );
+    expect(response.text).toContain(
+      'kezzle_curation_refresh_runs_total{result="success"} 1',
+    );
+    expect(response.text).toContain(
+      'kezzle_curation_refresh_items_total{result="refreshed"} 1',
+    );
+  });
 });
+
+function canonicalCustomMetrics() {
+  return [
+    ...observabilityBaseline.customMetricGroups.featureAdapters.customMetrics,
+    ...observabilityBaseline.customMetricGroups.homeAndCurationAdapters
+      .customMetrics,
+  ];
+}
 
 async function seedAllCustomMetrics(metrics: {
   aiMetrics: AiSearchMetricsAdapter;

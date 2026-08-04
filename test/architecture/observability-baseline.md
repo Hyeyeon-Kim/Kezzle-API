@@ -1,143 +1,124 @@
-# Observability Phase A architecture baseline
+# Observability Phase F canonical architecture
 
-> 측정일: 2026-08-03  
-> 기준 브랜치: `refactor/global-provider-observability-integration`  
-> fixture: [`../fixtures/observability-baseline.contract.json`](../fixtures/observability-baseline.contract.json)
+> 측정일: 2026-08-04
+> 기준 브랜치: `refactor/global-provider-observability-integration`
+> canonical fixture: [`../fixtures/observability-baseline.contract.json`](../fixtures/observability-baseline.contract.json)
 
 ## 결론
 
-현재 애플리케이션은 `MetricsService`와 `MonitoringService`가 서로 다른 Prometheus `Registry`를 소유한다. 두 service 모두 `collectDefaultMetrics()`를 호출하고 `/metrics` controller가 두 결과를 문자열로 합친다.
+애플리케이션의 Prometheus Registry, default collector, `/metrics` endpoint owner를 각각 하나로 통합했다. 19개 custom metric family의 이름·HELP/TYPE·label·histogram bucket은 유지했고, 중복 노출되던 prefix 없는 default metric 31개를 제거했다.
 
-`HomeCacheModule`과 `HomeResilienceMetricsModule`은 이미 non-global이다. `MonitoringModule`만 `@Global()`이며, 이 전역성 때문에 `HomeResilienceMetricsModule`과 `CurationModule`의 실제 `MonitoringService` 의존이 module `imports`에 나타나지 않는다.
+Home/Curation metric은 각각 feature-owned adapter가 소유한다. `AppModule`은 scrape endpoint만 import하며 feature metric provider를 전역 공급하지 않는다.
 
-## Registry 기준선
+## Before / After
 
-| Owner               | Registry      | default prefix | custom family 수 |
-| ------------------- | ------------- | -------------- | ---------------: |
-| `MetricsService`    | 독립 instance | 없음           |                8 |
-| `MonitoringService` | 독립 instance | `kezzle_`      |               11 |
+동일한 Docker network와 동일 dependency를 사용해 Phase A 커밋 `42a885a`와 Phase F runtime의 기동 직후 idle `/metrics`를 각각 측정했다.
 
-default metric은 같은 Node process를 관측하지만 prefix 유무만 다른 27개 family가 각각 등록된다.
+| 항목                       |       Before |        After |                  변화 |
+| -------------------------- | -----------: | -----------: | --------------------: |
+| Registry object            |            2 |            1 |                    -1 |
+| default collector 호출     |            2 |            1 |                    -1 |
+| endpoint serialization     |            2 |            1 |                    -1 |
+| custom metric family       |           19 |           19 |             유실 없음 |
+| default metric family      |           62 |           31 |                   -31 |
+| 전체 metric family         |           81 |           50 |          -31 (-38.3%) |
+| duplicate family           |            0 |            0 |                  없음 |
+| prefix 없는 default family |           31 |            0 |                  제거 |
+| scrape payload             | 21,919 bytes | 13,050 bytes | -8,869 bytes (-40.5%) |
 
-```text
-process_* / nodejs_*
-kezzle_process_* / kezzle_nodejs_*
-```
+payload는 process counter 값의 자릿수에 따라 소폭 달라질 수 있다. 위 값은 두 격리 컨테이너의 첫 idle scrape를 같은 방식으로 측정한 값이다.
 
-Phase B 이후 canonical default contract는 repository Home dashboard/alert가 사용하는 `kezzle_` 계열이다. Phase A는 제거하지 않고 현재 중복을 characterization test로 고정한다.
-
-## Custom metric owner 기준선
-
-| 현재 owner          | Metric group                              | 실제 consumer                     |
-| ------------------- | ----------------------------------------- | --------------------------------- |
-| `MetricsService`    | `ai_api_*`                                | VIT/CLIP client                   |
-| `MetricsService`    | `similar_search_*`, `store_query_*`       | Catalog similar query             |
-| `MetricsService`    | `search_event_record_failures_total`      | Search                            |
-| `MetricsService`    | `cake_like_event_record_failures_total`   | Like                              |
-| `MetricsService`    | `object_storage_operation_failures_total` | S3 adapter                        |
-| `MetricsService`    | `media_object_orphans_total`              | Cake/Store media use case         |
-| `MonitoringService` | `kezzle_home_*`                           | HomeFeed/HomeCache/HomeResilience |
-| `MonitoringService` | `kezzle_curation_*`                       | Curation refresh                  |
-
-계획서 최초 작성 후 Log·Upload Phase H에서 object-storage/media metric 2종과 Cake/Store/ObjectStorage의 `MetricsModule` import가 추가됐다. Phase A fixture는 계획서의 초기 목록이 아니라 현재 production source 전체를 기준으로 한다.
-
-## Module import 기준선
-
-### Global
-
-```text
-MonitoringModule (@Global)
-```
-
-### MonitoringModule 명시적 consumer
+## Canonical dependency
 
 ```text
 AppModule
-HomeModule
+  └─ PrometheusEndpointModule
+       └─ PrometheusRegistryModule
+
+AiSearchModule / CatalogQueryModule / SearchModule / LikeModule
+  └─ PrometheusRegistryModule
+       └─ feature-owned metric adapter
+
+MediaObservabilityModule
+  └─ PrometheusRegistryModule
+       └─ MediaMetricsAdapter
+
+CurationModule
+  └─ PrometheusRegistryModule
+       └─ CurationRefreshMetricsAdapter
+
+HomeModule / HomeCacheModule
+  └─ HomeObservabilityModule
+       └─ PrometheusRegistryModule
+            └─ PrometheusHomeMetricsAdapter
 ```
 
-### MetricsModule 명시적 consumer
+- production `@Global()` feature module: 0개
+- production `new Registry()`: registry provider factory 1곳
+- production `collectDefaultMetrics()`: registry provider factory 1곳
+- prom-client global `register` 사용: 0곳
+- `/metrics`의 `registry.metrics()` 호출: 1회
+- legacy Metrics/Monitoring/HomeResilience provider: 0개
 
-```text
-AiSearchModule
-CakeModule
-CatalogQueryModule
-LikeModule
-MonitoringModule
-ObjectStorageModule
-SearchModule
-StoreModule
-```
+## Metric family ownership
 
-### 숨은 MonitoringService consumer
+| Owner     | Family 수 | Metric                                  |
+| --------- | --------: | --------------------------------------- |
+| AI Search |         2 | `ai_api_*`                              |
+| Catalog   |         2 | `similar_search_*`, `store_query_*`     |
+| Search    |         1 | `search_event_record_failures_total`    |
+| Like      |         1 | `cake_like_event_record_failures_total` |
+| Media     |         2 | `object_storage_*`, `media_object_*`    |
+| Home      |         8 | `kezzle_home_*`                         |
+| Curation  |         3 | `kezzle_curation_*`                     |
 
-| Module                        | Provider                       | 현재 상태                                   |
-| ----------------------------- | ------------------------------ | ------------------------------------------- |
-| `HomeResilienceMetricsModule` | `HomeResilienceMetricsService` | inject하지만 `MonitoringModule` import 없음 |
-| `CurationModule`              | `CurationRefreshService`       | inject하지만 `MonitoringModule` import 없음 |
+architecture gate는 19개 이름이 fixture의 owner 파일에 정확히 한 번만 선언되는지 검사한다. Home application port와 HomeFeed/HomeCache consumer는 `prom-client`, Registry token, concrete adapter를 참조할 수 없다.
 
-`HomeFeedService`도 `MonitoringService`를 사용하지만 `HomeModule`이 MonitoringModule을 명시적으로 import하므로 숨은 consumer에는 포함하지 않는다.
+## Prometheus rule과 Grafana query
 
-## Repository metric consumer
+- `promtool check rules`: recording 16개, alert 14개 유효
+- `promtool test rules`: 10개 시나리오 성공
+- Home dashboard PromQL: 28개 모두 Prometheus query API 실행 성공
+- Home dashboard가 참조하는 API/recording metric: canonical fixture와 일치
+- MongoDB/Redis exporter raw family: 6개 모두 실제 Prometheus TSDB에 존재
+- `job:home_request_rate:rate1m`: rule health `ok`, 결과 series 생성 확인
+- Grafana `/api/health`: database `ok`
 
-정확한 metric/recording-rule token 목록은 JSON fixture가 소유하며 test가 다음 파일을 다시 스캔해 drift를 검출한다.
+## 실제 event 노출 계약
 
-- `monitoring/rules/home-recording.rules.yml`
-- `monitoring/rules/home-alert.rules.yml`
-- `monitoring/rules/home-alert.rules.test.yml`
-- `monitoring/grafana/dashboards/home-api.json`
-- `monitoring/grafana/provisioning/dashboards/similar-search.json`
+canonical `/metrics` e2e가 하나의 Registry와 endpoint에 다음 event sample을 동시에 생성하고 확인한다.
 
-## `/metrics` HTTP 기준선
+- Home request와 Home AI call
+- AI API error
+- Search event persistence failure
+- Cake-like event persistence failure
+- Object storage failure와 media orphan
+- Curation refresh run/item/backlog
 
-```text
-GET /metrics
-status: 200
-auth: @Public(), credential 불필요
-Cache-Control: no-store
-Content-Type: Prometheus text format
-body: MonitoringService registry + newline + MetricsService registry
-```
+실제 Compose API에도 Home request를 보내 `kezzle_home_requests_total`과 Home recording series 생성을 확인했다.
 
-e2e의 default-deny test guard는 `@Public()` metadata가 없으면 요청을 거부한다. 따라서 anonymous 200은 전역 auth 구성을 생략한 단순 controller test가 아니라 public metadata 계약을 함께 검증한다.
+## 반복 검증
 
-## Prometheus scrape smoke
-
-재현 명령:
+| 검증                                | 결과                       |
+| ----------------------------------- | -------------------------- |
+| 전체 unit                           | 60 suites / 250 tests 통과 |
+| 전체 e2e                            | 6 suites / 58 tests 통과   |
+| architecture 본체                   | 2 suites / 28 tests 통과   |
+| presenter architecture contract     | 2 suites / 11 tests 통과   |
+| Nest build                          | 통과                       |
+| 변경 TypeScript ESLint              | 통과                       |
+| Prometheus rule check/test          | 통과                       |
+| API/Prometheus/Grafana Compose boot | 통과                       |
+| observability stack smoke           | 통과                       |
 
 ```bash
-docker compose -f ../docker-compose.yml up -d prometheus
-npm run test:smoke:prometheus
-```
-
-smoke는 Prometheus `/api/v1/targets`에서 다음을 검증한다.
-
-- `job=kezzle-api` active target 존재
-- `health=up`
-- scrape URL이 `/metrics`로 끝남
-- `lastError`가 비어 있음
-
-2026-08-03 실제 실행 결과:
-
-```json
-{
-  "prometheusUrl": "http://127.0.0.1:9090",
-  "job": "kezzle-api",
-  "health": "up",
-  "scrapeUrl": "http://kezzle-api:3000/metrics",
-  "lastError": "",
-  "lastScrape": "2026-08-03T08:13:35.091501548Z"
-}
-```
-
-Compose가 기존 `kezzle-api` container를 재생성한 뒤 Prometheus target이 첫 정상 scrape를 완료했다. Redis exporter는 arm64 host에서 amd64 image warning을 출력했지만 `kezzle-api` target 검증에는 영향을 주지 않았다.
-
-## 자동 검증
-
-```bash
-npm test -- --runInBand observability-baseline.spec.ts
-npm run test:e2e -- --runInBand observability-baseline.contract.e2e-spec.ts
+npm test -- --runInBand
+npm run test:e2e -- --runInBand
 npm run test:architecture
 npm run build
-npm run test:smoke:prometheus
+promtool check rules
+promtool test rules monitoring/rules/home-alert.rules.test.yml
+npm run test:smoke:observability
 ```
+
+모든 명령은 Docker builder/runtime 또는 Docker Compose service 안에서 실행한다.

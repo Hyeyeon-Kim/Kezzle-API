@@ -119,7 +119,8 @@ async function defaultMetricFamilies(
   const customNames = new Set(customMetrics.map((metric) => metric.name));
   return (await registry.getMetricsAsJSON())
     .map((metric) => metric.name)
-    .filter((name) => !customNames.has(name));
+    .filter((name) => !customNames.has(name))
+    .sort();
 }
 
 function moduleMetadata(module: object, key: string): unknown[] {
@@ -131,7 +132,7 @@ function metricTokens(path: string): string[] {
   return [...new Set(content.match(metricTokenPattern) ?? [])].sort();
 }
 
-describe('Observability Phase E feature-owned adapters', () => {
+describe('Observability Phase F canonical contract', () => {
   it('registers every feature adapter in one registry', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [
@@ -171,19 +172,17 @@ describe('Observability Phase E feature-owned adapters', () => {
 
     expect(metricContracts(featureCustom)).toEqual(
       metricContracts(
-        observabilityBaseline.registries.metricsService.customMetrics,
+        observabilityBaseline.customMetricGroups.featureAdapters.customMetrics,
       ),
     );
     expect(metricContracts(homeAndCurationCustom)).toEqual(
       metricContracts(
-        observabilityBaseline.registries.monitoringService.customMetrics,
+        observabilityBaseline.customMetricGroups.homeAndCurationAdapters
+          .customMetrics,
       ),
     );
     expect(defaultMetrics).toEqual(
-      expect.arrayContaining(
-        observabilityBaseline.registries.monitoringService
-          .defaultMetricFamilies,
-      ),
+      observabilityBaseline.canonicalRegistry.defaultMetricFamilies,
     );
     expect(defaultMetrics.every((name) => name.startsWith('kezzle_'))).toBe(
       true,
@@ -212,7 +211,7 @@ describe('Observability Phase E feature-owned adapters', () => {
       ),
     ).toEqual(
       metricContracts(
-        observabilityBaseline.registries.metricsService.customMetrics,
+        observabilityBaseline.customMetricGroups.featureAdapters.customMetrics,
       ),
     );
     expect(
@@ -223,7 +222,8 @@ describe('Observability Phase E feature-owned adapters', () => {
       ),
     ).toEqual(
       metricContracts(
-        observabilityBaseline.registries.monitoringService.customMetrics,
+        observabilityBaseline.customMetricGroups.homeAndCurationAdapters
+          .customMetrics,
       ),
     );
     homeAdapter.onModuleDestroy();
@@ -257,16 +257,10 @@ describe('Observability Phase E feature-owned adapters', () => {
       .sort();
 
     expect(decoratedGlobalModules).toEqual([]);
-    expect(prometheusRegistryConsumers).toEqual([
-      'AiSearchModule',
-      'CatalogQueryModule',
-      'CurationModule',
-      'HomeObservabilityModule',
-      'LikeModule',
-      'MediaObservabilityModule',
-      'PrometheusEndpointModule',
-      'SearchModule',
-    ]);
+    expect(prometheusRegistryConsumers).toEqual(
+      observabilityBaseline.moduleDependencies
+        .prometheusRegistryModuleConsumers,
+    );
     expect(moduleMetadata(AppModule, MODULE_METADATA.IMPORTS)).toContain(
       PrometheusEndpointModule,
     );
