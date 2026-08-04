@@ -42,7 +42,6 @@
     "aws-sdk": "^2.1692.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
-    "discord-webhook-node": "^1.1.8",
     "firebase-admin": "^11.10.1",
     "ioredis": "^5.3.2",
     "passport-firebase-jwt": "^1.2.1",

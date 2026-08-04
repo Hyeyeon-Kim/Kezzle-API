@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-08-04",
+  "boundary": "Nest default exception handler",
+  "cases": {
+    "validation": {
+      "method": "POST",
+      "path": "/__contracts/error-boundary/validation",
+      "status": 400,
+      "body": {
+        "message": [
+          "property unexpected should not exist",
+          "name must be a string"
+        ],
+        "error": "Bad Request",
+        "statusCode": 400
+      }
+    },
+    "unauthorized": {
+      "method": "GET",
+      "path": "/__contracts/error-boundary/unauthorized",
+      "status": 401,
+      "body": {
+        "message": "Unauthorized",
+        "statusCode": 401
+      }
+    },
+    "forbidden": {
+      "method": "GET",
+      "path": "/__contracts/error-boundary/forbidden",
+      "status": 403,
+      "body": {
+        "message": "role is not allowed",
+        "error": "Forbidden",
+        "statusCode": 403
+      }
+    },
+    "customNotFound": {
+      "method": "GET",
+      "path": "/__contracts/error-boundary/custom-not-found",
+      "status": 404,
+      "body": {
+        "statusCode": 404,
+        "message": "id(missing-cake)로 케이크 정보를 찾을 수 없습니다."
+      }
+    },
+    "unknown": {
+      "method": "GET",
+      "path": "/__contracts/error-boundary/unknown",
+      "status": 500,
+      "body": {
+        "statusCode": 500,
+        "message": "Internal server error"
+      }
+    }
+  }
+}
