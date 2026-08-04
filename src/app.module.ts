@@ -21,14 +21,13 @@ import { createValidationPipe } from './app.validation';
 import { CatalogQueryModule } from './catalog/catalog-query.module';
 import databaseConfig from './config/database.config';
 import appConfig from './config/app.config';
-import firebaseConfig from './config/firebase.config';
 import authConfig from './config/auth.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: false,
-      load: [appConfig, firebaseConfig, authConfig],
+      load: [appConfig, authConfig],
     }),
     ScheduleModule.forRoot(),
     MongooseModule.forRootAsync({

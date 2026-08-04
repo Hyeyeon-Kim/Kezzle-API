@@ -1,5 +1,6 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { auth } from 'firebase-admin';
+import { Injectable } from '@nestjs/common';
+import { FirebaseTokenVerifier } from 'src/auth/application/firebase-token-verifier.port';
+import { verifyTokenOrThrowUnauthorized } from 'src/auth/application/verify-token';
 import { AuthenticatedUser } from './application/authenticated-user';
 import { UserView } from './application/user.view';
 import {
@@ -11,27 +12,29 @@ import { UserRepository } from './user.repository';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly tokenVerifier: FirebaseTokenVerifier,
+  ) {}
 
   async create(command: RegisterUserCommand): Promise<UserView> {
     const token = command.token.replace('Bearer ', '');
-    const firebaseUser: any = await auth()
-      .verifyIdToken(token, true)
-      .catch((error) => {
-        throw new UnauthorizedException(error.message);
-      });
+    const verifiedUser = await verifyTokenOrThrowUnauthorized(
+      this.tokenVerifier,
+      token,
+    );
 
     const existing = await this.userRepository.findByFirebaseUid(
-      firebaseUser.uid,
+      verifiedUser.uid,
     );
     if (existing) {
-      throw new UserAlredyJoinedException(firebaseUser.uid);
+      throw new UserAlredyJoinedException(verifiedUser.uid);
     }
 
     return this.userRepository.create({
       nickname: command.nickname,
-      firebaseUid: firebaseUser.uid,
-      oauthProvider: firebaseUser.firebase.sign_in_provider,
+      firebaseUid: verifiedUser.uid,
+      oauthProvider: verifiedUser.signInProvider,
     });
   }
 
