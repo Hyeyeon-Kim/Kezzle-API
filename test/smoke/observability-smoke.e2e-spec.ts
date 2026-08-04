@@ -1,5 +1,7 @@
 import {
   assertGrafanaProvisioning,
+  grafanaRequestInit,
+  homeTrafficRequestInit,
   requireHealthyTarget,
   waitForHealthyTargets,
 } from './observability-stack';
@@ -151,6 +153,42 @@ describe('Observability smoke contracts', () => {
     await jest.advanceTimersByTimeAsync(250);
     await rejection;
     expect(fetchTargets).toHaveBeenCalledTimes(3);
+  });
+
+  it('adds the configured bearer token only to Home traffic requests', () => {
+    expect(
+      new Headers(homeTrafficRequestInit('firebase-token').headers).get(
+        'Authorization',
+      ),
+    ).toBe('Bearer firebase-token');
+    expect(
+      new Headers(homeTrafficRequestInit('').headers).get('Authorization'),
+    ).toBeNull();
+  });
+
+  it('supports Grafana service account, basic, and anonymous auth', () => {
+    expect(
+      new Headers(
+        grafanaRequestInit('service-token', 'ignored', 'ignored').headers,
+      ).get('Authorization'),
+    ).toBe('Bearer service-token');
+    expect(
+      new Headers(grafanaRequestInit('', 'admin', 'secret').headers).get(
+        'Authorization',
+      ),
+    ).toBe('Basic YWRtaW46c2VjcmV0');
+    expect(
+      new Headers(grafanaRequestInit('', '', '').headers).get('Authorization'),
+    ).toBeNull();
+  });
+
+  it('rejects partial Grafana basic auth without exposing credentials', () => {
+    expect(() => grafanaRequestInit('', 'admin', '')).toThrow(
+      'GRAFANA_USERNAME and GRAFANA_PASSWORD must be configured together',
+    );
+    expect(() => grafanaRequestInit('', '', 'secret')).toThrow(
+      'GRAFANA_USERNAME and GRAFANA_PASSWORD must be configured together',
+    );
   });
 
   it('requires provisioned Grafana datasource and Home dashboard contracts', () => {

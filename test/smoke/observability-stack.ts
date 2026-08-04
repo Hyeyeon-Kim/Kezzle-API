@@ -80,6 +80,7 @@ async function main(): Promise<void> {
       await response.arrayBuffer();
       return { ok: response.ok, status: response.status };
     },
+    homeTrafficRequestInit(),
   );
   assert(homeStatus.ok, `/curation returned HTTP ${homeStatus.status}`);
 
@@ -115,9 +116,11 @@ async function main(): Promise<void> {
     await prometheusQuery(expression, deadline);
   }
 
+  const grafanaAuth = grafanaRequestInit();
   const grafanaHealth = await fetchJson<{ database?: string }>(
     `${grafanaUrl}/api/health`,
     deadline,
+    grafanaAuth,
   );
   assert(
     grafanaHealth.database === 'ok',
@@ -127,10 +130,12 @@ async function main(): Promise<void> {
   const grafanaDatasource = await fetchJson<GrafanaDatasource>(
     `${grafanaUrl}/api/datasources/uid/${prometheusDatasourceUid}`,
     deadline,
+    grafanaAuth,
   );
   const grafanaDashboard = await fetchJson<GrafanaDashboardResponse>(
     `${grafanaUrl}/api/dashboards/uid/${homeDashboardUid}`,
     deadline,
+    grafanaAuth,
   );
   assertGrafanaProvisioning(grafanaDatasource, grafanaDashboard);
 
@@ -232,11 +237,54 @@ async function prometheusQuery(expression: string, deadline: number) {
   return response;
 }
 
-async function fetchJson<T>(url: string, deadline: number): Promise<T> {
-  return readResponseWithinDeadline(url, deadline, async (response) => {
-    assert(response.ok, `${url} returned HTTP ${response.status}`);
-    return (await response.json()) as T;
-  });
+async function fetchJson<T>(
+  url: string,
+  deadline: number,
+  init: RequestInit = {},
+): Promise<T> {
+  return readResponseWithinDeadline(
+    url,
+    deadline,
+    async (response) => {
+      assert(response.ok, `${url} returned HTTP ${response.status}`);
+      return (await response.json()) as T;
+    },
+    init,
+  );
+}
+
+export function homeTrafficRequestInit(
+  token = process.env.KEZZLE_API_BEARER_TOKEN,
+): RequestInit {
+  return token
+    ? { headers: { Authorization: `Bearer ${token}` } }
+    : { headers: {} };
+}
+
+export function grafanaRequestInit(
+  serviceAccountToken = process.env.GRAFANA_SERVICE_ACCOUNT_TOKEN,
+  username = process.env.GRAFANA_USERNAME,
+  password = process.env.GRAFANA_PASSWORD,
+): RequestInit {
+  if (serviceAccountToken) {
+    return {
+      headers: { Authorization: `Bearer ${serviceAccountToken}` },
+    };
+  }
+
+  assert(
+    Boolean(username) === Boolean(password),
+    'GRAFANA_USERNAME and GRAFANA_PASSWORD must be configured together',
+  );
+
+  if (username && password) {
+    const credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64',
+    );
+    return { headers: { Authorization: `Basic ${credentials}` } };
+  }
+
+  return { headers: {} };
 }
 
 type HealthyTargets = {
