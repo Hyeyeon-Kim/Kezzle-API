@@ -10,8 +10,3 @@ export type SwrEnvelope<T> = {
   freshUntil: number;
   staleUntil: number;
 };
-
-export function positiveEnvMs(name: string, defaultMs: number): number {
-  const configured = Number(process.env[name]);
-  return Number.isFinite(configured) && configured > 0 ? configured : defaultMs;
-}

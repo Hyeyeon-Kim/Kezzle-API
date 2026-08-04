@@ -1,17 +1,15 @@
 import { KeywordRankService } from './keyword-rank.service';
+import { rankingConfigFixture } from '../../test/support/typed-config.fixtures';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DATE_STR = /^\d{4}-\d{2}-\d{2}$/;
 
 describe('KeywordRankService', () => {
-  afterEach(() => {
-    delete process.env.KEYWORD_RANK_WINDOW_DAYS;
-  });
-
   function createMocks(options?: {
     latestResults?: unknown[];
     docs?: unknown[];
     rankWords?: unknown[];
+    config?: any;
   }) {
     const findOneQuery = {
       sort: jest.fn().mockReturnThis(),
@@ -39,6 +37,7 @@ describe('KeywordRankService', () => {
     const service = new KeywordRankService(
       rankModel as never,
       keywordEventReader as never,
+      options?.config ?? rankingConfigFixture,
     );
     return { service, rankModel, keywordEventReader, findQuery };
   }
@@ -111,10 +110,10 @@ describe('KeywordRankService', () => {
     expect(result.ranking).toEqual([{ _id: 'cream', count: 5 }]);
   });
 
-  it('applies the window days env override', async () => {
-    process.env.KEYWORD_RANK_WINDOW_DAYS = '7';
+  it('applies the injected window days', async () => {
     const { service, keywordEventReader } = createMocks({
       latestResults: [null, null],
+      config: { ...rankingConfigFixture, keywordWindowDays: 7 },
     });
 
     await service.getRanked(4);

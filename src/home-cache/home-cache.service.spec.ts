@@ -1,4 +1,5 @@
 import { HomeCacheService } from './home-cache.service';
+import { homeConfigFixture } from '../../test/support/typed-config.fixtures';
 
 describe('HomeCacheService', () => {
   const key = 'home:test';
@@ -28,12 +29,11 @@ describe('HomeCacheService', () => {
     metrics = { countCache: jest.fn() };
   });
 
-  afterEach(() => {
-    delete process.env.HOME_CACHE_TTL_JITTER_PERCENT;
-  });
-
-  function service(client: typeof redis | null = redis) {
-    return new HomeCacheService(client as never, metrics as never);
+  function service(
+    client: typeof redis | null = redis,
+    config: any = homeConfigFixture,
+  ) {
+    return new HomeCacheService(client as never, metrics as never, config);
   }
 
   function options(refresh = jest.fn().mockResolvedValue('origin')) {
@@ -64,9 +64,13 @@ describe('HomeCacheService', () => {
 
   it('loads and stores a cache miss', async () => {
     redis.get.mockResolvedValue(null);
-    process.env.HOME_CACHE_TTL_JITTER_PERCENT = '0';
-
-    await expect(service().getWithSwr(options())).resolves.toBe('origin');
+    const config = {
+      ...homeConfigFixture,
+      cache: { ...homeConfigFixture.cache, jitterPercent: 0 },
+    };
+    await expect(service(redis, config).getWithSwr(options())).resolves.toBe(
+      'origin',
+    );
 
     expect(metrics.countCache).toHaveBeenCalledWith('miss');
     expect(metrics.countCache).toHaveBeenCalledWith('refresh');

@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { AiSearchMetricsAdapter } from './ai-search-metrics.adapter';
+import { ConfigType } from '@nestjs/config';
+import aiConfig from 'src/config/ai.config';
 
 const MODEL = 'vit';
 const ENDPOINT_SIMILAR_SEARCH = 'similar-search';
@@ -10,6 +12,7 @@ export class VitClient {
   constructor(
     private readonly httpService: HttpService,
     private readonly metrics: AiSearchMetricsAdapter,
+    @Inject(aiConfig.KEY) private readonly config: ConfigType<typeof aiConfig>,
   ) {}
 
   async similarSearch(
@@ -71,10 +74,6 @@ export class VitClient {
     }
   }
 
-  private baseUrl(): string {
-    return process.env.VIT_API_BASE_URL ?? 'https://api.kezzlecake.com/vit';
-  }
-
   private buildUrl(
     path: string,
     params: Record<string, string | number>,
@@ -83,6 +82,6 @@ export class VitClient {
     Object.entries(params).forEach(([key, value]) => {
       query.set(key, String(value));
     });
-    return `${this.baseUrl()}${path}?${query.toString()}`;
+    return `${this.config.vitBaseUrl}${path}?${query.toString()}`;
   }
 }

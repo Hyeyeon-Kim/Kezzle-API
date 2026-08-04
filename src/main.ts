@@ -2,18 +2,18 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as admin from 'firebase-admin';
+import { ConfigType } from '@nestjs/config';
+import appConfig from './config/app.config';
+import firebaseConfig from './config/firebase.config';
+import { validateEnvironment } from './config/environment.validation';
 
 async function bootstrap() {
+  validateEnvironment();
   const app = await NestFactory.create(AppModule);
-
-  if (
-    process.env.NODE_ENV === 'production' &&
-    process.env.HOME_RESILIENCE_AUTH_BYPASS === 'true'
-  ) {
-    throw new Error(
-      'HOME_RESILIENCE_AUTH_BYPASS must be disabled in production.',
-    );
-  }
+  const application = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
+  const firebase = app.get<ConfigType<typeof firebaseConfig>>(
+    firebaseConfig.KEY,
+  );
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Kezzle API')
@@ -28,12 +28,12 @@ async function bootstrap() {
 
   admin.initializeApp({
     credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      projectId: firebase.projectId,
+      privateKey: firebase.privateKey,
+      clientEmail: firebase.clientEmail,
     }),
   });
 
-  await app.listen(3000);
+  await app.listen(application.port);
 }
 bootstrap();

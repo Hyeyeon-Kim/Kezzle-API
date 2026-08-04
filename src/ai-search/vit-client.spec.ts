@@ -5,22 +5,13 @@ const buildMetricsService = () => ({
   startCall: jest.fn(() => jest.fn()),
   countError: jest.fn(),
 });
+const AI_CONFIG = {
+  vitBaseUrl: 'https://api.kezzlecake.com/vit',
+  clipBaseUrl: 'https://api.kezzlecake.com/clip',
+  httpTimeoutMs: 5000,
+};
 
 describe('VitClient', () => {
-  const originalVitBaseUrl = process.env.VIT_API_BASE_URL;
-
-  beforeEach(() => {
-    delete process.env.VIT_API_BASE_URL;
-  });
-
-  afterAll(() => {
-    if (originalVitBaseUrl === undefined) {
-      delete process.env.VIT_API_BASE_URL;
-    } else {
-      process.env.VIT_API_BASE_URL = originalVitBaseUrl;
-    }
-  });
-
   describe('similarSearchWithLocation', () => {
     it('builds URL with location params and returns unwrapped result', async () => {
       const expected = [{ id: 'cake-1' }, { id: 'cake-2' }];
@@ -28,7 +19,11 @@ describe('VitClient', () => {
         get: jest.fn().mockReturnValue(of({ data: { result: expected } })),
       };
       const metricsService = buildMetricsService();
-      const client = new VitClient(httpService as any, metricsService as any);
+      const client = new VitClient(
+        httpService as any,
+        metricsService as any,
+        AI_CONFIG,
+      );
 
       const result = await client.similarSearchWithLocation(
         'mock-cake-id',
@@ -45,13 +40,15 @@ describe('VitClient', () => {
       expect(result).toBe(expected);
     });
 
-    it('uses VIT_API_BASE_URL env override when set', async () => {
-      process.env.VIT_API_BASE_URL = 'http://kezzle-ai-server:8001';
+    it('uses the injected VIT base URL', async () => {
       const httpService = {
         get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
       };
       const metricsService = buildMetricsService();
-      const client = new VitClient(httpService as any, metricsService as any);
+      const client = new VitClient(httpService as any, metricsService as any, {
+        ...AI_CONFIG,
+        vitBaseUrl: 'http://kezzle-ai-server:8001',
+      });
 
       await client.similarSearchWithLocation('id-1', 1, 2, 3, 4);
 
@@ -69,7 +66,11 @@ describe('VitClient', () => {
         startCall: jest.fn(() => endTimer),
         countError: jest.fn(),
       };
-      const client = new VitClient(httpService as any, metricsService as any);
+      const client = new VitClient(
+        httpService as any,
+        metricsService as any,
+        AI_CONFIG,
+      );
 
       await client.similarSearchWithLocation('id-1', 1, 2, 3, 4);
 
@@ -94,7 +95,11 @@ describe('VitClient', () => {
         startCall: jest.fn(() => endTimer),
         countError: jest.fn(),
       };
-      const client = new VitClient(httpService as any, metricsService as any);
+      const client = new VitClient(
+        httpService as any,
+        metricsService as any,
+        AI_CONFIG,
+      );
 
       await expect(
         client.similarSearchWithLocation('id-1', 1, 2, 3, 4),
@@ -116,7 +121,11 @@ describe('VitClient', () => {
         get: jest.fn().mockReturnValue(of({ data: { result: expected } })),
       };
       const metricsService = buildMetricsService();
-      const client = new VitClient(httpService as any, metricsService as any);
+      const client = new VitClient(
+        httpService as any,
+        metricsService as any,
+        AI_CONFIG,
+      );
 
       const result = await client.similarSearch('liked-cake-id', 6);
 
@@ -132,7 +141,11 @@ describe('VitClient', () => {
         get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
       };
       const metricsService = buildMetricsService();
-      const client = new VitClient(httpService as any, metricsService as any);
+      const client = new VitClient(
+        httpService as any,
+        metricsService as any,
+        AI_CONFIG,
+      );
 
       await client.similarSearch('cake id/한글', 6);
 
@@ -150,7 +163,11 @@ describe('VitClient', () => {
         startCall: jest.fn(() => endTimer),
         countError: jest.fn(),
       };
-      const client = new VitClient(httpService as any, metricsService as any);
+      const client = new VitClient(
+        httpService as any,
+        metricsService as any,
+        AI_CONFIG,
+      );
 
       await client.similarSearch('liked-cake-id', 6);
 

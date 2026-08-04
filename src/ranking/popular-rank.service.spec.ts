@@ -1,17 +1,15 @@
 import { PopularRankService } from './popular-rank.service';
+import { rankingConfigFixture } from '../../test/support/typed-config.fixtures';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DATE_STR = /^\d{4}-\d{2}-\d{2}$/;
 
 describe('PopularRankService', () => {
-  afterEach(() => {
-    delete process.env.POPULAR_RANK_WINDOW_DAYS;
-  });
-
   function createMocks(options?: {
     latestResults?: unknown[];
     docs?: unknown[];
     candidates?: Array<Record<string, unknown>>;
+    config?: any;
   }) {
     const findOneQuery = {
       sort: jest.fn().mockReturnThis(),
@@ -39,6 +37,7 @@ describe('PopularRankService', () => {
     const service = new PopularRankService(
       rankModel as never,
       sourceReader as never,
+      options?.config ?? rankingConfigFixture,
     );
     return {
       service,

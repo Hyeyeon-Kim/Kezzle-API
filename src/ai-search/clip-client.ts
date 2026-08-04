@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { AiSearchMetricsAdapter } from './ai-search-metrics.adapter';
+import { ConfigType } from '@nestjs/config';
+import aiConfig from 'src/config/ai.config';
 
 const MODEL = 'clip';
 const ENDPOINT_KO_SEARCH = 'ko-search';
@@ -17,6 +19,7 @@ export class ClipClient {
   constructor(
     private readonly httpService: HttpService,
     private readonly metrics: AiSearchMetricsAdapter,
+    @Inject(aiConfig.KEY) private readonly config: ConfigType<typeof aiConfig>,
   ) {}
 
   async koSearch(
@@ -82,10 +85,6 @@ export class ClipClient {
     }
   }
 
-  private baseUrl(): string {
-    return process.env.CLIP_API_BASE_URL ?? 'https://api.kezzlecake.com/clip';
-  }
-
   private buildUrl(
     path: string,
     params: Record<string, string | number>,
@@ -94,6 +93,6 @@ export class ClipClient {
     Object.entries(params).forEach(([key, value]) => {
       query.set(key, String(value));
     });
-    return `${this.baseUrl()}${path}?${query.toString()}`;
+    return `${this.config.clipBaseUrl}${path}?${query.toString()}`;
   }
 }

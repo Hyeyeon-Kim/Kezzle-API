@@ -4,10 +4,17 @@ import { Reflector } from '@nestjs/core';
 import { Roles } from 'src/user/entities/roles.enum';
 import { HOME_RESILIENCE_AUTH_BYPASS_KEY } from '../decorators/home-resilience-auth-bypass.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { Inject } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
+import authConfig from 'src/config/auth.config';
 
 @Injectable()
 export class FirebaseAuthGuard extends AuthGuard('firebase-auth') {
-  constructor(private reflector: Reflector) {
+  constructor(
+    private reflector: Reflector,
+    @Inject(authConfig.KEY)
+    private readonly config: ConfigType<typeof authConfig>,
+  ) {
     super();
   }
 
@@ -21,7 +28,10 @@ export class FirebaseAuthGuard extends AuthGuard('firebase-auth') {
       return true;
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (
+      this.config.nodeEnv === 'development' &&
+      this.config.developmentBypass
+    ) {
       context.switchToHttp().getRequest().user = {
         firebaseUid: 'dev-mock-user',
         nickname: 'dev',
@@ -39,21 +49,14 @@ export class FirebaseAuthGuard extends AuthGuard('firebase-auth') {
         [context.getHandler(), context.getClass()],
       );
 
-    if (
-      process.env.HOME_RESILIENCE_AUTH_BYPASS === 'true' &&
-      allowHomeResilienceAuthBypass
-    ) {
+    if (this.config.homeResilienceBypass && allowHomeResilienceAuthBypass) {
       const request = context.switchToHttp().getRequest();
       request.user = {
-        firebaseUid:
-          process.env.HOME_RESILIENCE_USER_ID ?? 'home-resilience-user',
+        firebaseUid: this.config.homeResilienceUserId,
         nickname: 'home-resilience',
         oauthProvider: 'local',
         roles: [Roles.BUYER],
-        cakeLikeIds: (process.env.HOME_RESILIENCE_CAKE_LIKE_IDS ?? '')
-          .split(',')
-          .map((id) => id.trim())
-          .filter(Boolean),
+        cakeLikeIds: this.config.homeResilienceCakeLikeIds,
         storeLikeIds: [],
       };
       return true;

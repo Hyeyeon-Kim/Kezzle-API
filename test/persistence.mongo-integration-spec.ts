@@ -32,6 +32,7 @@ import { RankingQueryService } from 'src/ranking/ranking-query.service';
 import { MongoPopularRankingSourceAdapter } from 'src/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
 import { User, UserSchema } from 'src/user/entities/user.schema';
 import fixtures from './fixtures/legacy-persistence.contract.json';
+import { rankingConfigFixture } from './support/typed-config.fixtures';
 
 function jsonValue(value: unknown): unknown {
   return JSON.parse(JSON.stringify(value));
@@ -377,16 +378,21 @@ describe('Persistence Mongo integration contract', () => {
       isEmptyBatch: false,
     });
 
-    const keywordRankService = new KeywordRankService(keywordRankModel, {
-      getRanked: jest.fn(),
-    } as never);
-    const popularRankService = new PopularRankService(popularCakeRankModel, {
-      findTop: jest.fn(),
-    } as never);
+    const keywordRankService = new KeywordRankService(
+      keywordRankModel,
+      { getRanked: jest.fn() } as never,
+      rankingConfigFixture,
+    );
+    const popularRankService = new PopularRankService(
+      popularCakeRankModel,
+      { findTop: jest.fn() } as never,
+      rankingConfigFixture,
+    );
     const query = new RankingQueryService(
       keywordRankService,
       popularRankService,
       { getRanked: jest.fn() } as never,
+      rankingConfigFixture,
     );
 
     const [keyword, popular] = await Promise.all([

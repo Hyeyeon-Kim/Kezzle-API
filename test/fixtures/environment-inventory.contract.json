@@ -1,0 +1,210 @@
+[
+  { "name": "NODE_ENV", "requirement": "required", "default": null },
+  { "name": "PORT", "requirement": "optional", "default": 3000 },
+  { "name": "MONGODB_URL", "requirement": "required", "default": null },
+  { "name": "MONGODB_DBNAME_MAIN", "requirement": "required", "default": null },
+  { "name": "MONGODB_USERNAME", "requirement": "paired", "default": null },
+  { "name": "MONGODB_PASSWORD", "requirement": "paired", "default": null },
+  {
+    "name": "DEVELOPMENT_AUTH_BYPASS",
+    "requirement": "optional",
+    "default": false
+  },
+  {
+    "name": "HOME_RESILIENCE_AUTH_BYPASS",
+    "requirement": "optional",
+    "default": false
+  },
+  {
+    "name": "HOME_RESILIENCE_USER_ID",
+    "requirement": "optional",
+    "default": "home-resilience-user"
+  },
+  {
+    "name": "HOME_RESILIENCE_CAKE_LIKE_IDS",
+    "requirement": "optional",
+    "default": ""
+  },
+  { "name": "FIREBASE_PROJECT_ID", "requirement": "required", "default": null },
+  {
+    "name": "FIREBASE_PRIVATE_KEY",
+    "requirement": "required",
+    "default": null
+  },
+  {
+    "name": "FIREBASE_CLIENT_EMAIL",
+    "requirement": "required",
+    "default": null
+  },
+  { "name": "A_BUCKET_NAME", "requirement": "required", "default": null },
+  { "name": "A_REGION", "requirement": "required", "default": null },
+  { "name": "A_ACCESS_KEY_ID", "requirement": "paired", "default": null },
+  { "name": "A_SECRET_ACCESS_KEY", "requirement": "paired", "default": null },
+  {
+    "name": "VIT_API_BASE_URL",
+    "requirement": "optional",
+    "default": "https://api.kezzlecake.com/vit"
+  },
+  {
+    "name": "CLIP_API_BASE_URL",
+    "requirement": "optional",
+    "default": "https://api.kezzlecake.com/clip"
+  },
+  { "name": "AI_HTTP_TIMEOUT_MS", "requirement": "optional", "default": 5000 },
+  { "name": "REDIS_URL", "requirement": "optional", "default": null },
+  {
+    "name": "HOME_CACHE_COMMAND_TIMEOUT_MS",
+    "requirement": "optional",
+    "default": 80
+  },
+  {
+    "name": "HOME_CACHE_CONNECT_TIMEOUT_MS",
+    "requirement": "optional",
+    "default": 1000
+  },
+  {
+    "name": "HOME_CACHE_LOCK_TTL_MS",
+    "requirement": "optional",
+    "default": 10000
+  },
+  {
+    "name": "HOME_CACHE_TTL_JITTER_PERCENT",
+    "requirement": "optional",
+    "default": 10
+  },
+  {
+    "name": "HOME_HARD_DEADLINE_MS",
+    "requirement": "optional",
+    "default": 600
+  },
+  {
+    "name": "HOME_RECOMMEND_TIMEOUT_MS",
+    "requirement": "optional",
+    "default": 250
+  },
+  {
+    "name": "HOME_ANNIVERSARY_TIMEOUT_MS",
+    "requirement": "optional",
+    "default": 250
+  },
+  {
+    "name": "HOME_POPULAR_TIMEOUT_MS",
+    "requirement": "optional",
+    "default": 50
+  },
+  {
+    "name": "HOME_KEYWORD_RANKS_TIMEOUT_MS",
+    "requirement": "optional",
+    "default": 400
+  },
+  {
+    "name": "HOME_NEWEST_TIMEOUT_MS",
+    "requirement": "optional",
+    "default": 100
+  },
+  {
+    "name": "HOME_CURATIONS_TIMEOUT_MS",
+    "requirement": "optional",
+    "default": 100
+  },
+  {
+    "name": "HOME_RESILIENCE_METRICS_ENABLED",
+    "requirement": "optional",
+    "default": false
+  },
+  {
+    "name": "HOME_CACHE_ANNIVERSARY_FRESH_TTL_MS",
+    "requirement": "optional",
+    "default": 300000
+  },
+  {
+    "name": "HOME_CACHE_ANNIVERSARY_STALE_TTL_MS",
+    "requirement": "optional",
+    "default": 1800000
+  },
+  {
+    "name": "HOME_CACHE_RECOMMEND_FRESH_TTL_MS",
+    "requirement": "optional",
+    "default": 600000
+  },
+  {
+    "name": "HOME_CACHE_RECOMMEND_STALE_TTL_MS",
+    "requirement": "optional",
+    "default": 3600000
+  },
+  {
+    "name": "HOME_CACHE_POPULAR_FRESH_TTL_MS",
+    "requirement": "optional",
+    "default": 60000
+  },
+  {
+    "name": "HOME_CACHE_POPULAR_STALE_TTL_MS",
+    "requirement": "optional",
+    "default": 600000
+  },
+  {
+    "name": "HOME_CACHE_KEYWORD_RANKS_FRESH_TTL_MS",
+    "requirement": "optional",
+    "default": 60000
+  },
+  {
+    "name": "HOME_CACHE_KEYWORD_RANKS_STALE_TTL_MS",
+    "requirement": "optional",
+    "default": 600000
+  },
+  {
+    "name": "HOME_CACHE_NEWEST_FRESH_TTL_MS",
+    "requirement": "optional",
+    "default": 60000
+  },
+  {
+    "name": "HOME_CACHE_NEWEST_STALE_TTL_MS",
+    "requirement": "optional",
+    "default": 600000
+  },
+  {
+    "name": "HOME_CACHE_CURATIONS_FRESH_TTL_MS",
+    "requirement": "optional",
+    "default": 300000
+  },
+  {
+    "name": "HOME_CACHE_CURATIONS_STALE_TTL_MS",
+    "requirement": "optional",
+    "default": 1800000
+  },
+  {
+    "name": "KEYWORD_RANK_WINDOW_DAYS",
+    "requirement": "optional",
+    "default": 30
+  },
+  {
+    "name": "POPULAR_RANK_WINDOW_DAYS",
+    "requirement": "optional",
+    "default": 30
+  },
+  {
+    "name": "KEYWORD_RANK_TTL_MS",
+    "requirement": "optional",
+    "default": 600000
+  },
+  {
+    "name": "POPULAR_RANK_TTL_MS",
+    "requirement": "optional",
+    "default": 600000
+  },
+  {
+    "name": "POPULAR_RANK_SOURCE_MAX_TIME_MS",
+    "requirement": "optional",
+    "default": 5000
+  },
+  {
+    "name": "CURATION_REFRESH_INTERVAL_MS",
+    "requirement": "optional",
+    "default": 600000
+  },
+  {
+    "name": "CURATION_STALE_MS",
+    "requirement": "optional",
+    "default": 259200000
+  }
+]

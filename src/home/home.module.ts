@@ -8,9 +8,12 @@ import { HomeController } from './home.controller';
 import { HomeFeedService } from './home-feed.service';
 import { HomePresenter } from './api/home.presenter';
 import { HomeObservabilityModule } from './observability/home-observability.module';
+import { ConfigModule } from '@nestjs/config';
+import homeConfig from 'src/config/home.config';
 
 @Module({
   imports: [
+    ConfigModule.forFeature(homeConfig),
     CakeModule,
     AnniversaryModule,
     RankingModule,

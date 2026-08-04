@@ -11,7 +11,11 @@ describe('CurationRefreshService', () => {
   function createMocks(options?: {
     stale?: unknown[];
     claimResults?: (object | null)[];
-    env?: Record<string, string>;
+    config?: Partial<{
+      refreshEnabled: boolean;
+      refreshIntervalMs: number;
+      staleMs: number;
+    }>;
   }) {
     const claimQueue = [...(options?.claimResults ?? [])];
     const curationRepository = {
@@ -33,7 +37,10 @@ describe('CurationRefreshService', () => {
       setStaleBacklog: jest.fn(),
     };
     const config = {
-      get: jest.fn((key: string) => options?.env?.[key]),
+      refreshEnabled: true,
+      refreshIntervalMs: 600000,
+      staleMs: 3 * 24 * 60 * 60 * 1000,
+      ...options?.config,
     };
     const schedulerRegistry = {
       addInterval: jest.fn(),
@@ -105,7 +112,7 @@ describe('CurationRefreshService', () => {
     jest.useFakeTimers();
     try {
       const { service, schedulerRegistry } = createMocks({
-        env: { CURATION_REFRESH_INTERVAL_MS: '1234' },
+        config: { refreshIntervalMs: 1234 },
       });
 
       service.onApplicationBootstrap();
@@ -136,7 +143,7 @@ describe('CurationRefreshService', () => {
 
   it('does not schedule anything when the interval is set to 0', () => {
     const { service, schedulerRegistry } = createMocks({
-      env: { CURATION_REFRESH_INTERVAL_MS: '0' },
+      config: { refreshEnabled: false },
     });
 
     service.onApplicationBootstrap();
@@ -147,7 +154,7 @@ describe('CurationRefreshService', () => {
   it('uses the configured stale threshold when querying stale curations', async () => {
     const staleMs = 60_000;
     const { service, curationRepository } = createMocks({
-      env: { CURATION_STALE_MS: String(staleMs) },
+      config: { staleMs },
     });
 
     const before = Date.now();

@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -26,26 +27,14 @@ import {
 } from './application/home.view';
 import { HomeMetrics } from './application/home-metrics.port';
 import { HomeSectionName } from './application/home-metrics.types';
+import { ConfigType } from '@nestjs/config';
+import homeConfig from 'src/config/home.config';
 import {
   executeHomeSection,
   HomeSectionFallbackReason,
   HomeSectionResult,
   startHomeDeadline,
 } from './home-section.executor';
-
-const HOME_SECTION_TIMEOUTS = {
-  recommendCakes: { env: 'HOME_RECOMMEND_TIMEOUT_MS', defaultMs: 250 },
-  anniversary: { env: 'HOME_ANNIVERSARY_TIMEOUT_MS', defaultMs: 250 },
-  popularCakes: { env: 'HOME_POPULAR_TIMEOUT_MS', defaultMs: 50 },
-  keywordRanks: { env: 'HOME_KEYWORD_RANKS_TIMEOUT_MS', defaultMs: 400 },
-  newestCakes: { env: 'HOME_NEWEST_TIMEOUT_MS', defaultMs: 100 },
-  curations: { env: 'HOME_CURATIONS_TIMEOUT_MS', defaultMs: 100 },
-} as const;
-
-const HOME_HARD_DEADLINE = {
-  env: 'HOME_HARD_DEADLINE_MS',
-  defaultMs: 600,
-} as const;
 
 @Injectable()
 export class HomeFeedService {
@@ -58,6 +47,8 @@ export class HomeFeedService {
     private readonly curationQuery: CurationQueryService,
     private readonly homeMetrics: HomeMetrics,
     private readonly homeCache: HomeCacheService,
+    @Inject(homeConfig.KEY)
+    private readonly config: ConfigType<typeof homeConfig>,
   ) {}
 
   async getHome(user: AuthenticatedUser | undefined): Promise<HomeView> {
@@ -126,7 +117,7 @@ export class HomeFeedService {
               }
               return this.homeCache.getWithSwr({
                 key: homeCacheKey(`similar:${seedCakeId}`),
-                ...homeCachePolicy('recommend'),
+                ...homeCachePolicy(this.config.cache.policies, 'recommend'),
                 refresh: async () => {
                   this.homeMetrics.countAi('vit');
                   return this.cakeService
@@ -165,7 +156,7 @@ export class HomeFeedService {
             (signal) =>
               this.homeCache.getWithSwr({
                 key: homeCacheKey('anniversary'),
-                ...homeCachePolicy('anniversary'),
+                ...homeCachePolicy(this.config.cache.policies, 'anniversary'),
                 refresh: async () => {
                   this.homeMetrics.countDb();
                   const anniversary =
@@ -208,7 +199,7 @@ export class HomeFeedService {
             () =>
               this.homeCache.getWithSwr({
                 key: homeCacheKey('popular'),
-                ...homeCachePolicy('popular'),
+                ...homeCachePolicy(this.config.cache.policies, 'popular'),
                 refresh: () => {
                   this.homeMetrics.countDb(2);
                   return this.rankingQuery.getPopularCakes(
@@ -245,7 +236,7 @@ export class HomeFeedService {
             () =>
               this.homeCache.getWithSwr({
                 key: homeCacheKey('keyword-ranks'),
-                ...homeCachePolicy('keywordRanks'),
+                ...homeCachePolicy(this.config.cache.policies, 'keywordRanks'),
                 refresh: () => {
                   this.homeMetrics.countDb(2);
                   return this.rankingQuery.getKeywordRank(
@@ -283,7 +274,7 @@ export class HomeFeedService {
             () =>
               this.homeCache.getWithSwr({
                 key: homeCacheKey('newest:4'),
-                ...homeCachePolicy('newest'),
+                ...homeCachePolicy(this.config.cache.policies, 'newest'),
                 refresh: () => {
                   this.homeMetrics.countDb();
                   return this.cakeService.findAllByNewest(
@@ -320,7 +311,7 @@ export class HomeFeedService {
             () =>
               this.homeCache.getWithSwr({
                 key: homeCacheKey('curations'),
-                ...homeCachePolicy('curations'),
+                ...homeCachePolicy(this.config.cache.policies, 'curations'),
                 refresh: async () => {
                   this.homeMetrics.countDb();
                   const curations = await this.curationQuery.findFeatured(
@@ -484,18 +475,13 @@ export class HomeFeedService {
   }
 
   private getHomeHardDeadlineMs(): number {
-    const configured = Number(process.env[HOME_HARD_DEADLINE.env]);
-    return Number.isFinite(configured) && configured > 0
-      ? configured
-      : HOME_HARD_DEADLINE.defaultMs;
+    return this.config.hardDeadlineMs;
   }
 
-  private getSectionTimeout(name: keyof typeof HOME_SECTION_TIMEOUTS): number {
-    const config = HOME_SECTION_TIMEOUTS[name];
-    const configured = Number(process.env[config.env]);
-    return Number.isFinite(configured) && configured > 0
-      ? configured
-      : config.defaultMs;
+  private getSectionTimeout(
+    name: keyof ConfigType<typeof homeConfig>['sectionTimeoutMs'],
+  ): number {
+    return this.config.sectionTimeoutMs[name];
   }
 
   private emptyAnniversary(): AnniversaryRecommendationView {

@@ -1,12 +1,8 @@
 import { RankingQueryService } from './ranking-query.service';
+import { rankingConfigFixture } from '../../test/support/typed-config.fixtures';
 
 describe('RankingQueryService', () => {
-  afterEach(() => {
-    delete process.env.KEYWORD_RANK_WINDOW_DAYS;
-    delete process.env.POPULAR_RANK_WINDOW_DAYS;
-  });
-
-  function createService() {
+  function createService(config: any = rankingConfigFixture) {
     const keywordRankService = {
       getRanked: jest.fn().mockResolvedValue({
         ranking: [{ _id: 'precomputed', count: 2 }],
@@ -41,6 +37,7 @@ describe('RankingQueryService', () => {
       keywordRankService as never,
       popularRankService as never,
       keywordEventReader as never,
+      config,
     );
 
     return {
@@ -106,9 +103,11 @@ describe('RankingQueryService', () => {
   });
 
   it('owns keyword and popular fallback window policy', () => {
-    process.env.KEYWORD_RANK_WINDOW_DAYS = '7';
-    process.env.POPULAR_RANK_WINDOW_DAYS = '14';
-    const { service } = createService();
+    const { service } = createService({
+      ...rankingConfigFixture,
+      keywordWindowDays: 7,
+      popularWindowDays: 14,
+    });
 
     const keyword = service.getKeywordFallback();
     const popular = service.getPopularFallback();

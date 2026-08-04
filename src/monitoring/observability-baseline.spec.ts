@@ -200,7 +200,19 @@ describe('Observability Phase F canonical contract', () => {
       new CakeLikeEventMetricsAdapter(registry),
       new MediaMetricsAdapter(registry),
     ];
-    const homeAdapter = new PrometheusHomeMetricsAdapter(registry);
+    const homeAdapter = new PrometheusHomeMetricsAdapter(registry, {
+      hardDeadlineMs: 600,
+      sectionTimeoutMs: {
+        recommendCakes: 250,
+        anniversary: 250,
+        popularCakes: 50,
+        keywordRanks: 400,
+        newestCakes: 100,
+        curations: 100,
+      },
+      jsonMetricsEnabled: false,
+      cache: {} as never,
+    });
     const curationAdapter = new CurationRefreshMetricsAdapter(registry);
 
     expect(
@@ -272,7 +284,7 @@ describe('Observability Phase F canonical contract', () => {
     );
     expect(
       moduleMetadata(HomeObservabilityModule, MODULE_METADATA.IMPORTS),
-    ).toEqual([PrometheusRegistryModule]);
+    ).toContain(PrometheusRegistryModule);
     expect(moduleMetadata(HomeModule, MODULE_METADATA.IMPORTS)).toContain(
       HomeObservabilityModule,
     );

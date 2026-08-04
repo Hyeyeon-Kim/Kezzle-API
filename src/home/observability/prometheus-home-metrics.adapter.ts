@@ -1,4 +1,6 @@
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
+import homeConfig from 'src/config/home.config';
 import { AsyncLocalStorage } from 'async_hooks';
 import { randomUUID } from 'crypto';
 import { monitorEventLoopDelay } from 'perf_hooks';
@@ -117,6 +119,8 @@ export class PrometheusHomeMetricsAdapter
   constructor(
     @Inject(PROMETHEUS_REGISTRY)
     private readonly registry: Registry,
+    @Inject(homeConfig.KEY)
+    private readonly config: ConfigType<typeof homeConfig>,
   ) {
     super();
     this.eventLoopDelay.enable();
@@ -250,7 +254,7 @@ export class PrometheusHomeMetricsAdapter
   }
 
   private isJsonFlushEnabled(): boolean {
-    return process.env.HOME_RESILIENCE_METRICS_ENABLED === 'true';
+    return this.config.jsonMetricsEnabled;
   }
 
   private toMs(duration: bigint): number {

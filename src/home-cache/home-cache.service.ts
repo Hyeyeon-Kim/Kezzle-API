@@ -3,7 +3,9 @@ import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import { HomeMetrics } from 'src/home/application/home-metrics.port';
 import { HOME_CACHE_REDIS } from './home-cache.constants';
-import { positiveEnvMs, SwrEnvelope, SwrOptions } from './swr';
+import { SwrEnvelope, SwrOptions } from './swr';
+import { ConfigType } from '@nestjs/config';
+import homeConfig from 'src/config/home.config';
 
 @Injectable()
 export class HomeCacheService implements OnModuleDestroy {
@@ -13,6 +15,8 @@ export class HomeCacheService implements OnModuleDestroy {
   constructor(
     @Inject(HOME_CACHE_REDIS) private readonly redis: Redis | null,
     private readonly homeMetrics: HomeMetrics,
+    @Inject(homeConfig.KEY)
+    private readonly config: ConfigType<typeof homeConfig>,
   ) {
     this.redis?.on('ready', () => this.markAvailable());
     this.redis?.on('error', (error) => this.markUnavailable(error));
@@ -90,7 +94,7 @@ export class HomeCacheService implements OnModuleDestroy {
   private async refreshStale<T>(options: SwrOptions<T>): Promise<void> {
     const lockKey = `${options.key}:lock`;
     const lockToken = randomUUID();
-    const lockTtlMs = positiveEnvMs('HOME_CACHE_LOCK_TTL_MS', 10_000);
+    const lockTtlMs = this.config.cache.lockTtlMs;
 
     try {
       const acquired = await this.redis.set(
@@ -142,11 +146,7 @@ export class HomeCacheService implements OnModuleDestroy {
   }
 
   private jitteredFreshTtl(freshTtlMs: number, staleTtlMs: number): number {
-    const configured = Number(process.env.HOME_CACHE_TTL_JITTER_PERCENT);
-    const jitterPercent =
-      Number.isFinite(configured) && configured >= 0
-        ? Math.min(configured, 100)
-        : 10;
+    const jitterPercent = this.config.cache.jitterPercent;
     const ratio = jitterPercent / 100;
     const jittered = freshTtlMs * (1 - ratio + Math.random() * ratio * 2);
     return Math.max(1, Math.min(Math.round(jittered), staleTtlMs));
