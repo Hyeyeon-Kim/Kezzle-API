@@ -54,25 +54,8 @@ const homeDashboardTitle = 'Kezzle Home API';
 
 async function main(): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  const targets = await fetchJson<{
-    data?: { activeTargets?: PrometheusTarget[] };
-  }>(`${prometheusUrl}/api/v1/targets`, deadline);
-  const activeTargets = targets.data?.activeTargets ?? [];
-  const apiTarget = requireHealthyTarget(
-    activeTargets,
-    'kezzle-api',
-    '/metrics',
-  );
-  const mongodbTarget = requireHealthyTarget(
-    activeTargets,
-    'mongodb',
-    'mongodb-exporter:9216/metrics',
-  );
-  const redisTarget = requireHealthyTarget(
-    activeTargets,
-    'redis',
-    'redis-exporter:9121/metrics',
-  );
+  const { apiTarget, mongodbTarget, redisTarget } =
+    await waitForHealthyTargets(deadline);
 
   const rules = await fetchJson<{
     data?: { groups?: Array<{ rules?: PrometheusRule[] }> };
@@ -254,6 +237,59 @@ async function fetchJson<T>(url: string, deadline: number): Promise<T> {
     assert(response.ok, `${url} returned HTTP ${response.status}`);
     return (await response.json()) as T;
   });
+}
+
+type HealthyTargets = {
+  readonly apiTarget: PrometheusTarget;
+  readonly mongodbTarget: PrometheusTarget;
+  readonly redisTarget: PrometheusTarget;
+};
+
+type FetchTargets = () => Promise<readonly PrometheusTarget[]>;
+
+export async function waitForHealthyTargets(
+  deadline: number,
+  fetchTargets: FetchTargets = async () => {
+    const response = await fetchJson<{
+      data?: { activeTargets?: PrometheusTarget[] };
+    }>(`${prometheusUrl}/api/v1/targets`, deadline);
+    return response.data?.activeTargets ?? [];
+  },
+  intervalMs = pollIntervalMs,
+): Promise<HealthyTargets> {
+  const waitBudgetMs = Math.max(0, deadline - Date.now());
+  let lastFailure = 'targets were not observed';
+
+  while (Date.now() < deadline) {
+    try {
+      const activeTargets = await fetchTargets();
+      return {
+        apiTarget: requireHealthyTarget(
+          activeTargets,
+          'kezzle-api',
+          '/metrics',
+        ),
+        mongodbTarget: requireHealthyTarget(
+          activeTargets,
+          'mongodb',
+          'mongodb-exporter:9216/metrics',
+        ),
+        redisTarget: requireHealthyTarget(
+          activeTargets,
+          'redis',
+          'redis-exporter:9121/metrics',
+        ),
+      };
+    } catch (error) {
+      lastFailure = error instanceof Error ? error.message : String(error);
+    }
+
+    await waitWithinDeadline(deadline, intervalMs);
+  }
+
+  throw new Error(
+    `Prometheus targets did not become healthy after ${waitBudgetMs}ms: ${lastFailure}`,
+  );
 }
 
 export function requireHealthyTarget(

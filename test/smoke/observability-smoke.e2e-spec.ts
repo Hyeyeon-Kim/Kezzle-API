@@ -1,6 +1,7 @@
 import {
   assertGrafanaProvisioning,
   requireHealthyTarget,
+  waitForHealthyTargets,
 } from './observability-stack';
 import { FetchImplementation, readResponseWithinDeadline } from './smoke-http';
 
@@ -99,6 +100,59 @@ describe('Observability smoke contracts', () => {
     ).toMatchObject({ health: 'up' });
   });
 
+  it('polls target health until every required target is UP', async () => {
+    jest.useFakeTimers({ now: 3_000 });
+    const fetchTargets = jest
+      .fn()
+      .mockResolvedValueOnce([
+        target('kezzle-api', 'unknown', 'http://kezzle-api:3000/metrics'),
+        target('mongodb', 'unknown', 'http://mongodb-exporter:9216/metrics'),
+        target('redis', 'unknown', 'http://redis-exporter:9121/metrics'),
+      ])
+      .mockResolvedValueOnce([
+        target('kezzle-api', 'up', 'http://kezzle-api:3000/metrics'),
+        target('mongodb', 'up', 'http://mongodb-exporter:9216/metrics'),
+        target('redis', 'up', 'http://redis-exporter:9121/metrics'),
+      ]);
+
+    const result = waitForHealthyTargets(Date.now() + 500, fetchTargets, 100);
+
+    await jest.advanceTimersByTimeAsync(100);
+
+    await expect(result).resolves.toMatchObject({
+      apiTarget: { health: 'up' },
+      mongodbTarget: { health: 'up' },
+      redisTarget: { health: 'up' },
+    });
+    expect(fetchTargets).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports the last target failure when the deadline expires', async () => {
+    jest.useFakeTimers({ now: 4_000 });
+    const fetchTargets = jest
+      .fn()
+      .mockResolvedValue([
+        target('kezzle-api', 'up', 'http://kezzle-api:3000/metrics'),
+        target(
+          'mongodb',
+          'down',
+          'http://mongodb-exporter:9216/metrics',
+          'connection refused',
+        ),
+        target('redis', 'up', 'http://redis-exporter:9121/metrics'),
+      ]);
+
+    const result = waitForHealthyTargets(Date.now() + 250, fetchTargets, 100);
+    const rejection = expect(result).rejects.toThrow(
+      'Prometheus targets did not become healthy after 250ms: ' +
+        'Prometheus job=mongodb target is not UP',
+    );
+
+    await jest.advanceTimersByTimeAsync(250);
+    await rejection;
+    expect(fetchTargets).toHaveBeenCalledTimes(3);
+  });
+
   it('requires provisioned Grafana datasource and Home dashboard contracts', () => {
     expect(() =>
       assertGrafanaProvisioning(
@@ -146,3 +200,12 @@ describe('Observability smoke contracts', () => {
     ).not.toThrow();
   });
 });
+
+function target(
+  job: string,
+  health: string,
+  scrapeUrl: string,
+  lastError = '',
+) {
+  return { labels: { job }, health, scrapeUrl, lastError };
+}
