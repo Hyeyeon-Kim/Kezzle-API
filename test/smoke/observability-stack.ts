@@ -1,8 +1,9 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import observabilityContract from '../fixtures/observability-baseline.contract.json';
+import { readResponseWithinDeadline, waitWithinDeadline } from './smoke-http';
 
-type PrometheusTarget = {
+export type PrometheusTarget = {
   readonly labels?: Record<string, string>;
   readonly health?: string;
   readonly scrapeUrl?: string;
@@ -14,6 +15,25 @@ type PrometheusRule = {
   readonly health?: string;
 };
 
+type GrafanaDatasource = {
+  readonly uid?: string;
+  readonly type?: string;
+  readonly url?: string;
+  readonly readOnly?: boolean;
+};
+
+type GrafanaDashboardResponse = {
+  readonly meta?: {
+    readonly provisioned?: boolean;
+    readonly folderTitle?: string;
+  };
+  readonly dashboard?: {
+    readonly uid?: string;
+    readonly title?: string;
+    readonly [key: string]: unknown;
+  };
+};
+
 const prometheusUrl = trimSlash(
   process.env.PROMETHEUS_URL ?? 'http://127.0.0.1:9090',
 );
@@ -22,22 +42,41 @@ const grafanaUrl = trimSlash(
 );
 const apiUrl = trimSlash(process.env.KEZZLE_API_URL ?? 'http://127.0.0.1:3000');
 const projectRoot = process.env.PROJECT_ROOT ?? join(__dirname, '..', '..');
+const timeoutMs = positiveNumber(
+  process.env.OBSERVABILITY_SMOKE_TIMEOUT_MS,
+  30_000,
+);
+const pollIntervalMs = 1_000;
+const prometheusDatasourceUid = 'kezzle-prometheus';
+const prometheusDatasourceUrl = 'http://prometheus:9090';
+const homeDashboardUid = 'kezzle-home-api';
+const homeDashboardTitle = 'Kezzle Home API';
 
 async function main(): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
   const targets = await fetchJson<{
     data?: { activeTargets?: PrometheusTarget[] };
-  }>(`${prometheusUrl}/api/v1/targets`);
-  const apiTarget = targets.data?.activeTargets?.find(
-    (target) => target.labels?.job === 'kezzle-api',
+  }>(`${prometheusUrl}/api/v1/targets`, deadline);
+  const activeTargets = targets.data?.activeTargets ?? [];
+  const apiTarget = requireHealthyTarget(
+    activeTargets,
+    'kezzle-api',
+    '/metrics',
   );
-  assert(
-    apiTarget?.health === 'up' && apiTarget.scrapeUrl?.endsWith('/metrics'),
-    `kezzle-api target is not UP: ${JSON.stringify(apiTarget)}`,
+  const mongodbTarget = requireHealthyTarget(
+    activeTargets,
+    'mongodb',
+    'mongodb-exporter:9216/metrics',
+  );
+  const redisTarget = requireHealthyTarget(
+    activeTargets,
+    'redis',
+    'redis-exporter:9121/metrics',
   );
 
   const rules = await fetchJson<{
     data?: { groups?: Array<{ rules?: PrometheusRule[] }> };
-  }>(`${prometheusUrl}/api/v1/rules?type=record`);
+  }>(`${prometheusUrl}/api/v1/rules?type=record`, deadline);
   const recordingRules = (rules.data?.groups ?? []).flatMap(
     (group) => group.rules ?? [],
   );
@@ -51,14 +90,24 @@ async function main(): Promise<void> {
     )}`,
   );
 
-  const recordingResult = await prometheusQuery('job:home_request_rate:rate1m');
-  assert(
-    recordingResult.data?.result?.length > 0,
-    'Home request recording series was not generated',
+  const homeStatus = await readResponseWithinDeadline(
+    `${apiUrl}/curation`,
+    deadline,
+    async (response) => {
+      await response.arrayBuffer();
+      return { ok: response.ok, status: response.status };
+    },
+  );
+  assert(homeStatus.ok, `/curation returned HTTP ${homeStatus.status}`);
+
+  const recordingResult = await waitForPrometheusResult(
+    'job:home_request_rate:rate1m',
+    deadline,
   );
 
   const metricNames = await fetchJson<{ data?: string[] }>(
     `${prometheusUrl}/api/v1/label/__name__/values`,
+    deadline,
   );
   const metricNameSet = new Set(metricNames.data ?? []);
   const missingExternalMetrics =
@@ -80,25 +129,39 @@ async function main(): Promise<void> {
   );
   const dashboardExpressions = collectExpressions(dashboard);
   for (const expression of dashboardExpressions) {
-    await prometheusQuery(expression);
+    await prometheusQuery(expression, deadline);
   }
 
   const grafanaHealth = await fetchJson<{ database?: string }>(
     `${grafanaUrl}/api/health`,
+    deadline,
   );
   assert(
     grafanaHealth.database === 'ok',
     `Grafana database is not healthy: ${JSON.stringify(grafanaHealth)}`,
   );
 
-  const metricsResponse = await fetch(
+  const grafanaDatasource = await fetchJson<GrafanaDatasource>(
+    `${grafanaUrl}/api/datasources/uid/${prometheusDatasourceUid}`,
+    deadline,
+  );
+  const grafanaDashboard = await fetchJson<GrafanaDashboardResponse>(
+    `${grafanaUrl}/api/dashboards/uid/${homeDashboardUid}`,
+    deadline,
+  );
+  assertGrafanaProvisioning(grafanaDatasource, grafanaDashboard);
+
+  const metricsResult = await readResponseWithinDeadline(
     `${apiUrl}${observabilityContract.http.path}`,
+    deadline,
+    async (response) => ({
+      ok: response.ok,
+      status: response.status,
+      text: await response.text(),
+    }),
   );
-  assert(
-    metricsResponse.ok,
-    `/metrics returned HTTP ${metricsResponse.status}`,
-  );
-  const metricsText = await metricsResponse.text();
+  assert(metricsResult.ok, `/metrics returned HTTP ${metricsResult.status}`);
+  const metricsText = metricsResult.text;
   const families = [...metricsText.matchAll(/^# HELP (\S+) /gm)].map(
     (match) => match[1],
   );
@@ -128,6 +191,10 @@ async function main(): Promise<void> {
         scrapeUrl: apiTarget.scrapeUrl,
         lastError: apiTarget.lastError ?? '',
       },
+      exporterTargets: {
+        mongodb: targetSummary(mongodbTarget),
+        redis: targetSummary(redisTarget),
+      },
       recordingRule: {
         name: homeRequestRateRule.name,
         health: homeRequestRateRule.health,
@@ -139,18 +206,42 @@ async function main(): Promise<void> {
       metricFamilyCount: families.length,
       scrapePayloadBytes: Buffer.byteLength(metricsText),
       grafanaDatabase: grafanaHealth.database,
+      grafanaDatasource: grafanaDatasource.uid,
+      grafanaDashboard: grafanaDashboard.dashboard?.uid,
     }),
   );
 }
 
-async function prometheusQuery(expression: string) {
+async function waitForPrometheusResult(expression: string, deadline: number) {
+  let lastFailure = 'recording series is empty';
+
+  while (Date.now() < deadline) {
+    try {
+      const response = await prometheusQuery(expression, deadline);
+      if ((response.data?.result?.length ?? 0) > 0) {
+        return response;
+      }
+      lastFailure = 'recording series is empty';
+    } catch (error) {
+      lastFailure = error instanceof Error ? error.message : String(error);
+    }
+
+    await waitWithinDeadline(deadline, pollIntervalMs);
+  }
+
+  throw new Error(
+    `Home request recording series was not generated after ${timeoutMs}ms: ${lastFailure}`,
+  );
+}
+
+async function prometheusQuery(expression: string, deadline: number) {
   const url = new URL(`${prometheusUrl}/api/v1/query`);
   url.searchParams.set('query', expression);
   const response = await fetchJson<{
     status?: string;
     error?: string;
     data?: { result?: unknown[] };
-  }>(url.toString());
+  }>(url.toString(), deadline);
   assert(
     response.status === 'success',
     `Prometheus rejected query ${expression}: ${response.error ?? 'unknown'}`,
@@ -158,10 +249,91 @@ async function prometheusQuery(expression: string) {
   return response;
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
-  assert(response.ok, `${url} returned HTTP ${response.status}`);
-  return (await response.json()) as T;
+async function fetchJson<T>(url: string, deadline: number): Promise<T> {
+  return readResponseWithinDeadline(url, deadline, async (response) => {
+    assert(response.ok, `${url} returned HTTP ${response.status}`);
+    return (await response.json()) as T;
+  });
+}
+
+export function requireHealthyTarget(
+  targets: readonly PrometheusTarget[],
+  job: string,
+  expectedScrapeUrlSuffix: string,
+): PrometheusTarget {
+  const target = targets.find((candidate) => candidate.labels?.job === job);
+  assert(target, `Prometheus job=${job} target was not found`);
+  assert(
+    target.health === 'up',
+    `Prometheus job=${job} target is not UP: ${JSON.stringify(target)}`,
+  );
+  assert(
+    target.scrapeUrl?.endsWith(expectedScrapeUrlSuffix),
+    `Prometheus job=${job} has unexpected scrapeUrl: ${target.scrapeUrl ?? ''}`,
+  );
+  assert(
+    !target.lastError,
+    `Prometheus job=${job} reported lastError: ${target.lastError}`,
+  );
+  return target;
+}
+
+export function assertGrafanaProvisioning(
+  datasource: GrafanaDatasource,
+  response: GrafanaDashboardResponse,
+): void {
+  assert(
+    datasource.uid === prometheusDatasourceUid &&
+      datasource.type === 'prometheus' &&
+      datasource.url === prometheusDatasourceUrl &&
+      datasource.readOnly === true,
+    `Grafana Prometheus datasource is not provisioned as expected: ${JSON.stringify(
+      datasource,
+    )}`,
+  );
+  assert(
+    response.meta?.provisioned === true &&
+      response.dashboard?.uid === homeDashboardUid &&
+      response.dashboard.title === homeDashboardTitle,
+    `Grafana Home dashboard is not provisioned as expected: ${JSON.stringify(
+      response,
+    )}`,
+  );
+
+  const datasourceUids = collectDatasourceUids(response.dashboard);
+  assert(
+    datasourceUids.includes(prometheusDatasourceUid),
+    `Grafana Home dashboard does not reference datasource ${prometheusDatasourceUid}`,
+  );
+}
+
+function collectDatasourceUids(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(collectDatasourceUids);
+  }
+  if (typeof value !== 'object' || value === null) {
+    return [];
+  }
+  return Object.entries(value).flatMap(([key, nested]) => {
+    if (
+      key === 'datasource' &&
+      typeof nested === 'object' &&
+      nested !== null &&
+      'uid' in nested &&
+      typeof nested.uid === 'string'
+    ) {
+      return [nested.uid];
+    }
+    return collectDatasourceUids(nested);
+  });
+}
+
+function targetSummary(target: PrometheusTarget) {
+  return {
+    health: target.health,
+    scrapeUrl: target.scrapeUrl,
+    lastError: target.lastError ?? '',
+  };
 }
 
 function collectExpressions(value: unknown): string[] {
@@ -182,13 +354,20 @@ function trimSlash(value: string): string {
   return value.replace(/\/$/, '');
 }
 
+function positiveNumber(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
 }
 
-void main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  void main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}

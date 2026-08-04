@@ -1,3 +1,5 @@
+import { readResponseWithinDeadline, waitWithinDeadline } from './smoke-http';
+
 type PrometheusTarget = {
   readonly discoveredLabels?: Record<string, string>;
   readonly labels?: Record<string, string>;
@@ -28,14 +30,22 @@ async function main(): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   let lastFailure = 'target not observed';
 
-  while (Date.now() <= deadline) {
+  while (Date.now() < deadline) {
     try {
-      const response = await fetch(`${prometheusUrl}/api/v1/targets`);
-      if (!response.ok) {
-        throw new Error(`Prometheus returned HTTP ${response.status}`);
+      const result = await readResponseWithinDeadline(
+        `${prometheusUrl}/api/v1/targets`,
+        deadline,
+        async (response) => ({
+          ok: response.ok,
+          status: response.status,
+          payload: (await response.json()) as PrometheusTargetsResponse,
+        }),
+      );
+      if (!result.ok) {
+        throw new Error(`Prometheus returned HTTP ${result.status}`);
       }
 
-      const payload = (await response.json()) as PrometheusTargetsResponse;
+      const payload = result.payload;
       const target = payload.data?.activeTargets?.find(
         (candidate) =>
           candidate.labels?.job === targetJob ||
@@ -70,7 +80,7 @@ async function main(): Promise<void> {
       lastFailure = error instanceof Error ? error.message : String(error);
     }
 
-    await wait(pollIntervalMs);
+    await waitWithinDeadline(deadline, pollIntervalMs);
   }
 
   throw new Error(
@@ -83,11 +93,9 @@ function positiveNumber(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function wait(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+if (require.main === module) {
+  void main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
 }
-
-void main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
