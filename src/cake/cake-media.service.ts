@@ -9,7 +9,7 @@ import { MediaFile } from 'src/media/application/media-file';
 import { ObjectStorageError } from 'src/media/application/object-storage.error';
 import { ObjectStoragePort } from 'src/media/application/object-storage.port';
 import { S3UploadException } from 'src/media/exception/s3-upload.exception';
-import { MetricsService } from 'src/metrics/metrics.service';
+import { MediaMetricsAdapter } from 'src/media/media-metrics.adapter';
 import { CakeRepository } from './cake.repository';
 
 @Injectable()
@@ -20,7 +20,7 @@ export class CakeMediaService {
     private readonly objectStorage: ObjectStoragePort,
     private readonly storeWriteContext: StoreCakeWriteContextReader,
     private readonly cakeRepository: CakeRepository,
-    private readonly metricsService: MetricsService,
+    private readonly metrics: MediaMetricsAdapter,
   ) {}
 
   async replaceImage(cakeId: string, user: AuthenticatedUser, file: MediaFile) {
@@ -156,10 +156,7 @@ export class CakeMediaService {
     error: unknown,
     cause?: unknown,
   ): void {
-    this.metricsService.mediaObjectOrphans.inc({
-      feature: 'cake',
-      operation,
-    });
+    this.metrics.countOrphan('cake', operation);
     this.logger.error({
       event: 'cake_media_object_orphaned',
       storeId,

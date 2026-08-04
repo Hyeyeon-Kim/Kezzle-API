@@ -15,11 +15,12 @@ import { LikePresenter } from 'src/like/api/like.presenter';
 import { LikeController } from 'src/like/like.controller';
 import { LikeService } from 'src/like/like.service';
 import { CakeLikeEventRecorder } from 'src/like/application/port/cake-like-event-recorder.port';
-import { MetricsService } from 'src/metrics/metrics.service';
+import { CakeLikeEventMetricsAdapter } from 'src/like/cake-like-event-metrics.adapter';
 import { SearchEventRecorder } from 'src/search/application/port/search-event-recorder.port';
 import { SearchHistoryReader } from 'src/search/application/port/search-history.reader';
 import { SearchController } from 'src/search/search.controller';
 import { SearchService } from 'src/search/search.service';
+import { SearchEventMetricsAdapter } from 'src/search/search-event-metrics.adapter';
 import { StoreLikePort } from 'src/store/store-like.port';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UserLikePort } from 'src/user/user-like.port';
@@ -54,9 +55,11 @@ describe('Log event create failure HTTP contract', () => {
   const searchEventRecorder = {
     record: jest.fn().mockImplementation(observedEventFailure),
   };
-  const metricsService = {
-    searchEventRecordFailures: { inc: jest.fn() },
-    cakeLikeEventRecordFailures: { inc: jest.fn() },
+  const searchEventMetrics = {
+    countRecordFailure: jest.fn(),
+  };
+  const cakeLikeEventMetrics = {
+    countRecordFailure: jest.fn(),
   };
   const cakeLikePort = {
     findTargetOrThrow: jest.fn().mockResolvedValue({ likedUserIds: [] }),
@@ -88,7 +91,11 @@ describe('Log event create failure HTTP contract', () => {
         { provide: CakeLikeEventRecorder, useValue: cakeLikeEventRecorder },
         { provide: SearchEventRecorder, useValue: searchEventRecorder },
         { provide: SearchHistoryReader, useValue: {} },
-        { provide: MetricsService, useValue: metricsService },
+        { provide: SearchEventMetricsAdapter, useValue: searchEventMetrics },
+        {
+          provide: CakeLikeEventMetricsAdapter,
+          useValue: cakeLikeEventMetrics,
+        },
         { provide: CakeLikePort, useValue: cakeLikePort },
         { provide: UserLikePort, useValue: userLikePort },
         { provide: StoreLikePort, useValue: {} },
@@ -121,9 +128,7 @@ describe('Log event create failure HTTP contract', () => {
       'birthday',
       [],
     );
-    expect(metricsService.searchEventRecordFailures.inc).toHaveBeenCalledTimes(
-      1,
-    );
+    expect(searchEventMetrics.countRecordFailure).toHaveBeenCalledTimes(1);
   });
 
   it('keeps Cake like add/remove HTTP success when event create fails', async () => {
@@ -138,8 +143,6 @@ describe('Log event create failure HTTP contract', () => {
       ['buyer-1', 'cake-1', true],
       ['buyer-1', 'cake-1', false],
     ]);
-    expect(
-      metricsService.cakeLikeEventRecordFailures.inc,
-    ).toHaveBeenCalledTimes(2);
+    expect(cakeLikeEventMetrics.countRecordFailure).toHaveBeenCalledTimes(2);
   });
 });

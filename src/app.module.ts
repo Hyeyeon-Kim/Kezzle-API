@@ -14,7 +14,7 @@ import { HomeModule } from './home/home.module';
 import { RankingModule } from './ranking/ranking.module';
 import { AnniversaryModule } from './anniversary/anniversary.module';
 import { CounterModule } from './counter/counter.module';
-import { MonitoringModule } from './monitoring/monitoring.module';
+import { PrometheusEndpointModule } from './observability/prometheus/prometheus-endpoint.module';
 import { FirebaseAuthGuard } from './auth/guard/firebase-auth.guard';
 import { RolesGuard } from './auth/guard/roles.guard';
 import { createValidationPipe } from './app.validation';
@@ -46,7 +46,7 @@ import { CatalogQueryModule } from './catalog/catalog-query.module';
     HomeModule,
     AnniversaryModule,
     CounterModule,
-    MonitoringModule,
+    PrometheusEndpointModule,
   ],
   controllers: [],
   providers: [

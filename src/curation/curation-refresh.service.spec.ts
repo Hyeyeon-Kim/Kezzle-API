@@ -27,10 +27,10 @@ describe('CurationRefreshService', () => {
     const curationService = {
       updateCuration: jest.fn().mockResolvedValue(undefined),
     };
-    const monitoring = {
-      countCurationRun: jest.fn(),
-      countCurationItems: jest.fn(),
-      setCurationStaleBacklog: jest.fn(),
+    const metrics = {
+      countRun: jest.fn(),
+      countItems: jest.fn(),
+      setStaleBacklog: jest.fn(),
     };
     const config = {
       get: jest.fn((key: string) => options?.env?.[key]),
@@ -41,7 +41,7 @@ describe('CurationRefreshService', () => {
     const service = new CurationRefreshService(
       curationRepository as never,
       curationService as never,
-      monitoring as never,
+      metrics as never,
       config as never,
       schedulerRegistry as never,
     );
@@ -49,7 +49,7 @@ describe('CurationRefreshService', () => {
       service,
       curationRepository,
       curationService,
-      monitoring,
+      metrics,
       schedulerRegistry,
     };
   }

@@ -1,0 +1,351 @@
+{
+  "schemaVersion": 2,
+  "capturedAt": "2026-08-04",
+  "http": {
+    "method": "GET",
+    "path": "/metrics",
+    "status": 200,
+    "public": true,
+    "cacheControl": "no-store",
+    "contentTypeIncludes": "text/plain"
+  },
+  "customMetricGroups": {
+    "featureAdapters": {
+      "customMetrics": [
+        {
+          "field": "aiApiCallDuration",
+          "name": "ai_api_call_duration_seconds",
+          "help": "Duration of AI API calls (VIT/CLIP)",
+          "type": "histogram",
+          "labelNames": ["status", "model", "endpoint"],
+          "buckets": [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10]
+        },
+        {
+          "field": "aiApiErrors",
+          "name": "ai_api_errors_total",
+          "help": "Total AI API errors (VIT/CLIP)",
+          "type": "counter",
+          "labelNames": ["reason", "model", "endpoint"]
+        },
+        {
+          "field": "cakeLikeEventRecordFailures",
+          "name": "cake_like_event_record_failures_total",
+          "help": "Total cake-like event persistence failures",
+          "type": "counter",
+          "labelNames": []
+        },
+        {
+          "field": "mediaObjectOrphans",
+          "name": "media_object_orphans_total",
+          "help": "Total media objects orphaned after cleanup failures",
+          "type": "counter",
+          "labelNames": ["feature", "operation"]
+        },
+        {
+          "field": "objectStorageOperationFailures",
+          "name": "object_storage_operation_failures_total",
+          "help": "Total object storage operation failures",
+          "type": "counter",
+          "labelNames": ["operation"]
+        },
+        {
+          "field": "searchEventRecordFailures",
+          "name": "search_event_record_failures_total",
+          "help": "Total search event persistence failures",
+          "type": "counter",
+          "labelNames": []
+        },
+        {
+          "field": "similarSearchDuration",
+          "name": "similar_search_duration_seconds",
+          "help": "Duration of GET /cakes/similar-search endpoint",
+          "type": "histogram",
+          "labelNames": ["status"],
+          "buckets": [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5]
+        },
+        {
+          "field": "storeQueryDuration",
+          "name": "store_query_duration_seconds",
+          "help": "Duration of Store batch query in similar()",
+          "type": "histogram",
+          "labelNames": [],
+          "buckets": [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5]
+        }
+      ]
+    },
+    "homeAndCurationAdapters": {
+      "customMetrics": [
+        {
+          "field": "curationItems",
+          "name": "kezzle_curation_refresh_items_total",
+          "help": "Curation refresh item outcomes",
+          "type": "counter",
+          "labelNames": ["result"]
+        },
+        {
+          "field": "curationRuns",
+          "name": "kezzle_curation_refresh_runs_total",
+          "help": "Curation refresh job runs by result",
+          "type": "counter",
+          "labelNames": ["result"]
+        },
+        {
+          "field": "curationStaleBacklog",
+          "name": "kezzle_curation_stale_backlog",
+          "help": "Stale curations found by the last refresh job run",
+          "type": "gauge",
+          "labelNames": []
+        },
+        {
+          "field": "aiCalls",
+          "name": "kezzle_home_ai_calls_total",
+          "help": "AI dependency calls by dependency and result",
+          "type": "counter",
+          "labelNames": ["dependency", "result"]
+        },
+        {
+          "field": "cacheEvents",
+          "name": "kezzle_home_cache_events_total",
+          "help": "Home cache lookup/refresh/error events",
+          "type": "counter",
+          "labelNames": ["event"]
+        },
+        {
+          "field": "dbCalls",
+          "name": "kezzle_home_db_calls_total",
+          "help": "Logical MongoDB calls issued by instrumented home paths",
+          "type": "counter",
+          "labelNames": ["operation"]
+        },
+        {
+          "field": "homeDegraded",
+          "name": "kezzle_home_degraded_total",
+          "help": "Home API responses served with at least one fallback section",
+          "type": "counter",
+          "labelNames": []
+        },
+        {
+          "field": "homeRequestDuration",
+          "name": "kezzle_home_request_duration_seconds",
+          "help": "Home API request duration in seconds",
+          "type": "histogram",
+          "labelNames": ["status"],
+          "buckets": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2]
+        },
+        {
+          "field": "homeRequests",
+          "name": "kezzle_home_requests_total",
+          "help": "Total home API requests by final status",
+          "type": "counter",
+          "labelNames": ["status"]
+        },
+        {
+          "field": "sectionDuration",
+          "name": "kezzle_home_section_duration_seconds",
+          "help": "Home section duration in seconds",
+          "type": "histogram",
+          "labelNames": ["section", "status"],
+          "buckets": [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5]
+        },
+        {
+          "field": "sectionRequests",
+          "name": "kezzle_home_section_requests_total",
+          "help": "Home section executions by status and fallback reason",
+          "type": "counter",
+          "labelNames": ["section", "status", "reason"]
+        }
+      ]
+    }
+  },
+  "canonicalRegistry": {
+    "registryCount": 1,
+    "defaultCollectorCount": 1,
+    "endpointSerializationCount": 1,
+    "endpointOwner": "PrometheusEndpointModule",
+    "defaultMetricPrefix": "kezzle_",
+    "defaultMetricFamilies": [
+      "kezzle_nodejs_active_handles",
+      "kezzle_nodejs_active_handles_total",
+      "kezzle_nodejs_active_requests",
+      "kezzle_nodejs_active_requests_total",
+      "kezzle_nodejs_active_resources",
+      "kezzle_nodejs_active_resources_total",
+      "kezzle_nodejs_eventloop_lag_max_seconds",
+      "kezzle_nodejs_eventloop_lag_mean_seconds",
+      "kezzle_nodejs_eventloop_lag_min_seconds",
+      "kezzle_nodejs_eventloop_lag_p50_seconds",
+      "kezzle_nodejs_eventloop_lag_p90_seconds",
+      "kezzle_nodejs_eventloop_lag_p99_seconds",
+      "kezzle_nodejs_eventloop_lag_seconds",
+      "kezzle_nodejs_eventloop_lag_stddev_seconds",
+      "kezzle_nodejs_external_memory_bytes",
+      "kezzle_nodejs_gc_duration_seconds",
+      "kezzle_nodejs_heap_size_total_bytes",
+      "kezzle_nodejs_heap_size_used_bytes",
+      "kezzle_nodejs_heap_space_size_available_bytes",
+      "kezzle_nodejs_heap_space_size_total_bytes",
+      "kezzle_nodejs_heap_space_size_used_bytes",
+      "kezzle_nodejs_version_info",
+      "kezzle_process_cpu_seconds_total",
+      "kezzle_process_cpu_system_seconds_total",
+      "kezzle_process_cpu_user_seconds_total",
+      "kezzle_process_heap_bytes",
+      "kezzle_process_max_fds",
+      "kezzle_process_open_fds",
+      "kezzle_process_resident_memory_bytes",
+      "kezzle_process_start_time_seconds",
+      "kezzle_process_virtual_memory_bytes"
+    ],
+    "customMetricFamilyCount": 19,
+    "defaultMetricFamilyCount": 31,
+    "metricFamilyCount": 50,
+    "duplicateMetricFamilyCount": 0,
+    "scrapePayloadBytes": 13050
+  },
+  "before": {
+    "registryCount": 2,
+    "defaultCollectorCount": 2,
+    "endpointSerializationCount": 2,
+    "customMetricFamilyCount": 19,
+    "defaultMetricFamilyCount": 62,
+    "metricFamilyCount": 81,
+    "scrapePayloadBytes": 21919
+  },
+  "externalMetricFamilies": [
+    "mongodb_connections",
+    "mongodb_op_counters_total",
+    "redis_commands_processed_total",
+    "redis_evicted_keys_total",
+    "redis_memory_used_bytes",
+    "redis_up"
+  ],
+  "moduleDependencies": {
+    "decoratedGlobalModules": [],
+    "prometheusEndpointModuleConsumers": ["AppModule"],
+    "prometheusRegistryModuleConsumers": [
+      "AiSearchModule",
+      "CatalogQueryModule",
+      "CurationModule",
+      "HomeObservabilityModule",
+      "LikeModule",
+      "MediaObservabilityModule",
+      "PrometheusEndpointModule",
+      "SearchModule"
+    ],
+    "hiddenObservabilityConsumers": [],
+    "featureMetricOwners": {
+      "src/ai-search/ai-search-metrics.adapter.ts": [
+        "ai_api_call_duration_seconds",
+        "ai_api_errors_total"
+      ],
+      "src/catalog/catalog-metrics.adapter.ts": [
+        "similar_search_duration_seconds",
+        "store_query_duration_seconds"
+      ],
+      "src/search/search-event-metrics.adapter.ts": [
+        "search_event_record_failures_total"
+      ],
+      "src/like/cake-like-event-metrics.adapter.ts": [
+        "cake_like_event_record_failures_total"
+      ],
+      "src/media/media-metrics.adapter.ts": [
+        "media_object_orphans_total",
+        "object_storage_operation_failures_total"
+      ],
+      "src/home/observability/prometheus-home-metrics.adapter.ts": [
+        "kezzle_home_ai_calls_total",
+        "kezzle_home_cache_events_total",
+        "kezzle_home_db_calls_total",
+        "kezzle_home_degraded_total",
+        "kezzle_home_request_duration_seconds",
+        "kezzle_home_requests_total",
+        "kezzle_home_section_duration_seconds",
+        "kezzle_home_section_requests_total"
+      ],
+      "src/curation/curation-refresh-metrics.adapter.ts": [
+        "kezzle_curation_refresh_items_total",
+        "kezzle_curation_refresh_runs_total",
+        "kezzle_curation_stale_backlog"
+      ]
+    }
+  },
+  "repositoryMetricConsumers": {
+    "monitoring/rules/home-recording.rules.yml": [
+      "dependency:home_ai_error_ratio:rate5m",
+      "dependency:home_ai_tps:rate1m",
+      "job:home_cache_error_rate:rate1m",
+      "job:home_cache_hit_ratio:rate5m",
+      "job:home_db_call_rate:rate1m",
+      "job:home_degraded_ratio:rate1m",
+      "job:home_error_ratio:rate1m",
+      "job:home_request_p50_seconds:rate1m",
+      "job:home_request_p95_seconds:rate1m",
+      "job:home_request_p99_seconds:rate1m",
+      "job:home_request_rate:rate1m",
+      "job:mongodb_op_rate:rate1m",
+      "job:mongodb_query_rate:rate1m",
+      "job:redis_command_rate:rate1m",
+      "kezzle_home_ai_calls_total",
+      "kezzle_home_cache_events_total",
+      "kezzle_home_db_calls_total",
+      "kezzle_home_degraded_total",
+      "kezzle_home_request_duration_seconds_bucket",
+      "kezzle_home_requests_total",
+      "kezzle_home_section_requests_total",
+      "section:home_section_success_ratio:rate1m",
+      "section:home_section_timeout_ratio:rate1m"
+    ],
+    "monitoring/rules/home-alert.rules.yml": [
+      "dependency:home_ai_error_ratio:rate5m",
+      "dependency:home_ai_tps:rate1m",
+      "job:home_cache_error_rate:rate1m",
+      "job:home_cache_hit_ratio:rate5m",
+      "job:home_degraded_ratio:rate1m",
+      "job:home_error_ratio:rate1m",
+      "job:home_request_p95_seconds:rate1m",
+      "job:mongodb_query_rate:rate1m",
+      "kezzle_curation_refresh_runs_total",
+      "kezzle_curation_stale_backlog",
+      "kezzle_nodejs_eventloop_lag_p99_seconds",
+      "section:home_section_success_ratio:rate1m",
+      "section:home_section_timeout_ratio:rate1m"
+    ],
+    "monitoring/rules/home-alert.rules.test.yml": [
+      "kezzle_curation_refresh_runs_total",
+      "kezzle_curation_stale_backlog",
+      "kezzle_home_ai_calls_total",
+      "kezzle_home_cache_events_total",
+      "kezzle_home_request_duration_seconds_bucket",
+      "kezzle_home_requests_total",
+      "kezzle_home_section_requests_total"
+    ],
+    "monitoring/grafana/dashboards/home-api.json": [
+      "dependency:home_ai_tps:rate1m",
+      "job:home_cache_hit_ratio:rate5m",
+      "job:home_degraded_ratio:rate1m",
+      "job:home_error_ratio:rate1m",
+      "job:home_request_p50_seconds:rate1m",
+      "job:home_request_p95_seconds:rate1m",
+      "job:home_request_p99_seconds:rate1m",
+      "job:home_request_rate:rate1m",
+      "job:mongodb_query_rate:rate1m",
+      "kezzle_curation_refresh_items_total",
+      "kezzle_curation_refresh_runs_total",
+      "kezzle_curation_stale_backlog",
+      "kezzle_home_ai_calls_total",
+      "kezzle_home_cache_events_total",
+      "kezzle_home_section_duration_seconds_bucket",
+      "kezzle_nodejs_eventloop_lag_p99_seconds",
+      "kezzle_process_cpu_seconds_total",
+      "kezzle_process_resident_memory_bytes",
+      "section:home_section_success_ratio:rate1m",
+      "section:home_section_timeout_ratio:rate1m"
+    ],
+    "monitoring/grafana/provisioning/dashboards/similar-search.json": [
+      "ai_api_call_duration_seconds_bucket",
+      "ai_api_errors_total",
+      "similar_search_duration_seconds_bucket",
+      "store_query_duration_seconds_bucket"
+    ]
+  }
+}

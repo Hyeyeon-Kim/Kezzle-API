@@ -7,7 +7,8 @@ import { UserModule } from 'src/user/user.module';
 import { CatalogQueryModule } from 'src/catalog/catalog-query.module';
 import { LikePresenter } from './api/like.presenter';
 import { LikeEventModule } from './infrastructure/persistence/like-event.module';
-import { MetricsModule } from 'src/metrics/metrics.module';
+import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
+import { CakeLikeEventMetricsAdapter } from './cake-like-event-metrics.adapter';
 
 @Module({
   imports: [
@@ -16,9 +17,9 @@ import { MetricsModule } from 'src/metrics/metrics.module';
     UserModule,
     CatalogQueryModule,
     LikeEventModule,
-    MetricsModule,
+    PrometheusRegistryModule,
   ],
-  providers: [LikeService, LikePresenter],
+  providers: [LikeService, LikePresenter, CakeLikeEventMetricsAdapter],
   controllers: [LikeController],
 })
 export class LikeModule {}

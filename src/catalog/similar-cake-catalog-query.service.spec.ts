@@ -2,10 +2,8 @@ import similarCakes from '../../test/fixtures/similar-cakes.mock.json';
 import { SimilarCakeCatalogQueryService } from './similar-cake-catalog-query.service';
 
 const buildMetricsService = () => ({
-  similarSearchDuration: { startTimer: jest.fn(() => jest.fn()) },
-  aiApiCallDuration: { startTimer: jest.fn(() => jest.fn()) },
-  storeQueryDuration: { startTimer: jest.fn(() => jest.fn()) },
-  aiApiErrors: { inc: jest.fn() },
+  startSimilarSearch: jest.fn(() => jest.fn()),
+  startStoreQuery: jest.fn(() => jest.fn()),
 });
 
 const stores = [
@@ -117,10 +115,10 @@ describe('SimilarCakeCatalogQueryService', () => {
     const endStoreQuery = jest.fn();
     const startAiCallTimer = jest.fn();
     const metricsService = {
-      similarSearchDuration: { startTimer: jest.fn(() => endSimilar) },
-      aiApiCallDuration: { startTimer: startAiCallTimer },
-      storeQueryDuration: { startTimer: jest.fn(() => endStoreQuery) },
-      aiApiErrors: { inc: jest.fn() },
+      startSimilarSearch: jest.fn(() => endSimilar),
+      startStoreQuery: jest.fn(() => endStoreQuery),
+      startCall: startAiCallTimer,
+      countError: jest.fn(),
     };
     const vitClient = {
       similarSearchWithLocation: jest
@@ -134,19 +132,19 @@ describe('SimilarCakeCatalogQueryService', () => {
 
     await service.execute('mock-cake-origin', 127.01, 37.01, 3000, 6);
 
-    expect(endSimilar).toHaveBeenCalledWith({ status: 'success' });
+    expect(endSimilar).toHaveBeenCalledWith('success');
     expect(endStoreQuery).toHaveBeenCalledTimes(1);
     expect(startAiCallTimer).not.toHaveBeenCalled();
-    expect(metricsService.aiApiErrors.inc).not.toHaveBeenCalled();
+    expect(metricsService.countError).not.toHaveBeenCalled();
   });
 
   it('keeps the error metric label and skips store hydration when VIT fails', async () => {
     const endSimilar = jest.fn();
     const metricsService = {
-      similarSearchDuration: { startTimer: jest.fn(() => endSimilar) },
-      aiApiCallDuration: { startTimer: jest.fn() },
-      storeQueryDuration: { startTimer: jest.fn(() => jest.fn()) },
-      aiApiErrors: { inc: jest.fn() },
+      startSimilarSearch: jest.fn(() => endSimilar),
+      startStoreQuery: jest.fn(() => jest.fn()),
+      startCall: jest.fn(),
+      countError: jest.fn(),
     };
     const vitClient = {
       similarSearchWithLocation: jest
@@ -160,7 +158,7 @@ describe('SimilarCakeCatalogQueryService', () => {
       service.execute('mock-cake-origin', 127.01, 37.01, 3000, 6),
     ).rejects.toMatchObject({ code: 'ECONNABORTED' });
 
-    expect(endSimilar).toHaveBeenCalledWith({ status: 'error' });
+    expect(endSimilar).toHaveBeenCalledWith('error');
     expect(storeReader.findSummariesByIds).not.toHaveBeenCalled();
   });
 });

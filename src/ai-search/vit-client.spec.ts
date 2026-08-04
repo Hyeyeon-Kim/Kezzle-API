@@ -2,8 +2,8 @@ import { of, throwError } from 'rxjs';
 import { VitClient } from './vit-client';
 
 const buildMetricsService = () => ({
-  aiApiCallDuration: { startTimer: jest.fn(() => jest.fn()) },
-  aiApiErrors: { inc: jest.fn() },
+  startCall: jest.fn(() => jest.fn()),
+  countError: jest.fn(),
 });
 
 describe('VitClient', () => {
@@ -66,19 +66,19 @@ describe('VitClient', () => {
         get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
       };
       const metricsService = {
-        aiApiCallDuration: { startTimer: jest.fn(() => endTimer) },
-        aiApiErrors: { inc: jest.fn() },
+        startCall: jest.fn(() => endTimer),
+        countError: jest.fn(),
       };
       const client = new VitClient(httpService as any, metricsService as any);
 
       await client.similarSearchWithLocation('id-1', 1, 2, 3, 4);
 
-      expect(metricsService.aiApiCallDuration.startTimer).toHaveBeenCalledWith({
+      expect(metricsService.startCall).toHaveBeenCalledWith({
         model: 'vit',
         endpoint: 'similar-search',
       });
-      expect(endTimer).toHaveBeenCalledWith({ status: 'success' });
-      expect(metricsService.aiApiErrors.inc).not.toHaveBeenCalled();
+      expect(endTimer).toHaveBeenCalledWith('success');
+      expect(metricsService.countError).not.toHaveBeenCalled();
     });
 
     it('records timeout error metric when call fails with ECONNABORTED', async () => {
@@ -91,8 +91,8 @@ describe('VitClient', () => {
           ),
       };
       const metricsService = {
-        aiApiCallDuration: { startTimer: jest.fn(() => endTimer) },
-        aiApiErrors: { inc: jest.fn() },
+        startCall: jest.fn(() => endTimer),
+        countError: jest.fn(),
       };
       const client = new VitClient(httpService as any, metricsService as any);
 
@@ -100,8 +100,8 @@ describe('VitClient', () => {
         client.similarSearchWithLocation('id-1', 1, 2, 3, 4),
       ).rejects.toMatchObject({ code: 'ECONNABORTED' });
 
-      expect(endTimer).toHaveBeenCalledWith({ status: 'timeout' });
-      expect(metricsService.aiApiErrors.inc).toHaveBeenCalledWith({
+      expect(endTimer).toHaveBeenCalledWith('timeout');
+      expect(metricsService.countError).toHaveBeenCalledWith({
         reason: 'timeout',
         model: 'vit',
         endpoint: 'similar-search',
@@ -147,18 +147,18 @@ describe('VitClient', () => {
         get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
       };
       const metricsService = {
-        aiApiCallDuration: { startTimer: jest.fn(() => endTimer) },
-        aiApiErrors: { inc: jest.fn() },
+        startCall: jest.fn(() => endTimer),
+        countError: jest.fn(),
       };
       const client = new VitClient(httpService as any, metricsService as any);
 
       await client.similarSearch('liked-cake-id', 6);
 
-      expect(metricsService.aiApiCallDuration.startTimer).toHaveBeenCalledWith({
+      expect(metricsService.startCall).toHaveBeenCalledWith({
         model: 'vit',
         endpoint: 'similar-search',
       });
-      expect(endTimer).toHaveBeenCalledWith({ status: 'success' });
+      expect(endTimer).toHaveBeenCalledWith('success');
     });
   });
 });

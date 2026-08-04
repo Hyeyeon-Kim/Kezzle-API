@@ -2,8 +2,8 @@ import { of, throwError } from 'rxjs';
 import { ClipClient } from './clip-client';
 
 const buildMetricsService = () => ({
-  aiApiCallDuration: { startTimer: jest.fn(() => jest.fn()) },
-  aiApiErrors: { inc: jest.fn() },
+  startCall: jest.fn(() => jest.fn()),
+  countError: jest.fn(),
 });
 
 describe('ClipClient', () => {
@@ -74,18 +74,18 @@ describe('ClipClient', () => {
         get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
       };
       const metricsService = {
-        aiApiCallDuration: { startTimer: jest.fn(() => endTimer) },
-        aiApiErrors: { inc: jest.fn() },
+        startCall: jest.fn(() => endTimer),
+        countError: jest.fn(),
       };
       const client = new ClipClient(httpService as any, metricsService as any);
 
       await client.koSearch('test', 6);
 
-      expect(metricsService.aiApiCallDuration.startTimer).toHaveBeenCalledWith({
+      expect(metricsService.startCall).toHaveBeenCalledWith({
         model: 'clip',
         endpoint: 'ko-search',
       });
-      expect(endTimer).toHaveBeenCalledWith({ status: 'success' });
+      expect(endTimer).toHaveBeenCalledWith('success');
     });
 
     it('records error metric when call fails', async () => {
@@ -94,8 +94,8 @@ describe('ClipClient', () => {
         get: jest.fn().mockReturnValue(throwError(() => ({ message: 'boom' }))),
       };
       const metricsService = {
-        aiApiCallDuration: { startTimer: jest.fn(() => endTimer) },
-        aiApiErrors: { inc: jest.fn() },
+        startCall: jest.fn(() => endTimer),
+        countError: jest.fn(),
       };
       const client = new ClipClient(httpService as any, metricsService as any);
 
@@ -103,8 +103,8 @@ describe('ClipClient', () => {
         message: 'boom',
       });
 
-      expect(endTimer).toHaveBeenCalledWith({ status: 'error' });
-      expect(metricsService.aiApiErrors.inc).toHaveBeenCalledWith({
+      expect(endTimer).toHaveBeenCalledWith('error');
+      expect(metricsService.countError).toHaveBeenCalledWith({
         reason: 'error',
         model: 'clip',
         endpoint: 'ko-search',
@@ -144,18 +144,18 @@ describe('ClipClient', () => {
           .mockReturnValue(of({ data: { result: [], nextPage: 2 } })),
       };
       const metricsService = {
-        aiApiCallDuration: { startTimer: jest.fn(() => endTimer) },
-        aiApiErrors: { inc: jest.fn() },
+        startCall: jest.fn(() => endTimer),
+        countError: jest.fn(),
       };
       const client = new ClipClient(httpService as any, metricsService as any);
 
       await client.koSearchPage('keyword', 20, 0);
 
-      expect(metricsService.aiApiCallDuration.startTimer).toHaveBeenCalledWith({
+      expect(metricsService.startCall).toHaveBeenCalledWith({
         model: 'clip',
         endpoint: 'ko-search-page',
       });
-      expect(endTimer).toHaveBeenCalledWith({ status: 'success' });
+      expect(endTimer).toHaveBeenCalledWith('success');
     });
   });
 });
