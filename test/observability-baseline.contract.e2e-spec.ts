@@ -10,10 +10,11 @@ import request from 'supertest';
 import { AiSearchMetricsAdapter } from 'src/ai-search/ai-search-metrics.adapter';
 import { IS_PUBLIC_KEY } from 'src/auth/decorators/public.decorator';
 import { CatalogMetricsAdapter } from 'src/catalog/catalog-metrics.adapter';
+import { CurationRefreshMetricsAdapter } from 'src/curation/curation-refresh-metrics.adapter';
+import { HomeMetrics } from 'src/home/application/home-metrics.port';
+import { HomeObservabilityModule } from 'src/home/observability/home-observability.module';
 import { CakeLikeEventMetricsAdapter } from 'src/like/cake-like-event-metrics.adapter';
 import { MediaMetricsAdapter } from 'src/media/media-metrics.adapter';
-import { MonitoringModule } from 'src/monitoring/monitoring.module';
-import { MonitoringService } from 'src/monitoring/monitoring.service';
 import { PROMETHEUS_REGISTRY } from 'src/observability/prometheus/prometheus.constants';
 import { PrometheusEndpointModule } from 'src/observability/prometheus/prometheus-endpoint.module';
 import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
@@ -35,21 +36,22 @@ class PublicMetadataOnlyGuard implements CanActivate {
   }
 }
 
-describe('Observability Phase B HTTP contract', () => {
+describe('Observability Phase E HTTP contract', () => {
   let app: INestApplication;
   let aiMetrics: AiSearchMetricsAdapter;
   let catalogMetrics: CatalogMetricsAdapter;
   let searchMetrics: SearchEventMetricsAdapter;
   let likeMetrics: CakeLikeEventMetricsAdapter;
   let mediaMetrics: MediaMetricsAdapter;
-  let monitoringService: MonitoringService;
+  let homeMetrics: HomeMetrics;
+  let curationMetrics: CurationRefreshMetricsAdapter;
   let registry: Registry;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [
         PrometheusRegistryModule,
-        MonitoringModule,
+        HomeObservabilityModule,
         PrometheusEndpointModule,
       ],
       providers: [
@@ -58,6 +60,7 @@ describe('Observability Phase B HTTP contract', () => {
         SearchEventMetricsAdapter,
         CakeLikeEventMetricsAdapter,
         MediaMetricsAdapter,
+        CurationRefreshMetricsAdapter,
         { provide: APP_GUARD, useClass: PublicMetadataOnlyGuard },
       ],
     }).compile();
@@ -67,15 +70,17 @@ describe('Observability Phase B HTTP contract', () => {
     searchMetrics = moduleRef.get(SearchEventMetricsAdapter);
     likeMetrics = moduleRef.get(CakeLikeEventMetricsAdapter);
     mediaMetrics = moduleRef.get(MediaMetricsAdapter);
-    monitoringService = moduleRef.get(MonitoringService);
+    homeMetrics = moduleRef.get(HomeMetrics);
+    curationMetrics = moduleRef.get(CurationRefreshMetricsAdapter);
     registry = moduleRef.get(PROMETHEUS_REGISTRY);
-    seedAllCustomMetrics({
+    await seedAllCustomMetrics({
       aiMetrics,
       catalogMetrics,
       searchMetrics,
       likeMetrics,
       mediaMetrics,
-      monitoringService,
+      homeMetrics,
+      curationMetrics,
     });
 
     app = moduleRef.createNestApplication();
@@ -139,14 +144,15 @@ describe('Observability Phase B HTTP contract', () => {
   });
 });
 
-function seedAllCustomMetrics(metrics: {
+async function seedAllCustomMetrics(metrics: {
   aiMetrics: AiSearchMetricsAdapter;
   catalogMetrics: CatalogMetricsAdapter;
   searchMetrics: SearchEventMetricsAdapter;
   likeMetrics: CakeLikeEventMetricsAdapter;
   mediaMetrics: MediaMetricsAdapter;
-  monitoringService: MonitoringService;
-}): void {
+  homeMetrics: HomeMetrics;
+  curationMetrics: CurationRefreshMetricsAdapter;
+}): Promise<void> {
   metrics.catalogMetrics.startSimilarSearch()('success');
   metrics.catalogMetrics.startStoreQuery()();
   metrics.aiMetrics.startCall({ model: 'vit', endpoint: '/similar' })(
@@ -162,18 +168,15 @@ function seedAllCustomMetrics(metrics: {
   metrics.mediaMetrics.countStorageFailure('put');
   metrics.mediaMetrics.countOrphan('cake', 'replace_previous_image');
 
-  metrics.monitoringService.observeHomeRequest('success', 0.02);
-  metrics.monitoringService.countHomeDegraded();
-  metrics.monitoringService.observeHomeSection(
-    'recommendCakes',
-    'success',
-    'none',
-    0.01,
-  );
-  metrics.monitoringService.countDbCall('query');
-  metrics.monitoringService.countAiCall('vit', 'requested');
-  metrics.monitoringService.countCacheEvent('fresh_hit');
-  metrics.monitoringService.countCurationRun('success');
-  metrics.monitoringService.countCurationItems('refreshed', 1);
-  metrics.monitoringService.setCurationStaleBacklog(0);
+  metrics.homeMetrics.observeRequest('success', 0.02);
+  metrics.homeMetrics.countDegraded();
+  metrics.homeMetrics.observeSection('recommendCakes', 'success', 'none', 0.01);
+  metrics.homeMetrics.countDb();
+  metrics.homeMetrics.countCache('fresh_hit');
+  await metrics.homeMetrics.run(async () => {
+    metrics.homeMetrics.countAi('vit');
+  });
+  metrics.curationMetrics.countRun('success');
+  metrics.curationMetrics.countItems('refreshed', 1);
+  metrics.curationMetrics.setStaleBacklog(0);
 }

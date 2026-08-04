@@ -7,7 +7,8 @@ import { CurationRefreshService } from './curation-refresh.service';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
 import { CurationQueryService } from './curation-query.service';
 import { CurationRepository } from './curation.repository';
-import { MonitoringModule } from 'src/monitoring/monitoring.module';
+import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
+import { CurationRefreshMetricsAdapter } from './curation-refresh-metrics.adapter';
 
 @Module({
   imports: [
@@ -16,13 +17,14 @@ import { MonitoringModule } from 'src/monitoring/monitoring.module';
       'kezzle',
     ),
     AiSearchModule,
-    MonitoringModule,
+    PrometheusRegistryModule,
   ],
   controllers: [CurationController],
   providers: [
     CurationRepository,
     CurationService,
     CurationQueryService,
+    CurationRefreshMetricsAdapter,
     CurationRefreshService,
   ],
   exports: [CurationQueryService],

@@ -13,11 +13,6 @@ import { CurationView } from 'src/curation/application/curation.view';
 import { HomeCacheService } from 'src/home-cache/home-cache.service';
 import { homeCachePolicy } from 'src/home-cache/home-cache.policy';
 import { homeCacheKey } from 'src/home-cache/home-cache.constants';
-import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
-import {
-  HomeSectionName,
-  MonitoringService,
-} from 'src/monitoring/monitoring.service';
 import {
   KeywordRankingView,
   PopularRankingView,
@@ -29,6 +24,8 @@ import {
   HomeSectionsView,
   HomeView,
 } from './application/home.view';
+import { HomeMetrics } from './application/home-metrics.port';
+import { HomeSectionName } from './application/home-metrics.types';
 import {
   executeHomeSection,
   HomeSectionFallbackReason,
@@ -59,9 +56,8 @@ export class HomeFeedService {
     private readonly anniversaryService: AnniversaryService,
     private readonly rankingQuery: RankingQueryService,
     private readonly curationQuery: CurationQueryService,
-    private readonly homeMetrics: HomeResilienceMetricsService,
+    private readonly homeMetrics: HomeMetrics,
     private readonly homeCache: HomeCacheService,
-    private readonly monitoring: MonitoringService,
   ) {}
 
   async getHome(user: AuthenticatedUser | undefined): Promise<HomeView> {
@@ -70,14 +66,14 @@ export class HomeFeedService {
       try {
         const response = await this.buildHome(user);
         this.homeMetrics.flush('success');
-        this.monitoring.observeHomeRequest(
+        this.homeMetrics.observeRequest(
           'success',
           this.elapsedSeconds(startedAt),
         );
         return response;
       } catch (error) {
         this.homeMetrics.flush('error');
-        this.monitoring.observeHomeRequest(
+        this.homeMetrics.observeRequest(
           'error',
           this.elapsedSeconds(startedAt),
         );
@@ -389,7 +385,7 @@ export class HomeFeedService {
       };
 
       for (const [section, result] of Object.entries(results)) {
-        this.monitoring.observeHomeSection(
+        this.homeMetrics.observeSection(
           section as HomeSectionName,
           result.status,
           result.status === 'fallback' ? result.reason : 'none',
@@ -412,7 +408,7 @@ export class HomeFeedService {
         (result) => result.status === 'fallback',
       );
       if (degraded) {
-        this.monitoring.countHomeDegraded();
+        this.homeMetrics.countDegraded();
       }
 
       return {

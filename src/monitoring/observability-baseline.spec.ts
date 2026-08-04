@@ -1,42 +1,35 @@
 import {
   GLOBAL_MODULE_METADATA,
   MODULE_METADATA,
-  PARAMTYPES_METADATA,
 } from '@nestjs/common/constants';
-import { readdirSync, readFileSync } from 'fs';
-import { join, relative, sep } from 'path';
-import { Registry } from 'prom-client';
 import { ConfigService } from '@nestjs/config';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
+import { readdirSync, readFileSync } from 'fs';
+import { join, relative, sep } from 'path';
+import { Registry } from 'prom-client';
 import { AiSearchMetricsAdapter } from 'src/ai-search/ai-search-metrics.adapter';
-import { AiSearchModule } from 'src/ai-search/ai-search.module';
 import { AppModule } from 'src/app.module';
-import { CakeModule } from 'src/cake/cake.module';
 import { CatalogMetricsAdapter } from 'src/catalog/catalog-metrics.adapter';
-import { CatalogQueryModule } from 'src/catalog/catalog-query.module';
-import { CurationModule } from 'src/curation/curation.module';
+import { CurationRefreshMetricsAdapter } from 'src/curation/curation-refresh-metrics.adapter';
 import { CurationRefreshService } from 'src/curation/curation-refresh.service';
-import { HomeModule } from 'src/home/home.module';
+import { CurationModule } from 'src/curation/curation.module';
+import { HomeCacheModule } from 'src/home-cache/home-cache.module';
+import { HomeCacheService } from 'src/home-cache/home-cache.service';
+import { HomeMetrics } from 'src/home/application/home-metrics.port';
 import { HomeFeedService } from 'src/home/home-feed.service';
-import { HomeResilienceMetricsModule } from 'src/home-resilience/home-resilience-metrics.module';
-import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
+import { HomeModule } from 'src/home/home.module';
+import { HomeObservabilityModule } from 'src/home/observability/home-observability.module';
+import { PrometheusHomeMetricsAdapter } from 'src/home/observability/prometheus-home-metrics.adapter';
 import { CakeLikeEventMetricsAdapter } from 'src/like/cake-like-event-metrics.adapter';
-import { LikeModule } from 'src/like/like.module';
 import { MediaMetricsAdapter } from 'src/media/media-metrics.adapter';
-import { MediaObservabilityModule } from 'src/media/media-observability.module';
-import { ObjectStorageModule } from 'src/media/object-storage.module';
 import { PROMETHEUS_REGISTRY } from 'src/observability/prometheus/prometheus.constants';
 import { PrometheusEndpointModule } from 'src/observability/prometheus/prometheus-endpoint.module';
 import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
 import { createPrometheusRegistry } from 'src/observability/prometheus/prometheus-registry.provider';
 import { SearchEventMetricsAdapter } from 'src/search/search-event-metrics.adapter';
-import { SearchModule } from 'src/search/search.module';
-import { StoreModule } from 'src/store/store.module';
 import observabilityBaseline from '../../test/fixtures/observability-baseline.contract.json';
-import { MonitoringModule } from './monitoring.module';
-import { MonitoringService } from './monitoring.service';
 
 type RuntimeMetric = {
   readonly name: string;
@@ -138,12 +131,12 @@ function metricTokens(path: string): string[] {
   return [...new Set(content.match(metricTokenPattern) ?? [])].sort();
 }
 
-describe('Observability Phase D feature metric adapters', () => {
-  it('registers every feature adapter and compatibility service in one registry', async () => {
+describe('Observability Phase E feature-owned adapters', () => {
+  it('registers every feature adapter in one registry', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [
         PrometheusRegistryModule,
-        MonitoringModule,
+        HomeObservabilityModule,
         PrometheusEndpointModule,
       ],
       providers: [
@@ -152,10 +145,10 @@ describe('Observability Phase D feature metric adapters', () => {
         SearchEventMetricsAdapter,
         CakeLikeEventMetricsAdapter,
         MediaMetricsAdapter,
+        CurationRefreshMetricsAdapter,
       ],
     }).compile();
     const registry = moduleRef.get<Registry>(PROMETHEUS_REGISTRY);
-    const monitoringService = moduleRef.get(MonitoringService);
     const featureCustom = [
       AiSearchMetricsAdapter,
       CatalogMetricsAdapter,
@@ -165,16 +158,25 @@ describe('Observability Phase D feature metric adapters', () => {
     ]
       .flatMap((adapter) => customMetricDescriptors(moduleRef.get(adapter)))
       .sort((left, right) => left.name.localeCompare(right.name));
-    const monitoringCustom = customMetricDescriptors(monitoringService);
+    const homeAndCurationCustom = [
+      moduleRef.get<HomeMetrics>(HomeMetrics),
+      moduleRef.get(CurationRefreshMetricsAdapter),
+    ]
+      .flatMap(customMetricDescriptors)
+      .sort((left, right) => left.name.localeCompare(right.name));
     const defaultMetrics = await defaultMetricFamilies(registry, [
       ...featureCustom,
-      ...monitoringCustom,
+      ...homeAndCurationCustom,
     ]);
 
-    expect(monitoringService.registry).toBe(registry);
     expect(metricContracts(featureCustom)).toEqual(
       metricContracts(
         observabilityBaseline.registries.metricsService.customMetrics,
+      ),
+    );
+    expect(metricContracts(homeAndCurationCustom)).toEqual(
+      metricContracts(
+        observabilityBaseline.registries.monitoringService.customMetrics,
       ),
     );
     expect(defaultMetrics).toEqual(
@@ -186,16 +188,11 @@ describe('Observability Phase D feature metric adapters', () => {
     expect(defaultMetrics.every((name) => name.startsWith('kezzle_'))).toBe(
       true,
     );
-    expect(defaultMetrics).not.toEqual(
-      expect.arrayContaining(
-        observabilityBaseline.registries.metricsService.defaultMetricFamilies,
-      ),
-    );
 
     await moduleRef.close();
   });
 
-  it('freezes custom metric names, HELP/TYPE, labels, and histogram buckets', () => {
+  it('freezes custom names, HELP/TYPE, labels, and histogram buckets', () => {
     const registry = createPrometheusRegistry();
     const featureAdapters = [
       new AiSearchMetricsAdapter(registry),
@@ -204,12 +201,13 @@ describe('Observability Phase D feature metric adapters', () => {
       new CakeLikeEventMetricsAdapter(registry),
       new MediaMetricsAdapter(registry),
     ];
-    const monitoringService = new MonitoringService(registry);
+    const homeAdapter = new PrometheusHomeMetricsAdapter(registry);
+    const curationAdapter = new CurationRefreshMetricsAdapter(registry);
 
     expect(
       metricContracts(
         featureAdapters
-          .flatMap((adapter) => customMetricDescriptors(adapter))
+          .flatMap(customMetricDescriptors)
           .sort((left, right) => left.name.localeCompare(right.name)),
       ),
     ).toEqual(
@@ -217,14 +215,21 @@ describe('Observability Phase D feature metric adapters', () => {
         observabilityBaseline.registries.metricsService.customMetrics,
       ),
     );
-    expect(metricContracts(customMetricDescriptors(monitoringService))).toEqual(
+    expect(
+      metricContracts(
+        [homeAdapter, curationAdapter]
+          .flatMap(customMetricDescriptors)
+          .sort((left, right) => left.name.localeCompare(right.name)),
+      ),
+    ).toEqual(
       metricContracts(
         observabilityBaseline.registries.monitoringService.customMetrics,
       ),
     );
+    homeAdapter.onModuleDestroy();
   });
 
-  it('records dashboard, recording-rule, and alert-rule metric consumers', () => {
+  it('records dashboard, recording-rule, and alert-rule consumers', () => {
     for (const [path, expectedTokens] of Object.entries(
       observabilityBaseline.repositoryMetricConsumers,
     )) {
@@ -232,7 +237,7 @@ describe('Observability Phase D feature metric adapters', () => {
     }
   });
 
-  it('records the Phase D feature adapter module ownership', () => {
+  it('makes Home and Curation registry ownership explicit', () => {
     const moduleSources = readSourceFiles().filter((source) =>
       source.path.endsWith('.module.ts'),
     );
@@ -241,25 +246,7 @@ describe('Observability Phase D feature metric adapters', () => {
       .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
       .filter(Boolean)
       .sort();
-    const monitoringModuleConsumers = moduleSources
-      .filter((source) =>
-        /(?:src\/monitoring\/monitoring\.module|\.\/monitoring\/monitoring\.module)/.test(
-          source.content,
-        ),
-      )
-      .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
-      .filter(Boolean)
-      .sort();
-    const prometheusEndpointModuleConsumers = moduleSources
-      .filter((source) =>
-        /observability\/prometheus\/prometheus-endpoint\.module/.test(
-          source.content,
-        ),
-      )
-      .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
-      .filter(Boolean)
-      .sort();
-    const prometheusRegistryModuleConsumers = moduleSources
+    const prometheusRegistryConsumers = moduleSources
       .filter((source) =>
         /(?:observability\/prometheus\/|\.\/)prometheus-registry\.module/.test(
           source.content,
@@ -268,54 +255,81 @@ describe('Observability Phase D feature metric adapters', () => {
       .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
       .filter(Boolean)
       .sort();
-    const mediaObservabilityModuleConsumers = moduleSources
-      .filter((source) =>
-        /(?:src\/media\/|\.\/)media-observability\.module/.test(source.content),
-      )
-      .map((source) => source.content.match(/export class (\w+Module)/)?.[1])
-      .filter(Boolean)
-      .sort();
 
-    expect(
-      Reflect.getMetadata(GLOBAL_MODULE_METADATA, MonitoringModule),
-    ).not.toBe(true);
     expect(decoratedGlobalModules).toEqual([]);
-    expect(monitoringModuleConsumers).toEqual([
-      'CurationModule',
-      'HomeModule',
-      'HomeResilienceMetricsModule',
-    ]);
-    expect(prometheusEndpointModuleConsumers).toEqual(['AppModule']);
-    expect(prometheusRegistryModuleConsumers).toEqual([
+    expect(prometheusRegistryConsumers).toEqual([
       'AiSearchModule',
       'CatalogQueryModule',
+      'CurationModule',
+      'HomeObservabilityModule',
       'LikeModule',
       'MediaObservabilityModule',
-      'MonitoringModule',
       'PrometheusEndpointModule',
       'SearchModule',
     ]);
-    expect(mediaObservabilityModuleConsumers).toEqual([
-      'CakeModule',
-      'ObjectStorageModule',
-      'StoreModule',
-    ]);
-    expect(
-      Reflect.getMetadata(GLOBAL_MODULE_METADATA, PrometheusRegistryModule),
-    ).not.toBe(true);
-    expect(
-      Reflect.getMetadata(GLOBAL_MODULE_METADATA, PrometheusEndpointModule),
-    ).not.toBe(true);
-
     expect(moduleMetadata(AppModule, MODULE_METADATA.IMPORTS)).toContain(
       PrometheusEndpointModule,
     );
-    expect(moduleMetadata(MonitoringModule, MODULE_METADATA.IMPORTS)).toContain(
+    expect(moduleMetadata(CurationModule, MODULE_METADATA.IMPORTS)).toContain(
       PrometheusRegistryModule,
     );
+    expect(moduleMetadata(CurationModule, MODULE_METADATA.PROVIDERS)).toContain(
+      CurationRefreshMetricsAdapter,
+    );
     expect(
-      moduleMetadata(PrometheusEndpointModule, MODULE_METADATA.IMPORTS),
+      moduleMetadata(HomeObservabilityModule, MODULE_METADATA.IMPORTS),
     ).toEqual([PrometheusRegistryModule]);
+    expect(moduleMetadata(HomeModule, MODULE_METADATA.IMPORTS)).toContain(
+      HomeObservabilityModule,
+    );
+    expect(moduleMetadata(HomeCacheModule, MODULE_METADATA.IMPORTS)).toContain(
+      HomeObservabilityModule,
+    );
+    expect(
+      Reflect.getMetadata(GLOBAL_MODULE_METADATA, PrometheusRegistryModule),
+    ).not.toBe(true);
+  });
+
+  it('keeps consumers on semantic ports and removes compatibility production boundaries', () => {
+    const productionSources = readSourceFiles().filter(
+      (source) => !source.path.endsWith('.spec.ts'),
+    );
+    const productionContent = productionSources
+      .map((source) => source.content)
+      .join('\n');
+    const retiredIdentifiers = [
+      ['Monitoring', 'Service'].join(''),
+      ['Monitoring', 'Module'].join(''),
+      ['HomeResilienceMetrics', 'Service'].join(''),
+    ];
+
+    for (const identifier of retiredIdentifiers) {
+      expect(productionContent).not.toContain(identifier);
+    }
+    expect(
+      productionSources.filter((source) =>
+        source.path.startsWith('home-resilience/'),
+      ),
+    ).toEqual([]);
+
+    const homeFeedSource = readFileSync(
+      join(sourceRoot, 'home/home-feed.service.ts'),
+      'utf8',
+    );
+    const homeCacheSource = readFileSync(
+      join(sourceRoot, 'home-cache/home-cache.service.ts'),
+      'utf8',
+    );
+    expect(homeFeedSource).toContain('HomeMetrics');
+    expect(homeFeedSource).not.toMatch(/prom-client|Registry|MetricsAdapter/);
+    expect(homeCacheSource).toContain('HomeMetrics');
+    expect(homeCacheSource).not.toMatch(/prom-client|Registry|MetricsAdapter/);
+    expect(moduleMetadata(HomeModule, MODULE_METADATA.PROVIDERS)).toContain(
+      HomeFeedService,
+    );
+    expect(
+      moduleMetadata(HomeCacheModule, MODULE_METADATA.PROVIDERS),
+    ).toContain(HomeCacheService);
   });
 
   it('keeps Registry construction and default collection in one production factory', () => {
@@ -330,103 +344,16 @@ describe('Observability Phase D feature metric adapters', () => {
     );
   });
 
-  it('makes every MonitoringService dependency explicit in module metadata', () => {
-    const explicitConsumers = [
-      {
-        module: CurationModule,
-        provider: CurationRefreshService,
-      },
-      {
-        module: HomeModule,
-        provider: HomeFeedService,
-      },
-      {
-        module: HomeResilienceMetricsModule,
-        provider: HomeResilienceMetricsService,
-      },
-    ].map(({ module, provider }) => {
-      const imports = moduleMetadata(module, MODULE_METADATA.IMPORTS);
-      const providers = moduleMetadata(module, MODULE_METADATA.PROVIDERS);
-      const dependencies =
-        (Reflect.getMetadata(PARAMTYPES_METADATA, provider) as unknown[]) ?? [];
-
-      expect(imports).toContain(MonitoringModule);
-      expect(providers).toContain(provider);
-      expect(dependencies).toContain(MonitoringService);
-
-      return { module: module.name, provider: provider.name };
-    });
-
-    expect(explicitConsumers).toEqual([
-      {
-        module: 'CurationModule',
-        provider: 'CurationRefreshService',
-      },
-      {
-        module: 'HomeModule',
-        provider: 'HomeFeedService',
-      },
-      {
-        module: 'HomeResilienceMetricsModule',
-        provider: 'HomeResilienceMetricsService',
-      },
-    ]);
-  });
-
-  it('removes MetricsService and keeps consumers on their semantic adapter', () => {
-    const consumers = [
-      ['ai-search/clip-client.ts', AiSearchModule, AiSearchMetricsAdapter],
-      ['ai-search/vit-client.ts', AiSearchModule, AiSearchMetricsAdapter],
-      ['cake/cake-media.service.ts', CakeModule, MediaMetricsAdapter],
-      [
-        'catalog/similar-cake-catalog-query.service.ts',
-        CatalogQueryModule,
-        CatalogMetricsAdapter,
-      ],
-      ['like/like.service.ts', LikeModule, CakeLikeEventMetricsAdapter],
-      [
-        'media/infrastructure/s3-object-storage.adapter.ts',
-        ObjectStorageModule,
-        MediaMetricsAdapter,
-      ],
-      ['search/search.service.ts', SearchModule, SearchEventMetricsAdapter],
-      ['store/store-media.service.ts', StoreModule, MediaMetricsAdapter],
-    ] as const;
-
-    expect(
-      readSourceFiles().filter((source) => source.path.startsWith('metrics/')),
-    ).toEqual([]);
-    for (const [path, ownerModule, adapter] of consumers) {
-      const source = readFileSync(join(sourceRoot, path), 'utf8');
-      expect(source).not.toContain('MetricsService');
-      expect(source).toContain(adapter.name);
-
-      if (adapter === MediaMetricsAdapter) {
-        expect(moduleMetadata(ownerModule, MODULE_METADATA.IMPORTS)).toContain(
-          MediaObservabilityModule,
-        );
-      } else {
-        expect(
-          moduleMetadata(ownerModule, MODULE_METADATA.PROVIDERS),
-        ).toContain(adapter);
-        expect(moduleMetadata(ownerModule, MODULE_METADATA.IMPORTS)).toContain(
-          PrometheusRegistryModule,
-        );
-      }
-    }
-  });
-
-  it('compiles HomeResilienceMetricsModule without AppModule globals', async () => {
+  it('compiles Home observability without AppModule globals', async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [HomeResilienceMetricsModule],
+      imports: [HomeObservabilityModule],
     }).compile();
 
-    expect(moduleRef.get(HomeResilienceMetricsService)).toBeDefined();
-    expect(moduleRef.get(MonitoringService)).toBeDefined();
+    expect(moduleRef.get(HomeMetrics)).toBeDefined();
     await moduleRef.close();
   });
 
-  it('compiles CurationModule with only non-observability platform stubs', async () => {
+  it('compiles CurationModule with only platform stubs', async () => {
     const connectionToken = getConnectionToken('kezzle');
     const moduleRef = await Test.createTestingModule({
       imports: [CurationModule],
@@ -441,17 +368,12 @@ describe('Observability Phase D feature metric adapters', () => {
         if (token === SchedulerRegistry) {
           return { addInterval: jest.fn() };
         }
-        if (token === MonitoringService) {
-          throw new Error(
-            'MonitoringService must resolve from MonitoringModule',
-          );
-        }
         throw new Error(`Unexpected missing provider: ${String(token)}`);
       })
       .compile();
 
     expect(moduleRef.get(CurationRefreshService)).toBeDefined();
-    expect(moduleRef.get(MonitoringService)).toBeDefined();
+    expect(moduleRef.get(CurationRefreshMetricsAdapter)).toBeDefined();
     await moduleRef.close();
   });
 });

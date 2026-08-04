@@ -98,17 +98,14 @@ describe('HomeFeedService', () => {
       countDb: jest.fn(),
       countAi: jest.fn(),
       countAiError: jest.fn(),
+      observeRequest: jest.fn(),
+      observeSection: jest.fn(),
+      countDegraded: jest.fn(),
       flush: jest.fn(),
     };
     const homeCache = {
       getWithSwr: jest.fn(({ refresh }) => refresh()),
     };
-    const monitoring = {
-      observeHomeRequest: jest.fn(),
-      countHomeDegraded: jest.fn(),
-      observeHomeSection: jest.fn(),
-    };
-
     const service = new HomeFeedService(
       cakeService as never,
       anniversaryService as never,
@@ -116,7 +113,6 @@ describe('HomeFeedService', () => {
       curationQuery as never,
       homeMetrics as never,
       homeCache as never,
-      monitoring as never,
     );
 
     return {

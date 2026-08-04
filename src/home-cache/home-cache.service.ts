@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
-import { HomeResilienceMetricsService } from 'src/home-resilience/home-resilience-metrics.service';
+import { HomeMetrics } from 'src/home/application/home-metrics.port';
 import { HOME_CACHE_REDIS } from './home-cache.constants';
 import { positiveEnvMs, SwrEnvelope, SwrOptions } from './swr';
 
@@ -12,7 +12,7 @@ export class HomeCacheService implements OnModuleDestroy {
 
   constructor(
     @Inject(HOME_CACHE_REDIS) private readonly redis: Redis | null,
-    private readonly homeMetrics: HomeResilienceMetricsService,
+    private readonly homeMetrics: HomeMetrics,
   ) {
     this.redis?.on('ready', () => this.markAvailable());
     this.redis?.on('error', (error) => this.markUnavailable(error));

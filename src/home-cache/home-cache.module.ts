@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
 import Redis from 'ioredis';
-import { HomeResilienceMetricsModule } from 'src/home-resilience/home-resilience-metrics.module';
+import { HomeObservabilityModule } from 'src/home/observability/home-observability.module';
 import { HOME_CACHE_REDIS } from './home-cache.constants';
 import { HomeCacheService } from './home-cache.service';
 import { validateHomeCachePolicies } from './home-cache.policy';
 import { positiveEnvMs } from './swr';
 
 @Module({
-  imports: [HomeResilienceMetricsModule],
+  imports: [HomeObservabilityModule],
   providers: [
     {
       provide: HOME_CACHE_REDIS,

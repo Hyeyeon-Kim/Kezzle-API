@@ -2,8 +2,8 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CurationService } from './curation.service';
-import { MonitoringService } from 'src/monitoring/monitoring.service';
 import { CurationRepository } from './curation.repository';
+import { CurationRefreshMetricsAdapter } from './curation-refresh-metrics.adapter';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_REFRESH_INTERVAL_MS = 600000;
@@ -39,7 +39,7 @@ export class CurationRefreshService implements OnApplicationBootstrap {
   constructor(
     private readonly curationRepository: CurationRepository,
     private readonly curationService: CurationService,
-    private readonly monitoring: MonitoringService,
+    private readonly metrics: CurationRefreshMetricsAdapter,
     private readonly config: ConfigService,
     private readonly schedulerRegistry: SchedulerRegistry,
   ) {
@@ -90,7 +90,7 @@ export class CurationRefreshService implements OnApplicationBootstrap {
     try {
       await this.runOnce();
     } catch (error) {
-      this.monitoring.countCurationRun('failure');
+      this.metrics.countRun('failure');
       this.logger.warn(`curation refresh job failed: ${this.errorName(error)}`);
     }
   }
@@ -107,7 +107,7 @@ export class CurationRefreshService implements OnApplicationBootstrap {
       failed: 0,
     };
     if (this.running) {
-      this.monitoring.countCurationRun('skipped');
+      this.metrics.countRun('skipped');
       return result;
     }
     this.running = true;
@@ -143,13 +143,11 @@ export class CurationRefreshService implements OnApplicationBootstrap {
           `curation refresh done: stale=${result.stale} refreshed=${result.refreshed} skipped=${result.skipped} failed=${result.failed}`,
         );
       }
-      this.monitoring.setCurationStaleBacklog(result.stale - result.refreshed);
-      this.monitoring.countCurationItems('refreshed', result.refreshed);
-      this.monitoring.countCurationItems('skipped', result.skipped);
-      this.monitoring.countCurationItems('failed', result.failed);
-      this.monitoring.countCurationRun(
-        result.failed > 0 ? 'failure' : 'success',
-      );
+      this.metrics.setStaleBacklog(result.stale - result.refreshed);
+      this.metrics.countItems('refreshed', result.refreshed);
+      this.metrics.countItems('skipped', result.skipped);
+      this.metrics.countItems('failed', result.failed);
+      this.metrics.countRun(result.failed > 0 ? 'failure' : 'success');
       return result;
     } finally {
       this.running = false;
