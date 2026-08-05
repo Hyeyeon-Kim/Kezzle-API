@@ -17,15 +17,6 @@ const IMAGE_EXTENSIONS: Record<ImageContentType, readonly string[]> = {
 };
 const XLSX_CONTENT_TYPE: ExcelContentType =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
-const ZIP_END_OF_CENTRAL_DIRECTORY_SIGNATURE = 0x06054b50;
-const ZIP_END_OF_CENTRAL_DIRECTORY_SIZE = 22;
-const ZIP_MAX_COMMENT_SIZE = 0xffff;
-const XLSX_REQUIRED_ENTRIES = [
-  '[Content_Types].xml',
-  '_rels/.rels',
-  'xl/workbook.xml',
-] as const;
 
 function startsWith(buffer: Buffer, signature: readonly number[]): boolean {
   return (
@@ -49,86 +40,7 @@ function detectImageContentType(buffer: Buffer): ImageContentType | undefined {
   return undefined;
 }
 
-function findZipEndOfCentralDirectory(buffer: Buffer): number | undefined {
-  const firstCandidate = buffer.length - ZIP_END_OF_CENTRAL_DIRECTORY_SIZE;
-  const lastCandidate = Math.max(0, firstCandidate - ZIP_MAX_COMMENT_SIZE);
-
-  for (let offset = firstCandidate; offset >= lastCandidate; offset--) {
-    if (
-      buffer.readUInt32LE(offset) === ZIP_END_OF_CENTRAL_DIRECTORY_SIGNATURE
-    ) {
-      return offset;
-    }
-  }
-  return undefined;
-}
-
-function zipEntryNames(buffer: Buffer): ReadonlySet<string> | undefined {
-  if (buffer.length < ZIP_END_OF_CENTRAL_DIRECTORY_SIZE) return undefined;
-
-  const endOffset = findZipEndOfCentralDirectory(buffer);
-  if (endOffset === undefined) return undefined;
-
-  const diskNumber = buffer.readUInt16LE(endOffset + 4);
-  const centralDirectoryDisk = buffer.readUInt16LE(endOffset + 6);
-  const entriesOnDisk = buffer.readUInt16LE(endOffset + 8);
-  const totalEntries = buffer.readUInt16LE(endOffset + 10);
-  const centralDirectorySize = buffer.readUInt32LE(endOffset + 12);
-  const centralDirectoryOffset = buffer.readUInt32LE(endOffset + 16);
-  const commentLength = buffer.readUInt16LE(endOffset + 20);
-
-  if (
-    diskNumber !== 0 ||
-    centralDirectoryDisk !== 0 ||
-    entriesOnDisk !== totalEntries ||
-    endOffset + ZIP_END_OF_CENTRAL_DIRECTORY_SIZE + commentLength !==
-      buffer.length ||
-    centralDirectoryOffset + centralDirectorySize !== endOffset
-  ) {
-    return undefined;
-  }
-
-  const entries = new Set<string>();
-  let offset = centralDirectoryOffset;
-  for (let index = 0; index < totalEntries; index++) {
-    if (
-      offset + 46 > endOffset ||
-      buffer.readUInt32LE(offset) !== ZIP_CENTRAL_DIRECTORY_SIGNATURE
-    ) {
-      return undefined;
-    }
-
-    const flags = buffer.readUInt16LE(offset + 8);
-    const fileNameLength = buffer.readUInt16LE(offset + 28);
-    const extraFieldLength = buffer.readUInt16LE(offset + 30);
-    const fileCommentLength = buffer.readUInt16LE(offset + 32);
-    const nextOffset =
-      offset + 46 + fileNameLength + extraFieldLength + fileCommentLength;
-    if ((flags & 0x1) !== 0 || nextOffset > endOffset) return undefined;
-
-    entries.add(
-      buffer
-        .subarray(offset + 46, offset + 46 + fileNameLength)
-        .toString('utf8'),
-    );
-    offset = nextOffset;
-  }
-
-  return offset === endOffset ? entries : undefined;
-}
-
 function hasXlsxStructure(buffer: Buffer): boolean {
-  const entries = zipEntryNames(buffer);
-  if (entries === undefined) return false;
-  if (!XLSX_REQUIRED_ENTRIES.every((entry) => entries.has(entry))) return false;
-  if (
-    ![...entries].some(
-      (entry) => entry.startsWith('xl/worksheets/') && entry.endsWith('.xml'),
-    )
-  ) {
-    return false;
-  }
-
   try {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     return (
