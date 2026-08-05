@@ -1,5 +1,6 @@
 import inventory from '../../test/fixtures/environment-inventory.contract.json';
 import {
+  ENV_DEFAULTS,
   optionalPair,
   requiredString,
   strictBoolean,
@@ -47,6 +48,7 @@ describe('environment validation contract', () => {
     expect(validateEnvironment(validEnvironment())).toEqual(validEnvironment());
     expect(strictInteger({}, 'PORT', 3000, { min: 1 })).toBe(3000);
     expect(strictBoolean({}, 'FLAG', false)).toBe(false);
+    expect(ENV_DEFAULTS.AI_HTTP_TIMEOUT_MS).toBe(5000);
   });
 
   it.each([

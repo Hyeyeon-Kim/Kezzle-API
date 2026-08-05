@@ -50,4 +50,15 @@ describe('Typed config architecture boundary', () => {
     expect(validation).toBeLessThan(nestCreation);
     expect(nestCreation).toBeLessThan(listen);
   });
+
+  it('registers the shared AI transport timeout from typed config', () => {
+    const aiModule = readFileSync(
+      join(srcRoot, 'ai-search/ai-search.module.ts'),
+      'utf8',
+    );
+
+    expect(aiModule).toContain('HttpModule.registerAsync');
+    expect(aiModule).toContain('inject: [aiConfig.KEY]');
+    expect(aiModule).toContain('timeout: config.httpTimeoutMs');
+  });
 });

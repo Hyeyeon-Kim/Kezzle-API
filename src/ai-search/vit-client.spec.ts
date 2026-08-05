@@ -57,6 +57,32 @@ describe('VitClient', () => {
       );
     });
 
+    it('passes the caller AbortSignal to the location request', async () => {
+      const httpService = {
+        get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
+      };
+      const client = new VitClient(
+        httpService as any,
+        buildMetricsService() as any,
+        AI_CONFIG,
+      );
+      const controller = new AbortController();
+
+      await client.similarSearchWithLocation(
+        'id-1',
+        1,
+        2,
+        3,
+        4,
+        controller.signal,
+      );
+
+      expect(httpService.get).toHaveBeenCalledWith(
+        'https://api.kezzlecake.com/vit/cakes/similar-search?id=id-1&lon=1&lat=2&dist=3&size=4',
+        { signal: controller.signal },
+      );
+    });
+
     it('records success metric with model=vit and endpoint=similar-search', async () => {
       const endTimer = jest.fn();
       const httpService = {
@@ -112,6 +138,38 @@ describe('VitClient', () => {
         endpoint: 'similar-search',
       });
     });
+
+    it('keeps caller cancellation in the existing error metric label', async () => {
+      const endTimer = jest.fn();
+      const httpService = {
+        get: jest
+          .fn()
+          .mockReturnValue(
+            throwError(() => ({ code: 'ERR_CANCELED', message: 'canceled' })),
+          ),
+      };
+      const metricsService = {
+        startCall: jest.fn(() => endTimer),
+        countError: jest.fn(),
+      };
+      const client = new VitClient(
+        httpService as any,
+        metricsService as any,
+        AI_CONFIG,
+      );
+      const controller = new AbortController();
+
+      await expect(
+        client.similarSearchWithLocation('id-1', 1, 2, 3, 4, controller.signal),
+      ).rejects.toMatchObject({ code: 'ERR_CANCELED' });
+
+      expect(endTimer).toHaveBeenCalledWith('error');
+      expect(metricsService.countError).toHaveBeenCalledWith({
+        reason: 'error',
+        model: 'vit',
+        endpoint: 'similar-search',
+      });
+    });
   });
 
   describe('similarSearch', () => {
@@ -151,6 +209,25 @@ describe('VitClient', () => {
 
       expect(httpService.get).toHaveBeenCalledWith(
         'https://api.kezzlecake.com/vit/cakes/similar-search?id=cake+id%2F%ED%95%9C%EA%B8%80&size=6',
+      );
+    });
+
+    it('passes the caller AbortSignal to the request', async () => {
+      const httpService = {
+        get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
+      };
+      const client = new VitClient(
+        httpService as any,
+        buildMetricsService() as any,
+        AI_CONFIG,
+      );
+      const controller = new AbortController();
+
+      await client.similarSearch('liked-cake-id', 6, controller.signal);
+
+      expect(httpService.get).toHaveBeenCalledWith(
+        'https://api.kezzlecake.com/vit/cakes/similar-search?id=liked-cake-id&size=6',
+        { signal: controller.signal },
       );
     });
 

@@ -52,6 +52,25 @@ describe('ClipClient', () => {
       );
     });
 
+    it('passes the caller AbortSignal to the request', async () => {
+      const httpService = {
+        get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
+      };
+      const client = new ClipClient(
+        httpService as any,
+        buildMetricsService() as any,
+        AI_CONFIG,
+      );
+      const controller = new AbortController();
+
+      await client.koSearch('test', 6, controller.signal);
+
+      expect(httpService.get).toHaveBeenCalledWith(
+        'https://api.kezzlecake.com/clip/cakes/ko-search?keyword=test&size=6',
+        { signal: controller.signal },
+      );
+    });
+
     it('uses the injected CLIP base URL', async () => {
       const httpService = {
         get: jest.fn().mockReturnValue(of({ data: { result: [] } })),
@@ -173,6 +192,29 @@ describe('ClipClient', () => {
         endpoint: 'ko-search-page',
       });
       expect(endTimer).toHaveBeenCalledWith('success');
+    });
+
+    it('passes the caller AbortSignal to the paged request', async () => {
+      const httpService = {
+        get: jest
+          .fn()
+          .mockReturnValue(
+            of({ data: { result: [], nextPage: 2, isLastPage: false } }),
+          ),
+      };
+      const client = new ClipClient(
+        httpService as any,
+        buildMetricsService() as any,
+        AI_CONFIG,
+      );
+      const controller = new AbortController();
+
+      await client.koSearchPage('keyword', 20, 1, controller.signal);
+
+      expect(httpService.get).toHaveBeenCalledWith(
+        'https://api.kezzlecake.com/clip/cakes/ko-search-page?keyword=keyword&size=20&page=1',
+        { signal: controller.signal },
+      );
     });
   });
 });
