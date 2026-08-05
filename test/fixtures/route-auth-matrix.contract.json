@@ -1,0 +1,553 @@
+[
+  {
+    "method": "POST",
+    "path": "/users",
+    "policy": "public",
+    "requestProfile": "register-user",
+    "principals": {
+      "anonymous": "allow",
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/users",
+    "policy": "roles:admin",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": 403,
+      "buyerOther": 403,
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/users/:id",
+    "requestPath": "/users/{buyerSelfId}",
+    "policy": "self-or-admin",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": 403,
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/users/:id",
+    "requestPath": "/users/{buyerSelfId}",
+    "requestProfile": "update-user",
+    "policy": "self-or-admin",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": 403,
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/users/:id/liked-cakes",
+    "requestPath": "/users/{buyerSelfId}/liked-cakes",
+    "policy": "roles:buyer,admin+self",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": 403,
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/users/:id/liked-stores",
+    "requestPath": "/users/{buyerSelfId}/liked-stores",
+    "policy": "roles:buyer,admin+self",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": 403,
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/cakes/:id/likes",
+    "requestPath": "/cakes/{cakeId}/likes",
+    "policy": "roles:buyer",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": 403
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/cakes/:id/likes",
+    "requestPath": "/cakes/{cakeId}/likes",
+    "policy": "roles:buyer",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": 403
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/stores/:id/likes",
+    "requestPath": "/stores/{storeId}/likes",
+    "policy": "roles:buyer",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": 403
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/stores/:id/likes",
+    "requestPath": "/stores/{storeId}/likes",
+    "policy": "roles:buyer",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": 403
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/cakes/newest",
+    "requestProfile": "page",
+    "policy": "roles:all",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/cakes/anniversary/:id",
+    "requestPath": "/cakes/anniversary/{anniversaryId}",
+    "requestProfile": "page",
+    "policy": "roles:all",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/cakes/:id",
+    "requestPath": "/cakes/{cakeId}",
+    "policy": "roles:all",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/cakes/:id",
+    "requestPath": "/cakes/{cakeId}",
+    "requestProfile": "image-upload",
+    "policy": "roles:seller,admin+owner",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": 403,
+      "buyerOther": 403,
+      "sellerOwner": "allow",
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/stores/:id/cakes",
+    "requestPath": "/stores/{storeId}/cakes",
+    "requestProfile": "cake-import",
+    "policy": "roles:seller,admin+owner",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": 403,
+      "buyerOther": 403,
+      "sellerOwner": "allow",
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/cakes",
+    "requestProfile": "geo-page",
+    "policy": "roles:all",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/cakes/location",
+    "requestProfile": "geo-page",
+    "policy": "roles:all",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/cakes/:id/similar",
+    "requestPath": "/cakes/{cakeId}/similar",
+    "requestProfile": "similar",
+    "policy": "roles:all",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/stores/:id/cakes",
+    "requestPath": "/stores/{storeId}/cakes",
+    "requestProfile": "page",
+    "policy": "roles:all",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/stores",
+    "requestProfile": "geo-page",
+    "policy": "roles:all",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/stores",
+    "requestProfile": "create-store",
+    "policy": "roles:admin",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": 403,
+      "buyerOther": 403,
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/stores/:id",
+    "requestPath": "/stores/{storeId}",
+    "policy": "roles:all",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/stores/:id",
+    "requestPath": "/stores/{storeId}",
+    "requestProfile": "update-store",
+    "policy": "roles:seller,admin+owner",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": 403,
+      "buyerOther": 403,
+      "sellerOwner": "allow",
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/stores/:id/uploads/logo",
+    "requestPath": "/stores/{storeId}/uploads/logo",
+    "requestProfile": "image-upload",
+    "policy": "roles:seller,admin+owner",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": 403,
+      "buyerOther": 403,
+      "sellerOwner": "allow",
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/stores/:id/uploads/storeimage",
+    "requestPath": "/stores/{storeId}/uploads/storeimage",
+    "requestProfile": "image-upload",
+    "policy": "roles:seller,admin+owner",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": 403,
+      "buyerOther": 403,
+      "sellerOwner": "allow",
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/stores/:id/deletes/storeimage",
+    "requestPath": "/stores/{storeId}/deletes/storeimage",
+    "requestProfile": "image-index",
+    "policy": "roles:seller,admin+owner",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": 403,
+      "buyerOther": 403,
+      "sellerOwner": "allow",
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/search",
+    "policy": "authenticated-any",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/search/:id",
+    "requestPath": "/search/{buyerSelfId}",
+    "policy": "authenticated-any+self",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": 403,
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/search/rank",
+    "requestProfile": "rank",
+    "policy": "public",
+    "principals": {
+      "anonymous": "allow",
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/cakes/popular",
+    "requestProfile": "rank",
+    "policy": "roles:all",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/curation",
+    "requestProfile": "create-curation",
+    "policy": "roles:admin",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": 403,
+      "buyerOther": 403,
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/curation/:id",
+    "requestPath": "/curation/{curationId}",
+    "requestProfile": "page",
+    "policy": "public",
+    "principals": {
+      "anonymous": "allow",
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/curation",
+    "policy": "roles:all",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/health/live",
+    "policy": "public",
+    "principals": {
+      "anonymous": "allow",
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/health/ready",
+    "policy": "public",
+    "principals": {
+      "anonymous": "allow",
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/metrics",
+    "policy": "public",
+    "principals": {
+      "anonymous": "allow",
+      "buyerSelf": "allow",
+      "buyerOther": "allow",
+      "sellerOwner": "allow",
+      "sellerOther": "allow",
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/cakes/:id",
+    "requestPath": "/cakes/{cakeId}",
+    "policy": "roles:seller,admin+owner",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": 403,
+      "buyerOther": 403,
+      "sellerOwner": "allow",
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/stores/:id",
+    "requestPath": "/stores/{storeId}",
+    "policy": "roles:seller,admin+owner",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": 403,
+      "buyerOther": 403,
+      "sellerOwner": "allow",
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/users/:id",
+    "requestPath": "/users/{buyerSelfId}",
+    "policy": "self-or-admin",
+    "principals": {
+      "anonymous": 401,
+      "buyerSelf": "allow",
+      "buyerOther": 403,
+      "sellerOwner": 403,
+      "sellerOther": 403,
+      "admin": "allow"
+    }
+  }
+]
