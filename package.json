@@ -21,6 +21,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e:full-app": "jest --config ./test/jest-e2e.json full-app-provider-overrides.contract.e2e-spec.ts --runInBand",
     "test:integration:mongo": "jest --config ./test/jest-mongo-integration.json --runInBand",
     "test:architecture": "jest --config ./test/jest-architecture.json --runInBand && jest type-boundary-presenter.contract.spec.ts type-e-composite-presenter.contract.spec.ts --runInBand",
     "test:smoke:prometheus": "ts-node test/smoke/prometheus-target-up.ts",

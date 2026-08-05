@@ -1,7 +1,14 @@
 import { registerAs } from '@nestjs/config';
 import { optionalPair, requiredString } from './environment.validation';
 
-export default registerAs('storage', () => {
+export interface StorageConfig {
+  readonly bucket: string;
+  readonly region: string;
+  readonly accessKeyId?: string;
+  readonly secretAccessKey?: string;
+}
+
+export default registerAs<StorageConfig>('storage', () => {
   const [accessKeyId, secretAccessKey] = optionalPair(
     process.env,
     'A_ACCESS_KEY_ID',

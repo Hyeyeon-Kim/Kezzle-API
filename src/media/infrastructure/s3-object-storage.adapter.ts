@@ -9,7 +9,7 @@ import {
 import { MediaMetricsAdapter } from '../media-metrics.adapter';
 import { S3_STORAGE_CONFIG, S3StorageConfig } from './s3-storage.config';
 
-interface S3Client {
+export interface S3Client {
   upload(params: {
     Bucket: string;
     Key: string;
