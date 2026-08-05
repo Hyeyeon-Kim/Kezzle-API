@@ -36,6 +36,14 @@ import { CakePresenter } from './cake.presenter';
 import { MulterMediaFileMapper } from 'src/media/api/multer-media-file.mapper';
 import { CakeMediaService } from './cake-media.service';
 import { CakeImportService } from './cake-import.service';
+import {
+  IMPORT_MAX_EXCEL_COUNT,
+  IMPORT_MAX_IMAGE_COUNT,
+} from 'src/media/api/upload-limits';
+import {
+  cakeImportUploadOptions,
+  singleImageUploadOptions,
+} from 'src/media/api/upload-options';
 
 const cakeIdParams = {
   name: 'id',
@@ -118,7 +126,7 @@ export class CakeController {
 
   @RolesAllowed(Roles.ADMIN, Roles.SELLER)
   @Patch('cakes/:id')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', singleImageUploadOptions()))
   @ApiOperation({
     summary: '케이크 정보 수정',
     description:
@@ -165,10 +173,13 @@ export class CakeController {
   @RolesAllowed(Roles.ADMIN, Roles.SELLER)
   @Post('stores/:id/cakes')
   @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'image', maxCount: 3000 },
-      { name: 'excel', maxCount: 1 },
-    ]),
+    FileFieldsInterceptor(
+      [
+        { name: 'image', maxCount: IMPORT_MAX_IMAGE_COUNT },
+        { name: 'excel', maxCount: IMPORT_MAX_EXCEL_COUNT },
+      ],
+      cakeImportUploadOptions(),
+    ),
   )
   @ApiOperation({
     summary: '특정 매장의 케이크 생성',
