@@ -35,6 +35,7 @@ lerna-debug.log*
 .build
 .env
 .env.*
+!.env.example
 .tsbuildinfo
 firebase-adminsdk.json
 index.html
