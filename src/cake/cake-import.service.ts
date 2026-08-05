@@ -6,6 +6,7 @@ import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
 import { MediaFile } from 'src/media/application/media-file';
+import { validateXlsxMediaFile } from 'src/media/application/media-file-signature.validator';
 import * as XLSX from 'xlsx';
 import { CakeImportRow } from './application/cake-import-row';
 import { CakeMediaService } from './cake-media.service';
@@ -34,7 +35,8 @@ export class CakeImportService {
   ): Promise<string> {
     const store = await this.storeWriteContext.findByIdOrThrow(storeId);
     this.assertOwnerOrAdmin(store.ownerUserId, user);
-    const rows = this.parseRows(files.excel[0].buffer);
+    const excelFile = validateXlsxMediaFile(files.excel[0]);
+    const rows = this.parseRows(excelFile.buffer);
     const rowsByImageName = this.indexRowsByImageName(rows);
     let succeeded = 0;
 

@@ -9,7 +9,7 @@ const owner = { firebaseUid: 'owner-1', roles: [Roles.SELLER] };
 const mediaFile = {
   originalName: 'store.png',
   contentType: 'image/png',
-  buffer: Buffer.from('image'),
+  buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]),
 };
 const oldLogo = {
   name: 'old-logo.png',
@@ -90,6 +90,19 @@ describe('StoreMediaService', () => {
     expect(
       storeRepository.updateOneById.mock.invocationCallOrder[0],
     ).toBeLessThan(objectStorage.delete.mock.invocationCallOrder[0]);
+  });
+
+  it('rejects signature mismatch without forwarding client MIME to S3', async () => {
+    const { service, objectStorage, storeRepository } = createService();
+
+    await expect(
+      service.replaceLogo('store-1', owner as never, {
+        ...mediaFile,
+        buffer: Buffer.from('<html></html>'),
+      }),
+    ).rejects.toMatchObject({ status: 415 });
+    expect(objectStorage.put).not.toHaveBeenCalled();
+    expect(storeRepository.updateOneById).not.toHaveBeenCalled();
   });
 
   it('deletes the new logo as compensation when Mongo update fails', async () => {

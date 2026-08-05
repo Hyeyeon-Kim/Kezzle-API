@@ -261,10 +261,14 @@ describe('Route authorization matrix contract (e2e)', () => {
           size: '1',
         });
       case 'image-upload':
-        return httpRequest.attach('file', Buffer.from('image'), {
-          filename: 'auth-matrix.png',
-          contentType: 'image/png',
-        });
+        return httpRequest.attach(
+          'file',
+          Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]),
+          {
+            filename: 'auth-matrix.png',
+            contentType: 'image/png',
+          },
+        );
       case 'cake-import':
         return httpRequest.attach('excel', createXlsxBuffer(), {
           filename: 'auth-matrix.xlsx',

@@ -6,6 +6,7 @@ import { AuthenticatedUser } from 'src/user/application/authenticated-user';
 import { Roles } from 'src/user/entities/roles.enum';
 import { UserNotOwnerException } from 'src/user/exceptions/user-not-owner.exception';
 import { MediaFile } from 'src/media/application/media-file';
+import { validateImageMediaFile } from 'src/media/application/media-file-signature.validator';
 import { ObjectStorageError } from 'src/media/application/object-storage.error';
 import { ObjectStoragePort } from 'src/media/application/object-storage.port';
 import { S3UploadException } from 'src/media/exception/s3-upload.exception';
@@ -94,18 +95,19 @@ export class CakeMediaService {
     storeId: string,
     file: MediaFile,
   ): Promise<ImageValue> {
-    const extension = file.originalName.split('.').pop();
+    const validatedFile = validateImageMediaFile(file);
+    const extension = validatedFile.originalName.split('.').pop();
     const convertedName = `${randomUUID()}.${extension}`;
     const key = `${storeId}/cakes/${convertedName}`;
 
     try {
       const stored = await this.objectStorage.put({
         key,
-        body: file.buffer,
-        contentType: file.contentType,
+        body: validatedFile.buffer,
+        contentType: validatedFile.contentType,
       });
       return {
-        name: file.originalName,
+        name: validatedFile.originalName,
         converteName: convertedName,
         key: stored.key,
         s3Url: stored.url,

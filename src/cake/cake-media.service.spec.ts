@@ -8,7 +8,7 @@ const owner = { firebaseUid: 'owner-1', roles: [Roles.SELLER] };
 const mediaFile = {
   originalName: 'cake.jpg',
   contentType: 'image/jpeg',
-  buffer: Buffer.from('image'),
+  buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]),
 };
 const oldImage = {
   name: 'old.jpg',
@@ -78,6 +78,19 @@ describe('CakeMediaService', () => {
     expect(
       cakeRepository.updateOneById.mock.invocationCallOrder[0],
     ).toBeLessThan(objectStorage.delete.mock.invocationCallOrder[0]);
+  });
+
+  it('rejects a spoofed client content type before S3', async () => {
+    const { service, objectStorage, cakeRepository } = createService();
+
+    await expect(
+      service.replaceImage('cake-1', owner as never, {
+        ...mediaFile,
+        contentType: 'image/png',
+      }),
+    ).rejects.toMatchObject({ status: 415 });
+    expect(objectStorage.put).not.toHaveBeenCalled();
+    expect(cakeRepository.updateOneById).not.toHaveBeenCalled();
   });
 
   it('compensates the new image and propagates the original Mongo error', async () => {

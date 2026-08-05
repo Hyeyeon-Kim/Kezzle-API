@@ -7,3 +7,12 @@ export const IMPORT_MAX_IMAGE_COUNT = 3000;
 export const IMPORT_MAX_EXCEL_COUNT = 1;
 export const IMPORT_MAX_FILE_COUNT =
   IMPORT_MAX_IMAGE_COUNT + IMPORT_MAX_EXCEL_COUNT;
+
+export const ALLOWED_IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+] as const;
+export const ALLOWED_EXCEL_MIME_TYPES = [
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+] as const;
