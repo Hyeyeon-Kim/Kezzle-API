@@ -94,12 +94,21 @@ describe('environment validation contract', () => {
 
   it.each([
     ['MONGODB_URL', 'https://mongo.example.com'],
+    ['MONGODB_URL', 'mongodb://'],
     ['REDIS_URL', 'http://redis.example.com'],
     ['VIT_API_BASE_URL', 'not-a-url'],
   ])('rejects invalid URL %s=%s', (name, value) => {
     expect(() =>
       validateEnvironment({ ...validEnvironment(), [name]: value }),
     ).toThrow(name);
+  });
+
+  it.each([
+    'mongodb://host1:27017,host2:27017,host3:27017/kezzle?replicaSet=rs0',
+    'mongodb+srv://cluster0.example.mongodb.net/kezzle',
+  ])('accepts MongoDB seed-list and SRV URL %s', (value) => {
+    const environment = { ...validEnvironment(), MONGODB_URL: value };
+    expect(validateEnvironment(environment)).toEqual(environment);
   });
 
   it('requires optional credentials as complete pairs', () => {

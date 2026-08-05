@@ -31,5 +31,5 @@ USER node
 EXPOSE 3000
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=5s --timeout=2s --start-period=15s --retries=6 \
-  CMD ["node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
+  CMD ["node", "-e", "const port = process.env.PORT ?? 3000; fetch('http://127.0.0.1:' + port + '/health/ready').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
 CMD ["node", "dist/main"]

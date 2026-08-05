@@ -106,6 +106,22 @@ export function strictUrl(
   return url.toString().replace(/\/$/, '');
 }
 
+// MongoDB seed-list URI(mongodb://host1,host2/...)는 WHATWG URL 로 파싱할 수 없어
+// scheme prefix 만 검사한다. 세부 형식 검증은 MongoDB driver 접속 시점에 수행된다.
+const MONGODB_SCHEMES = ['mongodb://', 'mongodb+srv://'] as const;
+
+export function strictMongoDbUrl(
+  environment: Environment,
+  name: string,
+): string {
+  const raw = requiredString(environment, name);
+  const scheme = MONGODB_SCHEMES.find((candidate) => raw.startsWith(candidate));
+  if (!scheme || raw.length === scheme.length) {
+    throw new Error(`${name} must be a mongodb:// or mongodb+srv:// URL`);
+  }
+  return raw;
+}
+
 export function optionalPair(
   environment: Environment,
   firstName: string,
@@ -196,12 +212,7 @@ export function validateEnvironment(
         { min: 0 },
       ),
   );
-  check(() => {
-    requiredString(environment, 'MONGODB_URL');
-    strictUrl(environment, 'MONGODB_URL', {
-      protocols: ['mongodb:', 'mongodb+srv:'],
-    });
-  });
+  check(() => void strictMongoDbUrl(environment, 'MONGODB_URL'));
   check(() => void requiredString(environment, 'MONGODB_DBNAME_MAIN'));
   check(
     () =>

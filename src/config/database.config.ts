@@ -2,7 +2,7 @@ import { registerAs } from '@nestjs/config';
 import {
   optionalPair,
   requiredString,
-  strictUrl,
+  strictMongoDbUrl,
 } from './environment.validation';
 
 export default registerAs('database', () => {
@@ -11,11 +11,8 @@ export default registerAs('database', () => {
     'MONGODB_USERNAME',
     'MONGODB_PASSWORD',
   );
-  requiredString(process.env, 'MONGODB_URL');
   return {
-    uri: strictUrl(process.env, 'MONGODB_URL', {
-      protocols: ['mongodb:', 'mongodb+srv:'],
-    })!,
+    uri: strictMongoDbUrl(process.env, 'MONGODB_URL'),
     dbName: requiredString(process.env, 'MONGODB_DBNAME_MAIN'),
     username,
     password,
