@@ -32,6 +32,7 @@ import { CreateStoreResponseDto } from './dto/response-create-store.dto';
 import { StorePresenter } from './store.presenter';
 import { MulterMediaFileMapper } from 'src/media/api/multer-media-file.mapper';
 import { StoreMediaService } from './store-media.service';
+import { singleImageUploadOptions } from 'src/media/api/upload-options';
 
 const storeIdParams = {
   name: 'id',
@@ -140,7 +141,7 @@ export class StoreController {
 
   @RolesAllowed(Roles.SELLER, Roles.ADMIN)
   @Patch(':id/uploads/logo')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', singleImageUploadOptions()))
   @ApiOperation({
     summary: '매장 정보 로고 수정',
     description:
@@ -168,7 +169,7 @@ export class StoreController {
 
   @RolesAllowed(Roles.SELLER, Roles.ADMIN)
   @Patch(':id/uploads/storeimage')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', singleImageUploadOptions()))
   uploadImage(
     @Param('id') storeId: string,
     @GetUser() userDto: AuthenticatedUser,

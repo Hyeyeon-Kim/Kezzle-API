@@ -1,18 +1,26 @@
 import { MulterMediaFileMapper } from './multer-media-file.mapper';
 
 describe('MulterMediaFileMapper', () => {
-  it('maps the API upload shape to a pure MediaFile explicitly', () => {
-    const buffer = Buffer.from('image');
+  it.each([
+    ['cake.jpeg', 'image/jpeg'],
+    ['cake.png', 'image/png'],
+    ['cake.webp', 'image/webp'],
+    [
+      'cakes.xlsx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ],
+  ])('maps %s to a pure MediaFile explicitly', (originalname, mimetype) => {
+    const buffer = Buffer.from('untrusted-api-bytes');
 
     expect(
       MulterMediaFileMapper.toMediaFile({
-        originalname: 'cake.jpeg',
-        mimetype: 'image/jpeg',
+        originalname,
+        mimetype,
         buffer,
       }),
     ).toEqual({
-      originalName: 'cake.jpeg',
-      contentType: 'image/jpeg',
+      originalName: originalname,
+      contentType: mimetype,
       buffer,
     });
   });

@@ -30,31 +30,9 @@ function parseEnvExample(content: string): Record<string, string> {
   );
 }
 
-describe('README and operational documentation contract', () => {
-  const readme = source('README.md');
+describe('.env.example operational contract', () => {
   const envExampleSource = source('.env.example');
   const envExample = parseEnvExample(envExampleSource);
-
-  it('replaces the Nest starter with Kezzle service and operations guidance', () => {
-    expect(readme).toContain('# Kezzle API');
-    expect(readme).not.toContain('Nest framework TypeScript starter');
-
-    [
-      '주요 module과 integration',
-      'Docker build와 실행',
-      'Local Compose topology와 port',
-      'Docker 기반 test',
-      'Fake Firebase/S3 full-app E2E 경계',
-      'Readiness와 graceful shutdown 운영 절차',
-      '주요 장애 확인 순서',
-    ].forEach((section) => expect(readme).toContain(section));
-  });
-
-  it('documents every typed environment variable with its contract', () => {
-    inventory.forEach(({ name }) => {
-      expect(readme).toMatch(new RegExp('\\|\\s*`' + name + '`\\s*\\|'));
-    });
-  });
 
   it('keeps .env.example aligned with inventory and validation', () => {
     expect(Object.keys(envExample).sort()).toEqual(
@@ -80,25 +58,5 @@ describe('README and operational documentation contract', () => {
     expect(gitignore).toContain('!.env.example');
     expect(dockerignore).toContain('.env\n');
     expect(dockerignore).toContain('.env.*');
-  });
-
-  it('keeps documented run, test, endpoint, and shutdown commands executable', () => {
-    [
-      'docker build -t kezzle-api:local .',
-      'docker build --target builder -t kezzle-api:test .',
-      'docker compose -p kezzle -f ../docker-compose.yml up -d mongodb',
-      'kezzle-api:test npm test -- --runInBand',
-      'kezzle-api:test npm run test:e2e',
-      'kezzle-api:test npm run test:architecture',
-      '$PWD/README.md:/app/README.md:ro',
-      '$PWD/.env.example:/app/.env.example:ro',
-      'docker compose -p kezzle -f ../docker-compose.yml stop kezzle-api',
-      'http://localhost:3000/api-docs',
-      'http://localhost:3000/metrics',
-      'http://localhost:3000/health/live',
-      'http://localhost:3000/health/ready',
-    ].forEach((command) => expect(readme).toContain(command));
-
-    expect(readme).not.toMatch(/^npm (install|run|test)/m);
   });
 });

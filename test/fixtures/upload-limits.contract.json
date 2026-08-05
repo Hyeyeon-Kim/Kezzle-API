@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-08-05",
+  "measurement": {
+    "operationalSampleAvailable": false,
+    "localMongoImageRecords": 25000,
+    "localMongoImageSizeRecords": 0,
+    "localMongoImageHost": "dummy-s3.local",
+    "xlsxSamples": 0,
+    "selection": "conservative fallback from the approved Phase B plan"
+  },
+  "limits": {
+    "singleImageMaxBytes": 10485760,
+    "cakeImportFileMaxBytes": 5242880,
+    "cakeImportMaxImages": 3000,
+    "cakeImportMaxFiles": 3001
+  },
+  "tooLarge": {
+    "status": 413,
+    "body": {
+      "message": "File too large",
+      "error": "Payload Too Large",
+      "statusCode": 413
+    }
+  },
+  "tooManyFiles": {
+    "status": 400,
+    "body": {
+      "message": "Too many files",
+      "error": "Bad Request",
+      "statusCode": 400
+    }
+  },
+  "success": {
+    "singleImageStatus": 200,
+    "singleImageBodyKeys": [
+      "acknowledged",
+      "matchedCount",
+      "modifiedCount",
+      "upsertedCount",
+      "upsertedId"
+    ],
+    "cakeImportStatus": 201,
+    "cakeImportBody": "1개의 파일 업로드 성공"
+  }
+}

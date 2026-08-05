@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-08-05",
+  "allowed": {
+    "imageContentTypes": ["image/jpeg", "image/png", "image/webp"],
+    "excelContentTypes": [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ]
+  },
+  "unsupportedMime": {
+    "status": 415,
+    "body": {
+      "message": "Unsupported upload media type",
+      "error": "Unsupported Media Type",
+      "statusCode": 415
+    }
+  },
+  "signatureMismatch": {
+    "status": 415,
+    "body": {
+      "message": "File content does not match its media type",
+      "error": "Unsupported Media Type",
+      "statusCode": 415
+    }
+  },
+  "success": {
+    "singleImageStatus": 200,
+    "cakeImportStatus": 201,
+    "cakeImportBody": "1개의 파일 업로드 성공"
+  }
+}
