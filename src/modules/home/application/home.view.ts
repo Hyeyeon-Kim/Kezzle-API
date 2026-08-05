@@ -9,7 +9,7 @@ import {
 import {
   HomeSectionFallbackReason,
   HomeSectionStatus,
-} from '../home-section.executor';
+} from './home-section.executor';
 
 export interface HomeSectionMetadataView {
   readonly status: HomeSectionStatus;

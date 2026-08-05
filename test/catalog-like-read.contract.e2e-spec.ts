@@ -8,23 +8,23 @@ import {
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { CakeController } from 'src/modules/cake/cake.controller';
-import { CakeService } from 'src/modules/cake/cake.service';
-import { CakeMediaService } from 'src/modules/cake/cake-media.service';
-import { CakeImportService } from 'src/modules/cake/cake-import.service';
-import { CatalogCakeController } from 'src/modules/catalog/catalog-cake.controller';
+import { CakeController } from 'src/modules/cake/api/cake.controller';
+import { CakeService } from 'src/modules/cake/application/cake.service';
+import { CakeMediaService } from 'src/modules/cake/application/cake-media.service';
+import { CakeImportService } from 'src/modules/cake/application/cake-import.service';
+import { CatalogCakeController } from 'src/modules/catalog/api/catalog-cake.controller';
 import { CatalogPresenter } from 'src/modules/catalog/api/catalog.presenter';
-import { CatalogQueryService } from 'src/modules/catalog/catalog-query.service';
-import { CatalogStoreController } from 'src/modules/catalog/catalog-store.controller';
-import { SimilarCakeCatalogQueryService } from 'src/modules/catalog/similar-cake-catalog-query.service';
+import { CatalogQueryService } from 'src/modules/catalog/application/catalog-query.service';
+import { CatalogStoreController } from 'src/modules/catalog/api/catalog-store.controller';
+import { SimilarCakeCatalogQueryService } from 'src/modules/catalog/application/similar-cake-catalog-query.service';
 import { RolesGuard } from 'src/platform/auth/guard/roles.guard';
-import { LikeController } from 'src/modules/like/like.controller';
+import { LikeController } from 'src/modules/like/api/like.controller';
 import { LikePresenter } from 'src/modules/like/api/like.presenter';
-import { LikeService } from 'src/modules/like/like.service';
-import { StoreController } from 'src/modules/store/store.controller';
-import { StoreService } from 'src/modules/store/store.service';
-import { StoreMediaService } from 'src/modules/store/store-media.service';
-import { Roles } from 'src/modules/user/entities/roles.enum';
+import { LikeService } from 'src/modules/like/application/like.service';
+import { StoreController } from 'src/modules/store/api/store.controller';
+import { StoreService } from 'src/modules/store/application/store.service';
+import { StoreMediaService } from 'src/modules/store/application/store-media.service';
+import { Roles } from 'src/modules/user/application/roles.enum';
 import fixtures from './fixtures/catalog-like-read.contract.json';
 
 @Injectable()

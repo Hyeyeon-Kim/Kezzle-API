@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { CatalogCakeView } from 'src/modules/cake/cake-catalog.reader';
-import { CatalogStoreView } from 'src/modules/store/store-catalog.reader';
+import { CatalogCakeView } from 'src/modules/cake/application/cake-catalog.reader';
+import { CatalogStoreView } from 'src/modules/store/application/store-catalog.reader';
 import {
   CatalogCakeResponseDto,
   CatalogCakesResponseDto,

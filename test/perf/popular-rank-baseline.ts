@@ -6,7 +6,7 @@ import {
   OptionalUnlessRequiredId,
 } from 'mongodb';
 import { MongoPopularRankingSourceAdapter } from '../../src/modules/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
-import { PopularRankService } from '../../src/modules/ranking/popular-rank.service';
+import { PopularRankService } from '../../src/modules/ranking/infrastructure/persistence/popular-rank.service';
 import { rankingConfigFixture } from '../support/typed-config.fixtures';
 
 type Pipeline = Record<string, unknown>[];

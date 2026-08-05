@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { CakeLikeView } from 'src/modules/cake/cake-like.port';
-import { LikedStoreCatalogView } from 'src/modules/catalog/liked-store-catalog.reader';
+import { CakeLikeView } from 'src/modules/cake/application/cake-like.port';
+import { LikedStoreCatalogView } from 'src/modules/catalog/application/liked-store-catalog.reader';
 import { LikedCakeResponseDto } from './dto/liked-cake-response.dto';
 import { LikedStoreResponseDto } from './dto/liked-store-response.dto';
 import { ImageDto } from 'src/shared/image/api/image.dto';

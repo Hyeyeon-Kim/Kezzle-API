@@ -1,11 +1,11 @@
 import { MODULE_METADATA } from '@nestjs/common/constants';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { dirname, join, normalize, relative, sep } from 'path';
-import { CakeCatalogReader } from 'src/modules/cake/cake-catalog.reader';
-import { CakeLikePort } from 'src/modules/cake/cake-like.port';
-import { CakeRepositoryModule } from 'src/modules/cake/cake-repository.module';
+import { CakeCatalogReader } from 'src/modules/cake/application/cake-catalog.reader';
+import { CakeLikePort } from 'src/modules/cake/application/cake-like.port';
+import { CakeRepositoryModule } from 'src/modules/cake/infrastructure/persistence/cake-repository.module';
 import { CakeModule } from 'src/modules/cake/cake.module';
-import { CakeImageEmbeddedSchema } from 'src/modules/cake/entities/cake-image.schema';
+import { CakeImageEmbeddedSchema } from 'src/modules/cake/infrastructure/persistence/entities/cake-image.schema';
 import { AppModule } from 'src/app.module';
 import { CatalogQueryModule } from 'src/modules/catalog/catalog-query.module';
 import { LikeModule } from 'src/modules/like/like.module';
@@ -14,18 +14,18 @@ import { LikeEventModule } from 'src/modules/like/infrastructure/persistence/lik
 import { CakeLikeEventRepository } from 'src/modules/like/infrastructure/persistence/cake-like-event.repository';
 import { HomeModule } from 'src/modules/home/home.module';
 import { RankingModule } from 'src/modules/ranking/ranking.module';
-import { RankingQueryService } from 'src/modules/ranking/ranking-query.service';
+import { RankingQueryService } from 'src/modules/ranking/application/ranking-query.service';
 import { PopularRankingSourceReader } from 'src/modules/ranking/application/popular-ranking-source.reader';
 import { MongoPopularRankingSourceAdapter } from 'src/modules/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
 import { SearchModule } from 'src/modules/search/search.module';
-import { StoreCakeWriteContextReader } from 'src/modules/store/store-cake-write-context.reader';
-import { StoreCatalogReader } from 'src/modules/store/store-catalog.reader';
-import { StoreLikePort } from 'src/modules/store/store-like.port';
-import { StoreRepositoryModule } from 'src/modules/store/store-repository.module';
+import { StoreCakeWriteContextReader } from 'src/modules/store/application/store-cake-write-context.reader';
+import { StoreCatalogReader } from 'src/modules/store/application/store-catalog.reader';
+import { StoreLikePort } from 'src/modules/store/application/store-like.port';
+import { StoreRepositoryModule } from 'src/modules/store/infrastructure/persistence/store-repository.module';
 import { StoreModule } from 'src/modules/store/store.module';
-import { StoreImageEmbeddedSchema } from 'src/modules/store/entities/store-image.schema';
-import { UserLikePort } from 'src/modules/user/user-like.port';
-import { UserRepositoryModule } from 'src/modules/user/user-repository.module';
+import { StoreImageEmbeddedSchema } from 'src/modules/store/infrastructure/persistence/entities/store-image.schema';
+import { UserLikePort } from 'src/modules/user/application/user-like.port';
+import { UserRepositoryModule } from 'src/modules/user/infrastructure/persistence/user-repository.module';
 import { UserModule } from 'src/modules/user/user.module';
 import { KeywordEventReader } from 'src/modules/search/application/port/keyword-event.reader';
 import { SearchEventRecorder } from 'src/modules/search/application/port/search-event-recorder.port';
@@ -40,9 +40,9 @@ import {
 import { S3_STORAGE_CONFIG } from 'src/integrations/media/infrastructure/s3-storage.config';
 import { ObjectStorageModule } from 'src/integrations/media/object-storage.module';
 import storageConfig from 'src/platform/config/storage.config';
-import { CakeMediaService } from 'src/modules/cake/cake-media.service';
-import { CakeImportService } from 'src/modules/cake/cake-import.service';
-import { StoreMediaService } from 'src/modules/store/store-media.service';
+import { CakeMediaService } from 'src/modules/cake/application/cake-media.service';
+import { CakeImportService } from 'src/modules/cake/application/cake-import.service';
+import { StoreMediaService } from 'src/modules/store/application/store-media.service';
 import { MediaObservabilityModule } from 'src/integrations/media/media-observability.module';
 
 type SourceFile = {
@@ -162,6 +162,60 @@ describe('Feature boundary architecture', () => {
     ]);
   });
 
+  it('keeps every feature root aligned with its layer matrix', () => {
+    const featureLayers = {
+      anniversary: ['application', 'infrastructure'],
+      cake: ['api', 'application', 'infrastructure'],
+      catalog: ['api', 'application', 'infrastructure'],
+      counter: ['infrastructure'],
+      curation: ['api', 'application', 'infrastructure'],
+      home: ['api', 'application', 'infrastructure'],
+      like: ['api', 'application', 'infrastructure'],
+      ranking: ['api', 'application', 'infrastructure'],
+      search: ['api', 'application', 'infrastructure'],
+      store: ['api', 'application', 'infrastructure'],
+      user: ['api', 'application', 'infrastructure'],
+    } as const;
+    const featureModules = {
+      anniversary: 'anniversary.module.ts',
+      cake: 'cake.module.ts',
+      catalog: 'catalog-query.module.ts',
+      counter: 'counter.module.ts',
+      curation: 'curation.module.ts',
+      home: 'home.module.ts',
+      like: 'like.module.ts',
+      ranking: 'ranking.module.ts',
+      search: 'search.module.ts',
+      store: 'store.module.ts',
+      user: 'user.module.ts',
+    } as const;
+
+    Object.entries(featureLayers).forEach(([feature, expectedLayers]) => {
+      const entries = readdirSync(join(srcRoot, 'modules', feature), {
+        withFileTypes: true,
+      });
+      const directories = entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .sort();
+      const files = entries
+        .filter((entry) => entry.isFile())
+        .map((entry) => entry.name)
+        .sort();
+
+      expect(directories).toEqual([...expectedLayers].sort());
+      expect(files).toEqual([
+        featureModules[feature as keyof typeof featureModules],
+      ]);
+    });
+
+    expect(
+      existsSync(
+        join(srcRoot, 'modules', 'cake', 'infrastructure', 'persistence'),
+      ),
+    ).toBe(true);
+  });
+
   it('forbids concrete repository imports outside Cake, Store, and User', () => {
     const violations = sourceFiles.flatMap((source) => {
       const imports = importSpecifiers(source.content);
@@ -193,7 +247,9 @@ describe('Feature boundary architecture', () => {
       const imports = importSpecifiers(source.content);
       const forbiddenImports = [
         ...(/^modules\/(store|like|catalog)\//.test(source.path)
-          ? imports.filter((value) => value.startsWith('src/modules/cake/dto'))
+          ? imports.filter((value) =>
+              value.startsWith('src/modules/cake/api/dto'),
+            )
           : []),
         ...(/^modules\/(cake|like|catalog)\//.test(source.path)
           ? imports.filter((value) => value.startsWith('src/modules/store/dto'))
@@ -239,7 +295,7 @@ describe('Feature boundary architecture', () => {
       )
       .flatMap((source) =>
         importSpecifiers(source.content)
-          .filter((value) => value.startsWith('src/modules/cake/dto'))
+          .filter((value) => value.startsWith('src/modules/cake/api/dto'))
           .map((value) => `${source.path}: ${value}`),
       );
 
@@ -592,7 +648,7 @@ describe('Feature boundary architecture', () => {
       .filter((source) => /['"]cakelikelogs['"]/.test(source.content))
       .map((source) => source.path);
     const likeService = productionSources.find(
-      (source) => source.path === 'modules/like/like.service.ts',
+      (source) => source.path === 'modules/like/application/like.service.ts',
     );
     const likeImports = moduleMetadata(LikeModule, MODULE_METADATA.IMPORTS);
     const rankingImports = moduleMetadata(
@@ -660,7 +716,7 @@ describe('Feature boundary architecture', () => {
             }
             if (source.path.startsWith('modules/home/')) {
               return ![
-                'modules/ranking/ranking-query.service',
+                'modules/ranking/application/ranking-query.service',
                 'modules/ranking/application/ranking.view',
               ].includes(value);
             }
@@ -720,21 +776,21 @@ describe('Feature boundary architecture', () => {
     expect(appImports.indexOf(RankingModule)).toBeLessThan(
       appImports.indexOf(CatalogQueryModule),
     );
-    expect(sourceByPath.get('modules/ranking/ranking.controller.ts')).toMatch(
-      /Get\('search\/rank'\)/,
-    );
-    expect(sourceByPath.get('modules/ranking/ranking.controller.ts')).toMatch(
+    expect(
+      sourceByPath.get('modules/ranking/api/ranking.controller.ts'),
+    ).toMatch(/Get\('search\/rank'\)/);
+    expect(
+      sourceByPath.get('modules/ranking/api/ranking.controller.ts'),
+    ).toMatch(/Get\('cakes\/popular'\)/);
+    expect(
+      sourceByPath.get('modules/search/api/search.controller.ts'),
+    ).not.toMatch(/Get\('rank'\)/);
+    expect(sourceByPath.get('modules/cake/api/cake.controller.ts')).not.toMatch(
       /Get\('cakes\/popular'\)/,
     );
-    expect(sourceByPath.get('modules/search/search.controller.ts')).not.toMatch(
-      /Get\('rank'\)/,
-    );
-    expect(sourceByPath.get('modules/cake/cake.controller.ts')).not.toMatch(
-      /Get\('cakes\/popular'\)/,
-    );
-    expect(sourceByPath.get('modules/home/home-feed.service.ts')).not.toMatch(
-      /rank-window|SearchService|\.popular\(/,
-    );
+    expect(
+      sourceByPath.get('modules/home/application/home-feed.service.ts'),
+    ).not.toMatch(/rank-window|SearchService|\.popular\(/);
   });
 
   it('keeps Cake and Store image persistence owned by each feature', () => {
@@ -744,12 +800,14 @@ describe('Feature boundary architecture', () => {
     const sourceByPath = new Map(
       productionSources.map((source) => [source.path, source]),
     );
-    const cakeSchema = sourceByPath.get('modules/cake/entities/cake.schema.ts');
+    const cakeSchema = sourceByPath.get(
+      'modules/cake/infrastructure/persistence/entities/cake.schema.ts',
+    );
     const storeSchema = sourceByPath.get(
-      'modules/store/entities/store.schema.ts',
+      'modules/store/infrastructure/persistence/entities/store.schema.ts',
     );
     const cakeExternalMapper = sourceByPath.get(
-      'modules/cake/cake-external.mapper.ts',
+      'modules/cake/infrastructure/cake-external.mapper.ts',
     );
     const commonImageMongooseImports = productionSources
       .filter((source) => source.path.startsWith('shared/image/'))
@@ -763,16 +821,16 @@ describe('Feature boundary architecture', () => {
     const imageFields = ['converte_name', 'key', 'name', 's3Url'];
 
     expect(normalizedImports(cakeSchema)).toContain(
-      'modules/cake/entities/cake-image.schema',
+      'modules/cake/infrastructure/persistence/entities/cake-image.schema',
     );
     expect(normalizedImports(storeSchema)).toContain(
-      'modules/store/entities/store-image.schema',
+      'modules/store/infrastructure/persistence/entities/store-image.schema',
     );
     expect(normalizedImports(cakeSchema)).not.toContain(
-      'modules/store/entities/store-image.schema',
+      'modules/store/infrastructure/persistence/entities/store-image.schema',
     );
     expect(normalizedImports(storeSchema)).not.toContain(
-      'modules/cake/entities/cake-image.schema',
+      'modules/cake/infrastructure/persistence/entities/cake-image.schema',
     );
     expect(commonImageMongooseImports).toEqual([]);
     expect(existsSync(join(srcRoot, 'shared/image/persistence'))).toBe(false);
@@ -780,7 +838,7 @@ describe('Feature boundary architecture', () => {
       'shared/image/image-external.mapper',
     );
     expect(normalizedImports(cakeExternalMapper)).not.toContain(
-      'modules/cake/cake.persistence-mapper',
+      'modules/cake/infrastructure/persistence/cake.persistence-mapper',
     );
     expect(CakeImageEmbeddedSchema.get('_id')).toBe(false);
     expect(StoreImageEmbeddedSchema.get('_id')).toBe(false);
@@ -892,9 +950,15 @@ describe('Feature boundary architecture', () => {
       )
       .map((source) => source.path)
       .sort();
-    const cakeService = sourceByPath.get('modules/cake/cake.service.ts');
-    const storeService = sourceByPath.get('modules/store/store.service.ts');
-    const cakeImport = sourceByPath.get('modules/cake/cake-import.service.ts');
+    const cakeService = sourceByPath.get(
+      'modules/cake/application/cake.service.ts',
+    );
+    const storeService = sourceByPath.get(
+      'modules/store/application/store.service.ts',
+    );
+    const cakeImport = sourceByPath.get(
+      'modules/cake/application/cake-import.service.ts',
+    );
     const cakeProviders = moduleMetadata(CakeModule, MODULE_METADATA.PROVIDERS);
     const cakeImports = moduleMetadata(CakeModule, MODULE_METADATA.IMPORTS);
     const storeProviders = moduleMetadata(
@@ -904,8 +968,8 @@ describe('Feature boundary architecture', () => {
     const storeImports = moduleMetadata(StoreModule, MODULE_METADATA.IMPORTS);
 
     expect(objectStorageConsumers).toEqual([
-      'modules/cake/cake-media.service.ts',
-      'modules/store/store-media.service.ts',
+      'modules/cake/application/cake-media.service.ts',
+      'modules/store/application/store-media.service.ts',
     ]);
     expect(cakeService?.content).not.toMatch(
       new RegExp(
@@ -918,7 +982,7 @@ describe('Feature boundary architecture', () => {
       ),
     );
     expect(normalizedImports(cakeImport)).toContain(
-      'modules/cake/cake-media.service',
+      'modules/cake/application/cake-media.service',
     );
     expect(normalizedImports(cakeImport)).not.toContain(
       'integrations/media/application/object-storage.port',

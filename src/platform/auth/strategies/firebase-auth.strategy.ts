@@ -1,7 +1,7 @@
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
 import { Strategy, ExtractJwt } from 'passport-firebase-jwt';
-import { UserService } from 'src/modules/user/user.service';
+import { UserService } from 'src/modules/user/application/user.service';
 import { FirebaseTokenVerifier } from '../application/firebase-token-verifier.port';
 import { verifyTokenOrThrowUnauthorized } from '../application/verify-token';
 

@@ -11,24 +11,24 @@ import { join, relative, sep } from 'path';
 import { Registry } from 'prom-client';
 import { AiSearchMetricsAdapter } from 'src/integrations/ai-search/ai-search-metrics.adapter';
 import { AppModule } from 'src/app.module';
-import { CatalogMetricsAdapter } from 'src/modules/catalog/catalog-metrics.adapter';
-import { CurationRefreshMetricsAdapter } from 'src/modules/curation/curation-refresh-metrics.adapter';
-import { CurationRefreshService } from 'src/modules/curation/curation-refresh.service';
+import { CatalogMetricsAdapter } from 'src/modules/catalog/infrastructure/catalog-metrics.adapter';
+import { CurationRefreshMetricsAdapter } from 'src/modules/curation/infrastructure/curation-refresh-metrics.adapter';
+import { CurationRefreshService } from 'src/modules/curation/application/curation-refresh.service';
 import { CurationModule } from 'src/modules/curation/curation.module';
 import { HomeCacheModule } from 'src/modules/home/infrastructure/cache/home-cache.module';
 import { HomeCacheService } from 'src/modules/home/infrastructure/cache/home-cache.service';
 import { HomeMetrics } from 'src/modules/home/application/home-metrics.port';
-import { HomeFeedService } from 'src/modules/home/home-feed.service';
+import { HomeFeedService } from 'src/modules/home/application/home-feed.service';
 import { HomeModule } from 'src/modules/home/home.module';
-import { HomeObservabilityModule } from 'src/modules/home/observability/home-observability.module';
-import { PrometheusHomeMetricsAdapter } from 'src/modules/home/observability/prometheus-home-metrics.adapter';
-import { CakeLikeEventMetricsAdapter } from 'src/modules/like/cake-like-event-metrics.adapter';
+import { HomeObservabilityModule } from 'src/modules/home/infrastructure/observability/home-observability.module';
+import { PrometheusHomeMetricsAdapter } from 'src/modules/home/infrastructure/observability/prometheus-home-metrics.adapter';
+import { CakeLikeEventMetricsAdapter } from 'src/modules/like/infrastructure/cake-like-event-metrics.adapter';
 import { MediaMetricsAdapter } from 'src/integrations/media/media-metrics.adapter';
 import { PROMETHEUS_REGISTRY } from 'src/platform/observability/prometheus/prometheus.constants';
 import { PrometheusEndpointModule } from 'src/platform/observability/prometheus/prometheus-endpoint.module';
 import { PrometheusRegistryModule } from 'src/platform/observability/prometheus/prometheus-registry.module';
 import { createPrometheusRegistry } from 'src/platform/observability/prometheus/prometheus-registry.provider';
-import { SearchEventMetricsAdapter } from 'src/modules/search/search-event-metrics.adapter';
+import { SearchEventMetricsAdapter } from 'src/modules/search/infrastructure/search-event-metrics.adapter';
 import observabilityBaseline from '../../../test/fixtures/observability-baseline.contract.json';
 
 type RuntimeMetric = {
@@ -319,7 +319,7 @@ describe('Observability Phase F canonical contract', () => {
     ).toEqual([]);
 
     const homeFeedSource = readFileSync(
-      join(sourceRoot, 'modules/home/home-feed.service.ts'),
+      join(sourceRoot, 'modules/home/application/home-feed.service.ts'),
       'utf8',
     );
     const homeCacheSource = readFileSync(

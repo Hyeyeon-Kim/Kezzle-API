@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import Redis from 'ioredis';
-import { HomeObservabilityModule } from 'src/modules/home/observability/home-observability.module';
+import { HomeObservabilityModule } from 'src/modules/home/infrastructure/observability/home-observability.module';
 import { HOME_CACHE_REDIS } from './home-cache.constants';
 import { HomeCacheService } from './home-cache.service';
 import { ConfigModule, ConfigType } from '@nestjs/config';

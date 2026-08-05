@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { UserService } from './user.service';
-import { UserController } from './user.controller';
-import { UserRepositoryModule } from './user-repository.module';
-import { UserLikeRepositoryAdapter } from './user-like.adapter';
-import { UserLikePort } from './user-like.port';
+import { UserService } from './application/user.service';
+import { UserController } from './api/user.controller';
+import { UserRepositoryModule } from './infrastructure/persistence/user-repository.module';
+import { UserLikeRepositoryAdapter } from './infrastructure/user-like.adapter';
+import { UserLikePort } from './application/user-like.port';
 import { FirebaseIdentityModule } from 'src/platform/auth/infrastructure/firebase/firebase-identity.module';
 
 @Module({

@@ -10,11 +10,11 @@ import {
   PopularCakeRank,
   PopularCakeRankSchema,
 } from './infrastructure/persistence/popular-cake-rank.schema';
-import { KeywordRankService } from './keyword-rank.service';
+import { KeywordRankService } from './infrastructure/persistence/keyword-rank.service';
 import { MongoPopularRankingSourceAdapter } from './infrastructure/persistence/mongo-popular-ranking-source.adapter';
-import { PopularRankService } from './popular-rank.service';
-import { RankingController } from './ranking.controller';
-import { RankingQueryService } from './ranking-query.service';
+import { PopularRankService } from './infrastructure/persistence/popular-rank.service';
+import { RankingController } from './api/ranking.controller';
+import { RankingQueryService } from './application/ranking-query.service';
 import { ConfigModule } from '@nestjs/config';
 import rankingConfig from 'src/platform/config/ranking.config';
 

@@ -11,7 +11,7 @@ import { Test } from '@nestjs/testing';
 import { IsString } from 'class-validator';
 import request from 'supertest';
 import { createValidationPipe } from 'src/app.validation';
-import { CakeNotFoundException } from 'src/modules/cake/exceptions/cake-not-found.exception';
+import { CakeNotFoundException } from 'src/modules/cake/application/exceptions/cake-not-found.exception';
 import contract from './fixtures/error-boundary.contract.json';
 
 class ValidationRequest {

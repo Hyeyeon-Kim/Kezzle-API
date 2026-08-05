@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
-import { CounterService } from './counter.service';
+import { CounterService } from './infrastructure/persistence/counter.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Counter, CounterSchema } from './entities/counter.schema';
+import {
+  Counter,
+  CounterSchema,
+} from './infrastructure/persistence/entities/counter.schema';
 
 @Module({
   imports: [

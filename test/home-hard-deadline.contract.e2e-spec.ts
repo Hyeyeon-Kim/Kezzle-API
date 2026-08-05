@@ -1,16 +1,16 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { AnniversaryService } from 'src/modules/anniversary/anniversary.service';
-import { CakeService } from 'src/modules/cake/cake.service';
+import { AnniversaryService } from 'src/modules/anniversary/application/anniversary.service';
+import { CakeService } from 'src/modules/cake/application/cake.service';
 import homeConfig from 'src/platform/config/home.config';
-import { CurationQueryService } from 'src/modules/curation/curation-query.service';
+import { CurationQueryService } from 'src/modules/curation/application/curation-query.service';
 import { HomeCacheService } from 'src/modules/home/infrastructure/cache/home-cache.service';
 import { HomeMetrics } from 'src/modules/home/application/home-metrics.port';
 import { HomePresenter } from 'src/modules/home/api/home.presenter';
-import { HomeController } from 'src/modules/home/home.controller';
-import { HomeFeedService } from 'src/modules/home/home-feed.service';
-import { RankingQueryService } from 'src/modules/ranking/ranking-query.service';
+import { HomeController } from 'src/modules/home/api/home.controller';
+import { HomeFeedService } from 'src/modules/home/application/home-feed.service';
+import { RankingQueryService } from 'src/modules/ranking/application/ranking-query.service';
 import { homeConfigFixture } from './support/typed-config.fixtures';
 
 describe('Home hard deadline HTTP contract (e2e)', () => {

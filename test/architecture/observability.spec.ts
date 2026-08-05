@@ -216,7 +216,7 @@ describe('Observability architecture', () => {
       )
       .map((source) => source.path);
     const homeConsumers = [
-      'modules/home/home-feed.service.ts',
+      'modules/home/application/home-feed.service.ts',
       'modules/home/infrastructure/cache/home-cache.service.ts',
     ].map((path) => ({
       path,

@@ -1,11 +1,20 @@
 import { Model, model } from 'mongoose';
-import { Cake, CakeSchema } from 'src/modules/cake/entities/cake.schema';
+import {
+  Cake,
+  CakeSchema,
+} from 'src/modules/cake/infrastructure/persistence/entities/cake.schema';
 import {
   Curation,
   CurationSchema,
-} from 'src/modules/curation/entities/curation.schema';
-import { Store, StoreSchema } from 'src/modules/store/entities/store.schema';
-import { User, UserSchema } from 'src/modules/user/entities/user.schema';
+} from 'src/modules/curation/infrastructure/persistence/entities/curation.schema';
+import {
+  Store,
+  StoreSchema,
+} from 'src/modules/store/infrastructure/persistence/entities/store.schema';
+import {
+  User,
+  UserSchema,
+} from 'src/modules/user/infrastructure/persistence/entities/user.schema';
 import baseline from './fixtures/log-upload-baseline.contract.json';
 import fixtures from './fixtures/legacy-persistence.contract.json';
 

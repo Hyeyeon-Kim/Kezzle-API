@@ -8,21 +8,21 @@ import {
 import { APP_GUARD, Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { CakeController } from 'src/modules/cake/cake.controller';
-import { CakeService } from 'src/modules/cake/cake.service';
-import { CakeMediaService } from 'src/modules/cake/cake-media.service';
-import { CakeImportService } from 'src/modules/cake/cake-import.service';
-import { CurationController } from 'src/modules/curation/curation.controller';
-import { CurationService } from 'src/modules/curation/curation.service';
+import { CakeController } from 'src/modules/cake/api/cake.controller';
+import { CakeService } from 'src/modules/cake/application/cake.service';
+import { CakeMediaService } from 'src/modules/cake/application/cake-media.service';
+import { CakeImportService } from 'src/modules/cake/application/cake-import.service';
+import { CurationController } from 'src/modules/curation/api/curation.controller';
+import { CurationService } from 'src/modules/curation/application/curation.service';
 import { createValidationPipe } from 'src/app.validation';
 import { IS_PUBLIC_KEY } from 'src/platform/auth/decorators/public.decorator';
 import { RolesGuard } from 'src/platform/auth/guard/roles.guard';
-import { StoreController } from 'src/modules/store/store.controller';
-import { StoreService } from 'src/modules/store/store.service';
-import { StoreMediaService } from 'src/modules/store/store-media.service';
-import { Roles } from 'src/modules/user/entities/roles.enum';
-import { UserController } from 'src/modules/user/user.controller';
-import { UserService } from 'src/modules/user/user.service';
+import { StoreController } from 'src/modules/store/api/store.controller';
+import { StoreService } from 'src/modules/store/application/store.service';
+import { StoreMediaService } from 'src/modules/store/application/store-media.service';
+import { Roles } from 'src/modules/user/application/roles.enum';
+import { UserController } from 'src/modules/user/api/user.controller';
+import { UserService } from 'src/modules/user/application/user.service';
 import fixtures from './fixtures/type-boundary-write.contract.json';
 
 @Injectable()

@@ -1,15 +1,15 @@
 import { Module } from '@nestjs/common';
-import { StoreController } from './store.controller';
-import { StoreService } from './store.service';
+import { StoreController } from './api/store.controller';
+import { StoreService } from './application/store.service';
 import { ObjectStorageModule } from 'src/integrations/media/object-storage.module';
-import { StoreRepositoryModule } from './store-repository.module';
-import { StoreCatalogRepositoryAdapter } from './store-catalog.adapter';
-import { StoreCatalogReader } from './store-catalog.reader';
-import { StoreCakeWriteContextRepositoryAdapter } from './store-cake-write-context.adapter';
-import { StoreCakeWriteContextReader } from './store-cake-write-context.reader';
-import { StoreLikeRepositoryAdapter } from './store-like.adapter';
-import { StoreLikePort } from './store-like.port';
-import { StoreMediaService } from './store-media.service';
+import { StoreRepositoryModule } from './infrastructure/persistence/store-repository.module';
+import { StoreCatalogRepositoryAdapter } from './infrastructure/store-catalog.adapter';
+import { StoreCatalogReader } from './application/store-catalog.reader';
+import { StoreCakeWriteContextRepositoryAdapter } from './infrastructure/store-cake-write-context.adapter';
+import { StoreCakeWriteContextReader } from './application/store-cake-write-context.reader';
+import { StoreLikeRepositoryAdapter } from './infrastructure/store-like.adapter';
+import { StoreLikePort } from './application/store-like.port';
+import { StoreMediaService } from './application/store-media.service';
 import { MediaObservabilityModule } from 'src/integrations/media/media-observability.module';
 
 @Module({

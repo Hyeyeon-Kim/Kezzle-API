@@ -1,13 +1,19 @@
 import { Connection, Model, createConnection } from 'mongoose';
 import { ObjectId } from 'mongodb';
-import { Cake, CakeSchema } from 'src/modules/cake/entities/cake.schema';
-import { CurationPersistenceMapper } from 'src/modules/curation/curation.persistence-mapper';
-import { CurationRepository } from 'src/modules/curation/curation.repository';
+import {
+  Cake,
+  CakeSchema,
+} from 'src/modules/cake/infrastructure/persistence/entities/cake.schema';
+import { CurationPersistenceMapper } from 'src/modules/curation/infrastructure/persistence/curation.persistence-mapper';
+import { CurationRepository } from 'src/modules/curation/infrastructure/persistence/curation.repository';
 import {
   Curation,
   CurationSchema,
-} from 'src/modules/curation/entities/curation.schema';
-import { Store, StoreSchema } from 'src/modules/store/entities/store.schema';
+} from 'src/modules/curation/infrastructure/persistence/entities/curation.schema';
+import {
+  Store,
+  StoreSchema,
+} from 'src/modules/store/infrastructure/persistence/entities/store.schema';
 import { SearchEventRepository } from 'src/modules/search/infrastructure/persistence/search-event.repository';
 import {
   KeywordLog,
@@ -26,11 +32,14 @@ import {
   PopularCakeRank,
   PopularCakeRankSchema,
 } from 'src/modules/ranking/infrastructure/persistence/popular-cake-rank.schema';
-import { KeywordRankService } from 'src/modules/ranking/keyword-rank.service';
-import { PopularRankService } from 'src/modules/ranking/popular-rank.service';
-import { RankingQueryService } from 'src/modules/ranking/ranking-query.service';
+import { KeywordRankService } from 'src/modules/ranking/infrastructure/persistence/keyword-rank.service';
+import { PopularRankService } from 'src/modules/ranking/infrastructure/persistence/popular-rank.service';
+import { RankingQueryService } from 'src/modules/ranking/application/ranking-query.service';
 import { MongoPopularRankingSourceAdapter } from 'src/modules/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
-import { User, UserSchema } from 'src/modules/user/entities/user.schema';
+import {
+  User,
+  UserSchema,
+} from 'src/modules/user/infrastructure/persistence/entities/user.schema';
 import fixtures from './fixtures/legacy-persistence.contract.json';
 import { rankingConfigFixture } from './support/typed-config.fixtures';
 

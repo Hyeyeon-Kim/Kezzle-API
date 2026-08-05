@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { Roles } from 'src/modules/user/entities/roles.enum';
+import { Roles } from 'src/modules/user/application/roles.enum';
 import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
 import { assertSelfOrAdmin } from './self-or-admin';
 
