@@ -1,18 +1,27 @@
-import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import { HomeMetrics } from 'src/home/application/home-metrics.port';
 import { HOME_CACHE_REDIS } from './home-cache.constants';
-import { positiveEnvMs, SwrEnvelope, SwrOptions } from './swr';
+import { SwrEnvelope, SwrOptions } from './swr';
+import { ConfigType } from '@nestjs/config';
+import homeConfig from 'src/config/home.config';
 
 @Injectable()
-export class HomeCacheService implements OnModuleDestroy {
+export class HomeCacheService implements OnApplicationShutdown {
   private readonly logger = new Logger(HomeCacheService.name);
   private redisAvailable = true;
 
   constructor(
     @Inject(HOME_CACHE_REDIS) private readonly redis: Redis | null,
     private readonly homeMetrics: HomeMetrics,
+    @Inject(homeConfig.KEY)
+    private readonly config: ConfigType<typeof homeConfig>,
   ) {
     this.redis?.on('ready', () => this.markAvailable());
     this.redis?.on('error', (error) => this.markUnavailable(error));
@@ -48,10 +57,55 @@ export class HomeCacheService implements OnModuleDestroy {
     return this.refreshAndStore(options);
   }
 
-  async onModuleDestroy(): Promise<void> {
-    if (this.redis && this.redis.status !== 'end') {
-      await this.redis.quit().catch(() => this.redis.disconnect());
+  // onModuleDestroy 는 ReadinessState 의 drain 대기(beforeApplicationShutdown)보다
+  // 먼저 실행되므로, drain 창 동안 Redis 를 유지하려면 HTTP close 이후인
+  // onApplicationShutdown 에서 정리해야 한다.
+  async onApplicationShutdown(): Promise<void> {
+    if (!this.redis) return;
+
+    try {
+      if (this.redis.status !== 'end') {
+        const quitFinished = await this.quitWithinShutdownLimit();
+        if (!quitFinished) {
+          this.redis.disconnect();
+        }
+      }
+    } finally {
+      this.redis.removeAllListeners();
     }
+  }
+
+  private async quitWithinShutdownLimit(): Promise<boolean> {
+    const limitMs = this.config.cache.commandTimeoutMs;
+    let timer: NodeJS.Timeout | undefined;
+    const deadline = new Promise<'timeout'>((resolve) => {
+      timer = setTimeout(() => resolve('timeout'), limitMs);
+    });
+
+    try {
+      const outcome = await Promise.race([this.redis.quit(), deadline]);
+      if (outcome === 'timeout') {
+        this.logger.warn(
+          `home cache Redis quit exceeded shutdown limit; forcing disconnect: limitMs=${limitMs}`,
+        );
+        return false;
+      }
+      return true;
+    } catch (error) {
+      this.logger.warn(
+        `home cache Redis quit failed; forcing disconnect: error=${this.errorName(
+          error,
+        )}`,
+      );
+      return false;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  healthStatus(): 'up' | 'down' | 'disabled' {
+    if (!this.redis) return 'disabled';
+    return this.redisAvailable && this.redis.status === 'ready' ? 'up' : 'down';
   }
 
   private async read<T>(key: string): Promise<SwrEnvelope<T> | null> {
@@ -90,7 +144,7 @@ export class HomeCacheService implements OnModuleDestroy {
   private async refreshStale<T>(options: SwrOptions<T>): Promise<void> {
     const lockKey = `${options.key}:lock`;
     const lockToken = randomUUID();
-    const lockTtlMs = positiveEnvMs('HOME_CACHE_LOCK_TTL_MS', 10_000);
+    const lockTtlMs = this.config.cache.lockTtlMs;
 
     try {
       const acquired = await this.redis.set(
@@ -142,11 +196,7 @@ export class HomeCacheService implements OnModuleDestroy {
   }
 
   private jitteredFreshTtl(freshTtlMs: number, staleTtlMs: number): number {
-    const configured = Number(process.env.HOME_CACHE_TTL_JITTER_PERCENT);
-    const jitterPercent =
-      Number.isFinite(configured) && configured >= 0
-        ? Math.min(configured, 100)
-        : 10;
+    const jitterPercent = this.config.cache.jitterPercent;
     const ratio = jitterPercent / 100;
     const jittered = freshTtlMs * (1 - ratio + Math.random() * ratio * 2);
     return Math.max(1, Math.min(Math.round(jittered), staleTtlMs));

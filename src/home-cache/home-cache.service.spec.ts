@@ -1,4 +1,5 @@
 import { HomeCacheService } from './home-cache.service';
+import { homeConfigFixture } from '../../test/support/typed-config.fixtures';
 
 describe('HomeCacheService', () => {
   const key = 'home:test';
@@ -11,6 +12,7 @@ describe('HomeCacheService', () => {
     eval: jest.Mock;
     quit: jest.Mock;
     disconnect: jest.Mock;
+    removeAllListeners: jest.Mock;
   };
   let metrics: { countCache: jest.Mock };
 
@@ -24,16 +26,16 @@ describe('HomeCacheService', () => {
       eval: jest.fn().mockResolvedValue(1),
       quit: jest.fn().mockResolvedValue('OK'),
       disconnect: jest.fn(),
+      removeAllListeners: jest.fn(),
     };
     metrics = { countCache: jest.fn() };
   });
 
-  afterEach(() => {
-    delete process.env.HOME_CACHE_TTL_JITTER_PERCENT;
-  });
-
-  function service(client: typeof redis | null = redis) {
-    return new HomeCacheService(client as never, metrics as never);
+  function service(
+    client: typeof redis | null = redis,
+    config: any = homeConfigFixture,
+  ) {
+    return new HomeCacheService(client as never, metrics as never, config);
   }
 
   function options(refresh = jest.fn().mockResolvedValue('origin')) {
@@ -64,9 +66,13 @@ describe('HomeCacheService', () => {
 
   it('loads and stores a cache miss', async () => {
     redis.get.mockResolvedValue(null);
-    process.env.HOME_CACHE_TTL_JITTER_PERCENT = '0';
-
-    await expect(service().getWithSwr(options())).resolves.toBe('origin');
+    const config = {
+      ...homeConfigFixture,
+      cache: { ...homeConfigFixture.cache, jitterPercent: 0 },
+    };
+    await expect(service(redis, config).getWithSwr(options())).resolves.toBe(
+      'origin',
+    );
 
     expect(metrics.countCache).toHaveBeenCalledWith('miss');
     expect(metrics.countCache).toHaveBeenCalledWith('refresh');
@@ -146,5 +152,48 @@ describe('HomeCacheService', () => {
     );
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(metrics.countCache).not.toHaveBeenCalled();
+  });
+
+  it('reports optional Redis health without affecting origin fallback policy', () => {
+    expect(service(null).healthStatus()).toBe('disabled');
+    expect(service().healthStatus()).toBe('up');
+
+    redis.status = 'reconnecting';
+    expect(service().healthStatus()).toBe('down');
+  });
+
+  it('quits Redis and removes listeners during shutdown', async () => {
+    const cache = service();
+
+    await cache.onApplicationShutdown();
+
+    expect(redis.quit).toHaveBeenCalledTimes(1);
+    expect(redis.disconnect).not.toHaveBeenCalled();
+    expect(redis.removeAllListeners).toHaveBeenCalledTimes(1);
+  });
+
+  it('forces disconnect when quit exceeds the shutdown limit', async () => {
+    redis.quit.mockReturnValue(new Promise(() => undefined));
+    const config = {
+      ...homeConfigFixture,
+      cache: { ...homeConfigFixture.cache, commandTimeoutMs: 20 },
+    };
+    const cache = service(redis, config);
+
+    await cache.onApplicationShutdown();
+
+    expect(redis.quit).toHaveBeenCalledTimes(1);
+    expect(redis.disconnect).toHaveBeenCalledTimes(1);
+    expect(redis.removeAllListeners).toHaveBeenCalledTimes(1);
+  });
+
+  it('forces disconnect when quit rejects during shutdown', async () => {
+    redis.quit.mockRejectedValue(new Error('quit failed'));
+    const cache = service();
+
+    await cache.onApplicationShutdown();
+
+    expect(redis.disconnect).toHaveBeenCalledTimes(1);
+    expect(redis.removeAllListeners).toHaveBeenCalledTimes(1);
   });
 });

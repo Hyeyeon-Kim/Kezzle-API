@@ -20,16 +20,17 @@ jest.mock('@nestjs/passport', () => ({
 }));
 
 describe('FirebaseAuthGuard home resilience auth bypass scope', () => {
-  const originalEnv = process.env;
-
   beforeEach(() => {
-    process.env = { ...originalEnv, NODE_ENV: 'test' };
     jest.clearAllMocks();
   });
 
-  afterAll(() => {
-    process.env = originalEnv;
-  });
+  const config = {
+    nodeEnv: 'test',
+    developmentBypass: false,
+    homeResilienceBypass: true,
+    homeResilienceUserId: 'load-test-user',
+    homeResilienceCakeLikeIds: ['cake-1', 'cake-2'],
+  };
 
   function createContext(request = {}): ExecutionContext {
     return {
@@ -42,10 +43,6 @@ describe('FirebaseAuthGuard home resilience auth bypass scope', () => {
   }
 
   it('allows synthetic user only for handlers with home resilience bypass metadata', () => {
-    process.env.HOME_RESILIENCE_AUTH_BYPASS = 'true';
-    process.env.HOME_RESILIENCE_USER_ID = 'load-test-user';
-    process.env.HOME_RESILIENCE_CAKE_LIKE_IDS = 'cake-1, cake-2';
-
     const request: any = {};
     const context = createContext(request);
     const reflector = {
@@ -54,7 +51,7 @@ describe('FirebaseAuthGuard home resilience auth bypass scope', () => {
         .mockReturnValueOnce(false)
         .mockReturnValueOnce(true),
     } as unknown as Reflector;
-    const guard = new FirebaseAuthGuard(reflector);
+    const guard = new FirebaseAuthGuard(reflector, config);
 
     expect(guard.canActivate(context)).toBe(true);
     expect(request.user).toMatchObject({
@@ -68,32 +65,53 @@ describe('FirebaseAuthGuard home resilience auth bypass scope', () => {
   });
 
   it('delegates to Passport for protected handlers without bypass metadata', () => {
-    process.env.HOME_RESILIENCE_AUTH_BYPASS = 'true';
-
     const request: any = {};
     const context = createContext(request);
     const reflector = {
       getAllAndOverride: jest.fn().mockReturnValue(false),
     } as unknown as Reflector;
-    const guard = new FirebaseAuthGuard(reflector);
+    const guard = new FirebaseAuthGuard(reflector, config);
 
     expect(guard.canActivate(context)).toBe('passport-can-activate');
     expect(request.user).toBeUndefined();
   });
 
   it('keeps public routes public before checking home resilience bypass metadata', () => {
-    process.env.HOME_RESILIENCE_AUTH_BYPASS = 'true';
-
     const request: any = {};
     const context = createContext(request);
     const reflector = {
       getAllAndOverride: jest.fn().mockReturnValue(true),
     } as unknown as Reflector;
-    const guard = new FirebaseAuthGuard(reflector);
+    const guard = new FirebaseAuthGuard(reflector, config);
 
     expect(guard.canActivate(context)).toBe(true);
     expect(request.user).toBeUndefined();
     expect(reflector.getAllAndOverride).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires an explicit flag for development authentication bypass', () => {
+    const request: any = {};
+    const context = createContext(request);
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue(false),
+    } as unknown as Reflector;
+
+    const disabled = new FirebaseAuthGuard(reflector, {
+      ...config,
+      nodeEnv: 'development',
+      developmentBypass: false,
+      homeResilienceBypass: false,
+    });
+    expect(disabled.canActivate(context)).toBe('passport-can-activate');
+
+    const enabled = new FirebaseAuthGuard(reflector, {
+      ...config,
+      nodeEnv: 'development',
+      developmentBypass: true,
+      homeResilienceBypass: false,
+    });
+    expect(enabled.canActivate(context)).toBe(true);
+    expect(request.user).toMatchObject({ firebaseUid: 'dev-mock-user' });
   });
 
   it('marks only the Home handler for home resilience auth bypass', () => {

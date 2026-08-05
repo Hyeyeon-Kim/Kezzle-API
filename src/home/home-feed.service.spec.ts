@@ -2,6 +2,7 @@ import { ServiceUnavailableException } from '@nestjs/common';
 import { HomeFeedService } from './home-feed.service';
 import { HomePresenter } from './api/home.presenter';
 import fixtures from '../../test/fixtures/type-boundary-read.contract.json';
+import { homeConfigFixture } from '../../test/support/typed-config.fixtures';
 
 function normalizeSectionDurations(response: unknown) {
   const normalized = JSON.parse(JSON.stringify(response));
@@ -14,11 +15,6 @@ function normalizeSectionDurations(response: unknown) {
 }
 
 describe('HomeFeedService', () => {
-  afterEach(() => {
-    delete process.env.HOME_HARD_DEADLINE_MS;
-    delete process.env.HOME_RECOMMEND_TIMEOUT_MS;
-  });
-
   const anniversary = {
     id: 'anniversary-id',
     name: '기념일',
@@ -48,6 +44,7 @@ describe('HomeFeedService', () => {
     popular?: jest.Mock;
     keywordRanks?: jest.Mock;
     newest?: jest.Mock;
+    config?: any;
   }) {
     const cakeService = {
       findRecommendationSeed: jest.fn().mockResolvedValue('seed-cake'),
@@ -113,6 +110,7 @@ describe('HomeFeedService', () => {
       curationQuery as never,
       homeMetrics as never,
       homeCache as never,
+      overrides?.config ?? homeConfigFixture,
     );
 
     return {
@@ -207,10 +205,16 @@ describe('HomeFeedService', () => {
   });
 
   it('responds at the hard deadline and aborts unfinished sections', async () => {
-    process.env.HOME_HARD_DEADLINE_MS = '80';
-    process.env.HOME_RECOMMEND_TIMEOUT_MS = '5000';
     let recommendSignal: AbortSignal | undefined;
     const { service } = createService({
+      config: {
+        ...homeConfigFixture,
+        hardDeadlineMs: 80,
+        sectionTimeoutMs: {
+          ...homeConfigFixture.sectionTimeoutMs,
+          recommendCakes: 5000,
+        },
+      },
       recommend: jest.fn((_seed: string, signal: AbortSignal) => {
         recommendSignal = signal;
         return new Promise((_, reject) => {

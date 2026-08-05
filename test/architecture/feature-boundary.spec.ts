@@ -37,7 +37,9 @@ import {
   S3_CLIENT,
   S3ObjectStorageAdapter,
 } from 'src/media/infrastructure/s3-object-storage.adapter';
+import { S3_STORAGE_CONFIG } from 'src/media/infrastructure/s3-storage.config';
 import { ObjectStorageModule } from 'src/media/object-storage.module';
+import storageConfig from 'src/config/storage.config';
 import { CakeMediaService } from 'src/cake/cake-media.service';
 import { CakeImportService } from 'src/cake/cake-import.service';
 import { StoreMediaService } from 'src/store/store-media.service';
@@ -790,6 +792,9 @@ describe('Feature boundary architecture', () => {
       (source) =>
         source.path === 'media/infrastructure/s3-object-storage.adapter.ts',
     );
+    const s3Config = productionSources.find(
+      (source) => source.path === 'media/infrastructure/s3-storage.config.ts',
+    );
     const storageProviders = moduleMetadata(
       ObjectStorageModule,
       MODULE_METADATA.PROVIDERS,
@@ -809,6 +814,9 @@ describe('Feature boundary architecture', () => {
     expect(applicationFrameworkImports).toEqual([]);
     expect(featureStorageViolations).toEqual([]);
     expect(adapter?.content).not.toContain('process.env');
+    expect(s3Config?.content).not.toMatch(
+      /process\.env|A_BUCKET_NAME|A_REGION|A_ACCESS_KEY_ID|A_SECRET_ACCESS_KEY/,
+    );
     expect(storageImports).toContain(MediaObservabilityModule);
     expect(storageProviders).toContain(S3ObjectStorageAdapter);
     expect(storageProviders).toContainEqual({
@@ -816,15 +824,18 @@ describe('Feature boundary architecture', () => {
       useExisting: S3ObjectStorageAdapter,
     });
     expect(storageExports).toEqual([ObjectStoragePort]);
-    expect(
-      storageProviders.filter(
-        (provider) =>
-          typeof provider === 'object' &&
-          provider !== null &&
-          'provide' in provider &&
-          provider.provide === S3_CLIENT,
-      ),
-    ).toHaveLength(1);
+    expect(storageProviders).toContainEqual(
+      expect.objectContaining({
+        provide: S3_STORAGE_CONFIG,
+        inject: [storageConfig.KEY],
+      }),
+    );
+    expect(storageProviders).toContainEqual(
+      expect.objectContaining({
+        provide: S3_CLIENT,
+        inject: [S3_STORAGE_CONFIG],
+      }),
+    );
   });
 
   it('keeps Cake and Store media orchestration in feature media services', () => {

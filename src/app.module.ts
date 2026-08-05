@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigType } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { UserModule } from './user/user.module';
 import { APP_GUARD, APP_PIPE } from '@nestjs/core';
@@ -19,18 +19,28 @@ import { FirebaseAuthGuard } from './auth/guard/firebase-auth.guard';
 import { RolesGuard } from './auth/guard/roles.guard';
 import { createValidationPipe } from './app.validation';
 import { CatalogQueryModule } from './catalog/catalog-query.module';
+import databaseConfig from './config/database.config';
+import appConfig from './config/app.config';
+import authConfig from './config/auth.config';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true,
+      isGlobal: false,
+      load: [appConfig, authConfig],
     }),
     ScheduleModule.forRoot(),
-    MongooseModule.forRoot(process.env.MONGODB_URL, {
-      user: process.env.MONGODB_USERNAME,
-      pass: process.env.MONGODB_PASSWORD,
-      dbName: process.env.MONGODB_DBNAME_MAIN,
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule.forFeature(databaseConfig)],
       connectionName: 'kezzle',
+      inject: [databaseConfig.KEY],
+      useFactory: (config: ConfigType<typeof databaseConfig>) => ({
+        uri: config.uri,
+        user: config.username,
+        pass: config.password,
+        dbName: config.dbName,
+      }),
     }),
     // Static rank routes must be discovered before composing modules pull in
     // Search/Cake parameter-route controllers.
@@ -47,6 +57,7 @@ import { CatalogQueryModule } from './catalog/catalog-query.module';
     AnniversaryModule,
     CounterModule,
     PrometheusEndpointModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [

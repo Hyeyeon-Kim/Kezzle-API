@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CakeExternalMapper } from 'src/cake/cake-external.mapper';
 import { KeywordEventReader } from 'src/search/application/port/keyword-event.reader';
 import {
@@ -7,11 +7,9 @@ import {
 } from './application/ranking.view';
 import { KeywordRankService } from './keyword-rank.service';
 import { PopularRankService } from './popular-rank.service';
-import {
-  computeRankWindow,
-  KEYWORD_RANK_WINDOW_DAYS_ENV,
-  POPULAR_RANK_WINDOW_DAYS_ENV,
-} from './rank-window';
+import { computeRankWindow } from './rank-window';
+import { ConfigType } from '@nestjs/config';
+import rankingConfig from 'src/config/ranking.config';
 
 @Injectable()
 export class RankingQueryService {
@@ -19,6 +17,8 @@ export class RankingQueryService {
     private readonly keywordRankService: KeywordRankService,
     private readonly popularRankService: PopularRankService,
     private readonly keywordEventReader: KeywordEventReader,
+    @Inject(rankingConfig.KEY)
+    private readonly config: ConfigType<typeof rankingConfig>,
   ) {}
 
   async getKeywordRank(
@@ -76,7 +76,7 @@ export class RankingQueryService {
   }
 
   getKeywordFallback(): KeywordRankingView {
-    const window = computeRankWindow(KEYWORD_RANK_WINDOW_DAYS_ENV);
+    const window = computeRankWindow(this.config.keywordWindowDays);
     return {
       ranking: [],
       startDate: window.startDate,
@@ -85,7 +85,7 @@ export class RankingQueryService {
   }
 
   getPopularFallback(): PopularRankingView {
-    const window = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
+    const window = computeRankWindow(this.config.popularWindowDays);
     return {
       cakes: [],
       startDate: window.startDate,

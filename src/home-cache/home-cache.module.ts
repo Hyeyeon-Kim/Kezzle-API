@@ -3,31 +3,22 @@ import Redis from 'ioredis';
 import { HomeObservabilityModule } from 'src/home/observability/home-observability.module';
 import { HOME_CACHE_REDIS } from './home-cache.constants';
 import { HomeCacheService } from './home-cache.service';
-import { validateHomeCachePolicies } from './home-cache.policy';
-import { positiveEnvMs } from './swr';
+import { ConfigModule, ConfigType } from '@nestjs/config';
+import homeConfig from 'src/config/home.config';
 
 @Module({
-  imports: [HomeObservabilityModule],
+  imports: [ConfigModule.forFeature(homeConfig), HomeObservabilityModule],
   providers: [
     {
       provide: HOME_CACHE_REDIS,
-      useFactory: (): Redis | null => {
-        validateHomeCachePolicies();
-        if (!process.env.REDIS_URL) {
+      inject: [homeConfig.KEY],
+      useFactory: (config: ConfigType<typeof homeConfig>): Redis | null => {
+        if (!config.cache.redisUrl) {
           return null;
         }
-
-        const commandTimeout = positiveEnvMs(
-          'HOME_CACHE_COMMAND_TIMEOUT_MS',
-          80,
-        );
-        const connectTimeout = positiveEnvMs(
-          'HOME_CACHE_CONNECT_TIMEOUT_MS',
-          1_000,
-        );
-        return new Redis(process.env.REDIS_URL, {
-          commandTimeout,
-          connectTimeout,
+        return new Redis(config.cache.redisUrl, {
+          commandTimeout: config.cache.commandTimeoutMs,
+          connectTimeout: config.cache.connectTimeoutMs,
           enableOfflineQueue: false,
           enableReadyCheck: false,
           maxRetriesPerRequest: 0,

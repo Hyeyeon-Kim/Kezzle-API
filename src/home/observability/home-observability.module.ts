@@ -2,9 +2,11 @@ import { Module } from '@nestjs/common';
 import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
 import { HomeMetrics } from '../application/home-metrics.port';
 import { PrometheusHomeMetricsAdapter } from './prometheus-home-metrics.adapter';
+import { ConfigModule } from '@nestjs/config';
+import homeConfig from 'src/config/home.config';
 
 @Module({
-  imports: [PrometheusRegistryModule],
+  imports: [ConfigModule.forFeature(homeConfig), PrometheusRegistryModule],
   providers: [
     PrometheusHomeMetricsAdapter,
     {

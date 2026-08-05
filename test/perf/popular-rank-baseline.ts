@@ -7,6 +7,7 @@ import {
 } from 'mongodb';
 import { MongoPopularRankingSourceAdapter } from '../../src/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
 import { PopularRankService } from '../../src/ranking/popular-rank.service';
+import { rankingConfigFixture } from '../support/typed-config.fixtures';
 
 type Pipeline = Record<string, unknown>[];
 type RankedCake = {
@@ -233,6 +234,7 @@ async function main(): Promise<void> {
     const popularRank = new PopularRankService(
       rankModel as never,
       sourceReader,
+      rankingConfigFixture,
     );
 
     const boundedStartedAt = process.hrtime.bigint();

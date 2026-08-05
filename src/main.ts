@@ -1,39 +1,32 @@
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { config as loadEnvFile } from 'dotenv';
 import { AppModule } from './app.module';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import * as admin from 'firebase-admin';
+import { ConfigType } from '@nestjs/config';
+import appConfig from './config/app.config';
+import { validateEnvironment } from './config/environment.validation';
+import { configureApplication } from './configure-application';
+import { ReadinessState } from './health/readiness-state';
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
+  loadEnvFile();
+  validateEnvironment();
   const app = await NestFactory.create(AppModule);
+  configureApplication(app);
+  const application = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
+  const readiness = app.get(ReadinessState);
 
-  if (
-    process.env.NODE_ENV === 'production' &&
-    process.env.HOME_RESILIENCE_AUTH_BYPASS === 'true'
-  ) {
-    throw new Error(
-      'HOME_RESILIENCE_AUTH_BYPASS must be disabled in production.',
-    );
-  }
-
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Kezzle API')
-    .setDescription('The Kezzle API description')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addSecurityRequirements('bearer')
-    .build();
-
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api-docs', app, document);
-
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    }),
-  });
-
-  await app.listen(3000);
+  await app.listen(application.port);
+  readiness.markReady();
 }
-bootstrap();
+
+bootstrap().catch((error: unknown) => {
+  const logger = new Logger('Bootstrap');
+  const detail =
+    error instanceof Error ? `${error.name}: ${error.message}` : 'UnknownError';
+  logger.error(
+    `bootstrap failed: ${detail}`,
+    error instanceof Error ? error.stack : undefined,
+  );
+  process.exit(1);
+});

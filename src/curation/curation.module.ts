@@ -9,9 +9,12 @@ import { CurationQueryService } from './curation-query.service';
 import { CurationRepository } from './curation.repository';
 import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
 import { CurationRefreshMetricsAdapter } from './curation-refresh-metrics.adapter';
+import { ConfigModule } from '@nestjs/config';
+import curationConfig from 'src/config/curation.config';
 
 @Module({
   imports: [
+    ConfigModule.forFeature(curationConfig),
     MongooseModule.forFeature(
       [{ name: Curation.name, schema: CurationSchema }],
       'kezzle',

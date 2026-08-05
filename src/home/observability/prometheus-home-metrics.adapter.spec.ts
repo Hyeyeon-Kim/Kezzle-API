@@ -1,23 +1,20 @@
 import { Registry } from 'prom-client';
 import { PrometheusHomeMetricsAdapter } from './prometheus-home-metrics.adapter';
+import { homeConfigFixture } from '../../../test/support/typed-config.fixtures';
 
 describe('PrometheusHomeMetricsAdapter', () => {
-  const originalEnabled = process.env.HOME_RESILIENCE_METRICS_ENABLED;
   let registry: Registry;
   let adapter: PrometheusHomeMetricsAdapter;
+  let config: any;
 
   beforeEach(() => {
     registry = new Registry();
-    adapter = new PrometheusHomeMetricsAdapter(registry);
+    config = { ...homeConfigFixture };
+    adapter = new PrometheusHomeMetricsAdapter(registry, config);
   });
 
   afterEach(() => {
     adapter.onModuleDestroy();
-    if (originalEnabled === undefined) {
-      delete process.env.HOME_RESILIENCE_METRICS_ENABLED;
-    } else {
-      process.env.HOME_RESILIENCE_METRICS_ENABLED = originalEnabled;
-    }
     jest.restoreAllMocks();
   });
 
@@ -52,7 +49,7 @@ describe('PrometheusHomeMetricsAdapter', () => {
   });
 
   it('keeps refreshes completed outside a request in cumulative totals', async () => {
-    process.env.HOME_RESILIENCE_METRICS_ENABLED = 'true';
+    config.jsonMetricsEnabled = true;
     const log = jest.spyOn(console, 'log').mockImplementation();
 
     adapter.countCache('refresh');
@@ -91,7 +88,6 @@ describe('PrometheusHomeMetricsAdapter', () => {
   });
 
   it('keeps Prometheus active while disabled JSON flush stays silent', async () => {
-    process.env.HOME_RESILIENCE_METRICS_ENABLED = 'false';
     const log = jest.spyOn(console, 'log').mockImplementation();
 
     await adapter.run(async () => {
@@ -112,7 +108,7 @@ describe('PrometheusHomeMetricsAdapter', () => {
   });
 
   it('keeps parallel request JSON contexts isolated', async () => {
-    process.env.HOME_RESILIENCE_METRICS_ENABLED = 'true';
+    config.jsonMetricsEnabled = true;
     const log = jest.spyOn(console, 'log').mockImplementation();
     let releaseFirst: () => void = () => undefined;
     const firstBlocked = new Promise<void>((resolve) => {

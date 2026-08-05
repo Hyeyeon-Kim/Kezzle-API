@@ -1,12 +1,17 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  OnModuleDestroy,
+} from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CurationService } from './curation.service';
 import { CurationRepository } from './curation.repository';
 import { CurationRefreshMetricsAdapter } from './curation-refresh-metrics.adapter';
+import curationConfig from 'src/config/curation.config';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_REFRESH_INTERVAL_MS = 600000;
 const REFRESH_INTERVAL_NAME = 'curation-refresh';
 
 export type CurationRefreshResult = {
@@ -24,12 +29,13 @@ export type CurationRefreshResult = {
  * - 실패는 즉시 재시도하지 않고 다음 주기에 자연 재시도한다 (홈은 기존 데이터로 응답).
  */
 @Injectable()
-export class CurationRefreshService implements OnApplicationBootstrap {
+export class CurationRefreshService
+  implements OnApplicationBootstrap, OnModuleDestroy
+{
   private readonly logger = new Logger(CurationRefreshService.name);
   private running = false;
 
-  // ConfigModule 이 .env 를 로드한 뒤 생성자에서 읽으므로 .env 값이 반영된다.
-  // (기존에는 module import 시점에 process.env 를 읽어 .env 설정이 무시됐다.)
+  // ConfigModule 이 .env 를 로드한 뒤 생성자에 typed config를 주입한다.
   private readonly refreshEnabled: boolean;
   private readonly refreshIntervalMs: number;
   private readonly staleMs: number;
@@ -40,29 +46,13 @@ export class CurationRefreshService implements OnApplicationBootstrap {
     private readonly curationRepository: CurationRepository,
     private readonly curationService: CurationService,
     private readonly metrics: CurationRefreshMetricsAdapter,
-    private readonly config: ConfigService,
+    @Inject(curationConfig.KEY)
+    config: ConfigType<typeof curationConfig>,
     private readonly schedulerRegistry: SchedulerRegistry,
   ) {
-    const configuredIntervalMs = Number(
-      this.config.get<string>('CURATION_REFRESH_INTERVAL_MS'),
-    );
-    // 0 이하로 설정하면 스케줄러를 비활성화한다(로컬/테스트용).
-    this.refreshEnabled = !(
-      Number.isFinite(configuredIntervalMs) && configuredIntervalMs <= 0
-    );
-    this.refreshIntervalMs =
-      Number.isFinite(configuredIntervalMs) && configuredIntervalMs > 0
-        ? configuredIntervalMs
-        : DEFAULT_REFRESH_INTERVAL_MS;
-
-    const configuredStaleMs = Number(
-      this.config.get<string>('CURATION_STALE_MS'),
-    );
-    // 기존 홈 경로의 stale 기준(3일)을 그대로 유지한다.
-    this.staleMs =
-      Number.isFinite(configuredStaleMs) && configuredStaleMs > 0
-        ? configuredStaleMs
-        : 3 * DAY_MS;
+    this.refreshEnabled = config.refreshEnabled;
+    this.refreshIntervalMs = config.refreshIntervalMs;
+    this.staleMs = config.staleMs;
 
     this.claimTtlMs = this.refreshIntervalMs;
   }
@@ -84,6 +74,12 @@ export class CurationRefreshService implements OnApplicationBootstrap {
     this.logger.log(
       `curation refresh scheduled: intervalMs=${this.refreshIntervalMs} staleMs=${this.staleMs}`,
     );
+  }
+
+  onModuleDestroy(): void {
+    if (this.schedulerRegistry.doesExist('interval', REFRESH_INTERVAL_NAME)) {
+      this.schedulerRegistry.deleteInterval(REFRESH_INTERVAL_NAME);
+    }
   }
 
   async handleInterval(): Promise<void> {

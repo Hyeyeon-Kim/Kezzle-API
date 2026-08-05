@@ -1,9 +1,9 @@
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Strategy, ExtractJwt } from 'passport-firebase-jwt';
-import { auth } from 'firebase-admin';
 import { UserService } from 'src/user/user.service';
-import { Reflector } from '@nestjs/core';
+import { FirebaseTokenVerifier } from '../application/firebase-token-verifier.port';
+import { verifyTokenOrThrowUnauthorized } from '../application/verify-token';
 
 @Injectable()
 export class FirebaseAuthStrategy extends PassportStrategy(
@@ -11,21 +11,19 @@ export class FirebaseAuthStrategy extends PassportStrategy(
   'firebase-auth',
 ) {
   constructor(
-    private readonly reflector: Reflector,
     private readonly userservice: UserService,
+    private readonly tokenVerifier: FirebaseTokenVerifier,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
     });
   }
 
-  async validate(token) {
-    const firebaseUser: any = await auth()
-      .verifyIdToken(token, true)
-      .catch((err) => {
-        throw new UnauthorizedException(err.message);
-      });
-
-    return this.userservice.findAuthenticatedUser(firebaseUser.uid);
+  async validate(token: string) {
+    const verifiedUser = await verifyTokenOrThrowUnauthorized(
+      this.tokenVerifier,
+      token,
+    );
+    return this.userservice.findAuthenticatedUser(verifiedUser.uid);
   }
 }

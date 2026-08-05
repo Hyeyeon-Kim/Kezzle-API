@@ -15,9 +15,12 @@ import { MongoPopularRankingSourceAdapter } from './infrastructure/persistence/m
 import { PopularRankService } from './popular-rank.service';
 import { RankingController } from './ranking.controller';
 import { RankingQueryService } from './ranking-query.service';
+import { ConfigModule } from '@nestjs/config';
+import rankingConfig from 'src/config/ranking.config';
 
 @Module({
   imports: [
+    ConfigModule.forFeature(rankingConfig),
     SearchEventModule,
     MongooseModule.forFeature(
       [{ name: KeywordRank.name, schema: KeywordRankSchema }],

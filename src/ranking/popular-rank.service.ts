@@ -1,26 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { PopularRankingSourceReader } from './application/popular-ranking-source.reader';
 import { PopularCakeRank } from './infrastructure/persistence/popular-cake-rank.schema';
-import {
-  computeRankWindow,
-  POPULAR_RANK_WINDOW_DAYS_ENV,
-  toDateString,
-} from './rank-window';
+import { computeRankWindow, toDateString } from './rank-window';
+import { ConfigType } from '@nestjs/config';
+import rankingConfig from 'src/config/ranking.config';
 
 // 대표 fixture의 대규모 동점 score bucket 뒤 다음 page까지 포함하되 source/read model은 bounded 상태를 유지한다.
 const POPULAR_RANK_TOP_N = 1000;
-const configuredSourceMaxTimeMs = Number(
-  process.env.POPULAR_RANK_SOURCE_MAX_TIME_MS ?? 5000,
-);
-const POPULAR_RANK_SOURCE_MAX_TIME_MS =
-  Number.isFinite(configuredSourceMaxTimeMs) && configuredSourceMaxTimeMs > 0
-    ? configuredSourceMaxTimeMs
-    : 5000;
-// staleness 임계. 이 시간이 지나면 다음 조회에서 백그라운드 갱신을 1회 트리거한다.
-const POPULAR_RANK_TTL_MS = Number(process.env.POPULAR_RANK_TTL_MS ?? 600000);
-
 /**
  * 홈 Popular 섹션 랭킹을 사전 계산 read model 로 제공한다.
  *
@@ -37,6 +25,8 @@ export class PopularRankService {
     @InjectModel(PopularCakeRank.name, 'kezzle')
     private readonly rankModel: Model<PopularCakeRank>,
     private readonly sourceReader: PopularRankingSourceReader,
+    @Inject(rankingConfig.KEY)
+    private readonly config: ConfigType<typeof rankingConfig>,
   ) {}
 
   /**
@@ -67,7 +57,7 @@ export class PopularRankService {
       latest = await refreshedQuery.lean();
       if (!latest) {
         // window 내 로그가 없어 배치가 비었다. 빈 랭킹을 정상 응답한다.
-        const window = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
+        const window = computeRankWindow(this.config.popularWindowDays);
         return {
           cakes: [],
           startDate: window.startDate,
@@ -119,7 +109,7 @@ export class PopularRankService {
         endDate: toDateString(new Date(latest.windowEnd)),
       };
     }
-    const window = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
+    const window = computeRankWindow(this.config.popularWindowDays);
     return { startDate: window.startDate, endDate: window.endDate };
   }
 
@@ -134,12 +124,12 @@ export class PopularRankService {
     if (this.refreshing) return;
     this.refreshing = true;
     try {
-      const window = computeRankWindow(POPULAR_RANK_WINDOW_DAYS_ENV);
+      const window = computeRankWindow(this.config.popularWindowDays);
       const ranked = await this.sourceReader.findTop({
         start: window.start,
         end: window.end,
         limit: POPULAR_RANK_TOP_N,
-        maxTimeMs: POPULAR_RANK_SOURCE_MAX_TIME_MS,
+        maxTimeMs: this.config.popularSourceMaxTimeMs,
       });
 
       const computedAt = new Date();
@@ -180,7 +170,7 @@ export class PopularRankService {
   private maybeRefreshInBackground(computedAt?: Date): void {
     if (!computedAt) return;
     const age = Date.now() - new Date(computedAt).getTime();
-    if (age <= POPULAR_RANK_TTL_MS) return;
+    if (age <= this.config.popularTtlMs) return;
     if (this.refreshing) return;
 
     // fire-and-forget (curations 백그라운드 갱신 패턴과 동일). 실패해도 조회는 stale 데이터로 응답한다.

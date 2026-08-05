@@ -1,19 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { KeywordEventReader } from 'src/search/application/port/keyword-event.reader';
 import { KeywordRank } from './infrastructure/persistence/keyword-rank.schema';
-import {
-  computeRankWindow,
-  KEYWORD_RANK_WINDOW_DAYS_ENV,
-  toDateString,
-} from './rank-window';
+import { computeRankWindow, toDateString } from './rank-window';
+import { ConfigType } from '@nestjs/config';
+import rankingConfig from 'src/config/ranking.config';
 
 // read model 에 미리 적재해 둘 상위 랭킹 수. 홈 필요량(4)보다 여유를 둔다.
 const KEYWORD_RANK_TOP_N = 20;
 // staleness 임계. 이 시간이 지나면 다음 조회에서 백그라운드 갱신을 1회 트리거한다.
-const KEYWORD_RANK_TTL_MS = Number(process.env.KEYWORD_RANK_TTL_MS ?? 600000);
-
 export type RankedKeywords = {
   ranking: { _id: string; count: number }[];
   startDate: string;
@@ -36,6 +32,8 @@ export class KeywordRankService {
     @InjectModel(KeywordRank.name, 'kezzle')
     private readonly rankModel: Model<KeywordRank>,
     private readonly keywordEventReader: KeywordEventReader,
+    @Inject(rankingConfig.KEY)
+    private readonly config: ConfigType<typeof rankingConfig>,
   ) {}
 
   /**
@@ -52,7 +50,7 @@ export class KeywordRankService {
       latest = await this.latestQuery(maxTimeMs).lean();
       if (!latest) {
         // window 내 로그가 없어 배치가 비었다. 빈 랭킹을 정상 응답한다.
-        const window = computeRankWindow(KEYWORD_RANK_WINDOW_DAYS_ENV);
+        const window = computeRankWindow(this.config.keywordWindowDays);
         return {
           ranking: [],
           startDate: window.startDate,
@@ -87,7 +85,7 @@ export class KeywordRankService {
     if (this.refreshing) return;
     this.refreshing = true;
     try {
-      const window = computeRankWindow(KEYWORD_RANK_WINDOW_DAYS_ENV);
+      const window = computeRankWindow(this.config.keywordWindowDays);
       const ranked = await this.keywordEventReader.getRanked(
         window.start.toISOString(),
         window.end.toISOString(),
@@ -146,7 +144,7 @@ export class KeywordRankService {
         endDate: toDateString(new Date(latest.windowEnd)),
       };
     }
-    const window = computeRankWindow(KEYWORD_RANK_WINDOW_DAYS_ENV);
+    const window = computeRankWindow(this.config.keywordWindowDays);
     return { startDate: window.startDate, endDate: window.endDate };
   }
 
@@ -154,7 +152,7 @@ export class KeywordRankService {
   private maybeRefreshInBackground(computedAt?: Date): void {
     if (!computedAt) return;
     const age = Date.now() - new Date(computedAt).getTime();
-    if (age <= KEYWORD_RANK_TTL_MS) return;
+    if (age <= this.config.keywordTtlMs) return;
     if (this.refreshing) return;
 
     // fire-and-forget. 실패해도 조회는 stale 데이터로 응답한다.
