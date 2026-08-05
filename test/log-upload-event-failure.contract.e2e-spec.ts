@@ -7,23 +7,23 @@ import {
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { ClipClient } from 'src/ai-search/clip-client';
-import { RolesGuard } from 'src/auth/guard/roles.guard';
-import { CakeLikePort } from 'src/cake/cake-like.port';
-import { LikedStoreCatalogReader } from 'src/catalog/liked-store-catalog.reader';
-import { LikePresenter } from 'src/like/api/like.presenter';
-import { LikeController } from 'src/like/like.controller';
-import { LikeService } from 'src/like/like.service';
-import { CakeLikeEventRecorder } from 'src/like/application/port/cake-like-event-recorder.port';
-import { CakeLikeEventMetricsAdapter } from 'src/like/cake-like-event-metrics.adapter';
-import { SearchEventRecorder } from 'src/search/application/port/search-event-recorder.port';
-import { SearchHistoryReader } from 'src/search/application/port/search-history.reader';
-import { SearchController } from 'src/search/search.controller';
-import { SearchService } from 'src/search/search.service';
-import { SearchEventMetricsAdapter } from 'src/search/search-event-metrics.adapter';
-import { StoreLikePort } from 'src/store/store-like.port';
-import { Roles } from 'src/user/entities/roles.enum';
-import { UserLikePort } from 'src/user/user-like.port';
+import { ClipClient } from 'src/integrations/ai-search/clip-client';
+import { RolesGuard } from 'src/platform/auth/guard/roles.guard';
+import { CakeLikePort } from 'src/modules/cake/cake-like.port';
+import { LikedStoreCatalogReader } from 'src/modules/catalog/liked-store-catalog.reader';
+import { LikePresenter } from 'src/modules/like/api/like.presenter';
+import { LikeController } from 'src/modules/like/like.controller';
+import { LikeService } from 'src/modules/like/like.service';
+import { CakeLikeEventRecorder } from 'src/modules/like/application/port/cake-like-event-recorder.port';
+import { CakeLikeEventMetricsAdapter } from 'src/modules/like/cake-like-event-metrics.adapter';
+import { SearchEventRecorder } from 'src/modules/search/application/port/search-event-recorder.port';
+import { SearchHistoryReader } from 'src/modules/search/application/port/search-history.reader';
+import { SearchController } from 'src/modules/search/search.controller';
+import { SearchService } from 'src/modules/search/search.service';
+import { SearchEventMetricsAdapter } from 'src/modules/search/search-event-metrics.adapter';
+import { StoreLikePort } from 'src/modules/store/store-like.port';
+import { Roles } from 'src/modules/user/entities/roles.enum';
+import { UserLikePort } from 'src/modules/user/user-like.port';
 
 @Injectable()
 class EventFailureContractGuard implements CanActivate {

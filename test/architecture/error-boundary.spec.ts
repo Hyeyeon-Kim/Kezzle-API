@@ -34,7 +34,9 @@ describe('Error boundary architecture', () => {
 
   it('keeps CustomExceptionFilter deleted and the Nest default boundary unmodified', () => {
     expect(
-      existsSync(join(sourceRoot, 'config/custom-exception.filter.ts')),
+      existsSync(
+        join(sourceRoot, 'platform/config/custom-exception.filter.ts'),
+      ),
     ).toBe(false);
 
     const filterRegistrations = productionSources

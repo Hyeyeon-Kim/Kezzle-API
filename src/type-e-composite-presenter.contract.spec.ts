@@ -1,5 +1,5 @@
-import { CatalogPresenter } from './catalog/api/catalog.presenter';
-import { LikePresenter } from './like/api/like.presenter';
+import { CatalogPresenter } from './modules/catalog/api/catalog.presenter';
+import { LikePresenter } from './modules/like/api/like.presenter';
 import fixtures from '../test/fixtures/catalog-like-read.contract.json';
 
 const json = (value: unknown) => JSON.parse(JSON.stringify(value));

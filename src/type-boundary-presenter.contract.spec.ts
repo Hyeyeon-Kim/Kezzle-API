@@ -1,12 +1,12 @@
 import fixtures from '../test/fixtures/type-boundary-read.contract.json';
-import { CakePresenter } from './cake/cake.presenter';
-import { ImageExternalMapper } from './common/image/image-external.mapper';
-import { CurationPresenter } from './curation/curation.presenter';
-import { RankingPresenter } from './ranking/api/ranking.presenter';
-import { SearchPresenter } from './search/search.presenter';
-import { StorePresenter } from './store/store.presenter';
-import { Roles } from './user/entities/roles.enum';
-import { UserPresenter } from './user/user.presenter';
+import { CakePresenter } from './modules/cake/cake.presenter';
+import { ImageExternalMapper } from './shared/image/image-external.mapper';
+import { CurationPresenter } from './modules/curation/curation.presenter';
+import { RankingPresenter } from './modules/ranking/api/ranking.presenter';
+import { SearchPresenter } from './modules/search/search.presenter';
+import { StorePresenter } from './modules/store/store.presenter';
+import { Roles } from './modules/user/entities/roles.enum';
+import { UserPresenter } from './modules/user/user.presenter';
 
 const toCakeView = (cake: any, liked = false) => ({
   id: cake._id,

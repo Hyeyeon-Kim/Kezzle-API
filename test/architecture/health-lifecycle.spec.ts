@@ -7,7 +7,7 @@ function source(path: string): string {
 
 describe('health and shutdown architecture', () => {
   it('keeps both health routes public and outside Swagger', () => {
-    const controller = source('src/health/health.controller.ts');
+    const controller = source('src/platform/health/health.controller.ts');
 
     expect(controller.match(/@Public\(\)/g)).toHaveLength(2);
     expect(controller).toContain('@ApiExcludeController()');
@@ -36,7 +36,7 @@ describe('health and shutdown architecture', () => {
   });
 
   it('keeps Mongo required and Redis optional/degraded in readiness policy', () => {
-    const health = source('src/health/health.service.ts');
+    const health = source('src/platform/health/health.service.ts');
 
     expect(health).toContain("mongo === 'down'");
     expect(health).toContain("redis === 'down'");

@@ -1,36 +1,36 @@
 import { Connection, Model, createConnection } from 'mongoose';
 import { ObjectId } from 'mongodb';
-import { Cake, CakeSchema } from 'src/cake/entities/cake.schema';
-import { CurationPersistenceMapper } from 'src/curation/curation.persistence-mapper';
-import { CurationRepository } from 'src/curation/curation.repository';
+import { Cake, CakeSchema } from 'src/modules/cake/entities/cake.schema';
+import { CurationPersistenceMapper } from 'src/modules/curation/curation.persistence-mapper';
+import { CurationRepository } from 'src/modules/curation/curation.repository';
 import {
   Curation,
   CurationSchema,
-} from 'src/curation/entities/curation.schema';
-import { Store, StoreSchema } from 'src/store/entities/store.schema';
-import { SearchEventRepository } from 'src/search/infrastructure/persistence/search-event.repository';
+} from 'src/modules/curation/entities/curation.schema';
+import { Store, StoreSchema } from 'src/modules/store/entities/store.schema';
+import { SearchEventRepository } from 'src/modules/search/infrastructure/persistence/search-event.repository';
 import {
   KeywordLog,
   KeywordLogSchema,
-} from 'src/search/infrastructure/persistence/search-event.schema';
-import { CakeLikeEventRepository } from 'src/like/infrastructure/persistence/cake-like-event.repository';
+} from 'src/modules/search/infrastructure/persistence/search-event.schema';
+import { CakeLikeEventRepository } from 'src/modules/like/infrastructure/persistence/cake-like-event.repository';
 import {
   CakeLikeLog,
   CakeLikeLogSchema,
-} from 'src/like/infrastructure/persistence/cake-like-event.schema';
+} from 'src/modules/like/infrastructure/persistence/cake-like-event.schema';
 import {
   KeywordRank,
   KeywordRankSchema,
-} from 'src/ranking/infrastructure/persistence/keyword-rank.schema';
+} from 'src/modules/ranking/infrastructure/persistence/keyword-rank.schema';
 import {
   PopularCakeRank,
   PopularCakeRankSchema,
-} from 'src/ranking/infrastructure/persistence/popular-cake-rank.schema';
-import { KeywordRankService } from 'src/ranking/keyword-rank.service';
-import { PopularRankService } from 'src/ranking/popular-rank.service';
-import { RankingQueryService } from 'src/ranking/ranking-query.service';
-import { MongoPopularRankingSourceAdapter } from 'src/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
-import { User, UserSchema } from 'src/user/entities/user.schema';
+} from 'src/modules/ranking/infrastructure/persistence/popular-cake-rank.schema';
+import { KeywordRankService } from 'src/modules/ranking/keyword-rank.service';
+import { PopularRankService } from 'src/modules/ranking/popular-rank.service';
+import { RankingQueryService } from 'src/modules/ranking/ranking-query.service';
+import { MongoPopularRankingSourceAdapter } from 'src/modules/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
+import { User, UserSchema } from 'src/modules/user/entities/user.schema';
 import fixtures from './fixtures/legacy-persistence.contract.json';
 import { rankingConfigFixture } from './support/typed-config.fixtures';
 

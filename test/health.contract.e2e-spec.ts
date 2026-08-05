@@ -2,11 +2,11 @@ import { INestApplication } from '@nestjs/common';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import appConfig from 'src/config/app.config';
-import { HealthController } from 'src/health/health.controller';
-import { HealthService } from 'src/health/health.service';
-import { ReadinessState } from 'src/health/readiness-state';
-import { HomeCacheService } from 'src/home-cache/home-cache.service';
+import appConfig from 'src/platform/config/app.config';
+import { HealthController } from 'src/platform/health/health.controller';
+import { HealthService } from 'src/platform/health/health.service';
+import { ReadinessState } from 'src/platform/health/readiness-state';
+import { HomeCacheService } from 'src/modules/home/infrastructure/cache/home-cache.service';
 
 describe('Health HTTP contract (e2e)', () => {
   let app: INestApplication;

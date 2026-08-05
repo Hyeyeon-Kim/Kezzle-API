@@ -153,15 +153,18 @@ describe('Observability architecture', () => {
         : [],
     );
     const controller = readFileSync(
-      join(sourceRoot, 'observability/prometheus/prometheus.controller.ts'),
+      join(
+        sourceRoot,
+        'platform/observability/prometheus/prometheus.controller.ts',
+      ),
       'utf8',
     );
 
     expect(registryConstruction).toEqual([
-      'observability/prometheus/prometheus-registry.provider.ts',
+      'platform/observability/prometheus/prometheus-registry.provider.ts',
     ]);
     expect(defaultCollection).toEqual([
-      'observability/prometheus/prometheus-registry.provider.ts',
+      'platform/observability/prometheus/prometheus-registry.provider.ts',
     ]);
     expect(globalRegisterUsage).toEqual([]);
     expect(controller).toContain('@Inject(PROMETHEUS_REGISTRY)');
@@ -213,8 +216,8 @@ describe('Observability architecture', () => {
       )
       .map((source) => source.path);
     const homeConsumers = [
-      'home/home-feed.service.ts',
-      'home-cache/home-cache.service.ts',
+      'modules/home/home-feed.service.ts',
+      'modules/home/infrastructure/cache/home-cache.service.ts',
     ].map((path) => ({
       path,
       content: readFileSync(join(sourceRoot, path), 'utf8'),

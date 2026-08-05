@@ -1,29 +1,29 @@
 import { Test, TestingModuleBuilder } from '@nestjs/testing';
 import { AppModule } from 'src/app.module';
-import { FirebaseTokenVerifier } from 'src/auth/application/firebase-token-verifier.port';
-import { FirebaseAppProvider } from 'src/auth/infrastructure/firebase/firebase-app.provider';
+import { FirebaseTokenVerifier } from 'src/platform/auth/application/firebase-token-verifier.port';
+import { FirebaseAppProvider } from 'src/platform/auth/infrastructure/firebase/firebase-app.provider';
 import {
   FIREBASE_APP,
   FIREBASE_AUTH_CLIENT,
-} from 'src/auth/infrastructure/firebase/firebase.constants';
-import aiConfig from 'src/config/ai.config';
-import appConfig from 'src/config/app.config';
-import authConfig from 'src/config/auth.config';
-import curationConfig from 'src/config/curation.config';
-import databaseConfig from 'src/config/database.config';
-import firebaseConfig from 'src/config/firebase.config';
-import homeConfig from 'src/config/home.config';
-import rankingConfig from 'src/config/ranking.config';
-import storageConfig from 'src/config/storage.config';
-import { ObjectStoragePort } from 'src/media/application/object-storage.port';
+} from 'src/platform/auth/infrastructure/firebase/firebase.constants';
+import aiConfig from 'src/platform/config/ai.config';
+import appConfig from 'src/platform/config/app.config';
+import authConfig from 'src/platform/config/auth.config';
+import curationConfig from 'src/platform/config/curation.config';
+import databaseConfig from 'src/platform/config/database.config';
+import firebaseConfig from 'src/platform/config/firebase.config';
+import homeConfig from 'src/platform/config/home.config';
+import rankingConfig from 'src/platform/config/ranking.config';
+import storageConfig from 'src/platform/config/storage.config';
+import { ObjectStoragePort } from 'src/integrations/media/application/object-storage.port';
 import {
   S3_CLIENT,
   S3Client,
-} from 'src/media/infrastructure/s3-object-storage.adapter';
+} from 'src/integrations/media/infrastructure/s3-object-storage.adapter';
 import {
   S3_STORAGE_CONFIG,
   S3StorageConfig,
-} from 'src/media/infrastructure/s3-storage.config';
+} from 'src/integrations/media/infrastructure/s3-storage.config';
 import {
   aiConfigFixture,
   authConfigFixture,

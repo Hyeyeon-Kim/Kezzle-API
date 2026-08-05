@@ -4,7 +4,10 @@ import { TestingModule } from '@nestjs/testing';
 import { Connection } from 'mongoose';
 import request from 'supertest';
 import * as XLSX from 'xlsx';
-import { IMAGE_MAX_BYTES, EXCEL_MAX_BYTES } from 'src/media/api/upload-limits';
+import {
+  IMAGE_MAX_BYTES,
+  EXCEL_MAX_BYTES,
+} from 'src/integrations/media/api/upload-limits';
 import uploadContract from './fixtures/upload-limits.contract.json';
 import { createFullAppE2eBuilder } from './support/full-app-e2e.builder';
 import {

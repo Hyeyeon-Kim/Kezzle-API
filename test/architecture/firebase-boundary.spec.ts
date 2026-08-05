@@ -30,8 +30,8 @@ describe('Firebase infrastructure boundary', () => {
       .filter(
         (file) =>
           ![
-            'auth/infrastructure/firebase/firebase-app.provider.ts',
-            'auth/infrastructure/firebase/firebase-admin-token-verifier.adapter.ts',
+            'platform/auth/infrastructure/firebase/firebase-app.provider.ts',
+            'platform/auth/infrastructure/firebase/firebase-admin-token-verifier.adapter.ts',
           ].includes(file.path),
       )
       .map((file) => file.path);

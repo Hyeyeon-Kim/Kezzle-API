@@ -8,10 +8,10 @@ import {
 import { AuthGuard, PassportModule } from '@nestjs/passport';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { FirebaseTokenVerifier } from 'src/auth/application/firebase-token-verifier.port';
-import { TokenVerificationError } from 'src/auth/application/token-verification.error';
-import { FirebaseAuthStrategy } from 'src/auth/stategies/firebase-auth.stategies';
-import { UserService } from 'src/user/user.service';
+import { FirebaseTokenVerifier } from 'src/platform/auth/application/firebase-token-verifier.port';
+import { TokenVerificationError } from 'src/platform/auth/application/token-verification.error';
+import { FirebaseAuthStrategy } from 'src/platform/auth/strategies/firebase-auth.strategy';
+import { UserService } from 'src/modules/user/user.service';
 
 @Controller('firebase-auth-contract')
 class FirebaseAuthContractController {

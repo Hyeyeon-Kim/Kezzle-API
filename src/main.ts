@@ -3,10 +3,10 @@ import { NestFactory } from '@nestjs/core';
 import { config as loadEnvFile } from 'dotenv';
 import { AppModule } from './app.module';
 import { ConfigType } from '@nestjs/config';
-import appConfig from './config/app.config';
-import { validateEnvironment } from './config/environment.validation';
+import appConfig from './platform/config/app.config';
+import { validateEnvironment } from './platform/config/environment.validation';
 import { configureApplication } from './configure-application';
-import { ReadinessState } from './health/readiness-state';
+import { ReadinessState } from './platform/health/readiness-state';
 
 async function bootstrap(): Promise<void> {
   loadEnvFile();

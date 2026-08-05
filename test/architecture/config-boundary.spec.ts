@@ -24,7 +24,7 @@ describe('Typed config architecture boundary', () => {
 
   it('keeps direct environment access inside config composition only', () => {
     const violations = files
-      .filter((file) => !file.path.startsWith('config/'))
+      .filter((file) => !file.path.startsWith('platform/config/'))
       .filter((file) => /process\.env/.test(file.content))
       .map((file) => file.path);
 
@@ -53,7 +53,7 @@ describe('Typed config architecture boundary', () => {
 
   it('registers the shared AI transport timeout from typed config', () => {
     const aiModule = readFileSync(
-      join(srcRoot, 'ai-search/ai-search.module.ts'),
+      join(srcRoot, 'integrations/ai-search/ai-search.module.ts'),
       'utf8',
     );
 
