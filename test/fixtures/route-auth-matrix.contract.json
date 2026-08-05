@@ -4,8 +4,9 @@
     "path": "/users",
     "policy": "public",
     "requestProfile": "register-user",
+    "knownDeviation": "An anonymous request without a Firebase Authorization header currently returns 500; this Phase A matrix records the existing behavior without changing the route.",
     "principals": {
-      "anonymous": "allow",
+      "anonymous": 500,
       "buyerSelf": "allow",
       "buyerOther": "allow",
       "sellerOwner": "allow",

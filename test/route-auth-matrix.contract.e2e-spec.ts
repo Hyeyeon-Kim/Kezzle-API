@@ -17,7 +17,7 @@ import {
   seedRouteAuthMatrix,
 } from './support/route-auth-matrix.fixtures';
 
-type ExpectedAuthOutcome = 'allow' | 401 | 403;
+type ExpectedAuthOutcome = 'allow' | 401 | 403 | 500;
 type RequestProfile =
   | 'register-user'
   | 'update-user'
@@ -239,9 +239,13 @@ describe('Route authorization matrix contract (e2e)', () => {
   ): request.Test {
     switch (profile) {
       case 'register-user':
-        return httpRequest
-          .set('Authorization', `Bearer auth-matrix-registration-${principal}`)
-          .send({ nickname: `registered-${principal}` });
+        if (principal !== 'anonymous') {
+          httpRequest.set(
+            'Authorization',
+            `Bearer auth-matrix-registration-${principal}`,
+          );
+        }
+        return httpRequest.send({ nickname: `registered-${principal}` });
       case 'update-user':
         return httpRequest.send({ nickname: 'updated-by-auth-matrix' });
       case 'page':

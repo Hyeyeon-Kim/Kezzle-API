@@ -52,6 +52,31 @@ function createXlsx(imageName = 'cake.png'): Buffer {
   return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 }
 
+function createEmptyZip(entryName: string): Buffer {
+  const name = Buffer.from(entryName, 'utf8');
+  const localHeader = Buffer.alloc(30);
+  localHeader.writeUInt32LE(0x04034b50, 0);
+  localHeader.writeUInt16LE(20, 4);
+  localHeader.writeUInt16LE(name.length, 26);
+
+  const centralDirectory = Buffer.alloc(46);
+  centralDirectory.writeUInt32LE(0x02014b50, 0);
+  centralDirectory.writeUInt16LE(20, 4);
+  centralDirectory.writeUInt16LE(20, 6);
+  centralDirectory.writeUInt16LE(name.length, 28);
+
+  const centralDirectoryOffset = localHeader.length + name.length;
+  const centralDirectorySize = centralDirectory.length + name.length;
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(1, 8);
+  end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(centralDirectorySize, 12);
+  end.writeUInt32LE(centralDirectoryOffset, 16);
+
+  return Buffer.concat([localHeader, name, centralDirectory, name, end]);
+}
+
 describe('Upload MIME and signature HTTP contract (e2e)', () => {
   let app: INestApplication;
   let module: TestingModule;
@@ -204,6 +229,21 @@ describe('Upload MIME and signature HTTP contract (e2e)', () => {
       .post(importPath)
       .set('Authorization', authorization)
       .attach('excel', Buffer.from('<html></html>'), {
+        filename: 'cakes.xlsx',
+        contentType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+    expect(response.status).toBe(uploadContract.signatureMismatch.status);
+    expect(response.body).toEqual(uploadContract.signatureMismatch.body);
+    expect(objectStoragePut).not.toHaveBeenCalled();
+  });
+
+  it('rejects an arbitrary ZIP disguised as XLSX before parsing', async () => {
+    const response = await request(app.getHttpServer())
+      .post(importPath)
+      .set('Authorization', authorization)
+      .attach('excel', createEmptyZip('notes.txt'), {
         filename: 'cakes.xlsx',
         contentType:
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

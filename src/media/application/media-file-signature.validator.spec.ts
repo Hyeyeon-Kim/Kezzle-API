@@ -20,6 +20,31 @@ function createXlsx(): Buffer {
   return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 }
 
+function createEmptyZip(entryName: string): Buffer {
+  const name = Buffer.from(entryName, 'utf8');
+  const localHeader = Buffer.alloc(30);
+  localHeader.writeUInt32LE(0x04034b50, 0);
+  localHeader.writeUInt16LE(20, 4);
+  localHeader.writeUInt16LE(name.length, 26);
+
+  const centralDirectory = Buffer.alloc(46);
+  centralDirectory.writeUInt32LE(0x02014b50, 0);
+  centralDirectory.writeUInt16LE(20, 4);
+  centralDirectory.writeUInt16LE(20, 6);
+  centralDirectory.writeUInt16LE(name.length, 28);
+
+  const centralDirectoryOffset = localHeader.length + name.length;
+  const centralDirectorySize = centralDirectory.length + name.length;
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(1, 8);
+  end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(centralDirectorySize, 12);
+  end.writeUInt32LE(centralDirectoryOffset, 16);
+
+  return Buffer.concat([localHeader, name, centralDirectory, name, end]);
+}
+
 describe('Media file signature validator', () => {
   it.each([
     ['JPEG', 'cake.jpg', 'image/jpeg', jpeg],
@@ -107,6 +132,19 @@ describe('Media file signature validator', () => {
         buffer: Buffer.from('<html></html>'),
       }),
     ).toThrow(UnsupportedMediaFileException);
+  });
+
+  it('rejects an arbitrary ZIP disguised as XLSX as 415', () => {
+    expect(() =>
+      validateXlsxMediaFile({
+        originalName: 'cakes.xlsx',
+        contentType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        buffer: createEmptyZip('notes.txt'),
+      }),
+    ).toThrow(
+      new UnsupportedMediaFileException(MEDIA_FILE_SIGNATURE_MISMATCH_MESSAGE),
+    );
   });
 
   it('rejects a truncated XLSX ZIP signature as 415', () => {
