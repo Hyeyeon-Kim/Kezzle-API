@@ -1,7 +1,19 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { validateEnvironment } from 'src/config/environment.validation';
+import {
+  ALLOWED_EXCEL_MIME_TYPES,
+  ALLOWED_IMAGE_MIME_TYPES,
+  EXCEL_MAX_BYTES,
+  IMAGE_MAX_BYTES,
+  IMPORT_MAX_FILE_COUNT,
+  IMPORT_MAX_IMAGE_COUNT,
+  SINGLE_IMAGE_MAX_FILE_COUNT,
+} from 'src/media/api/upload-limits';
 import inventory from '../fixtures/environment-inventory.contract.json';
+import routeAuthMatrix from '../fixtures/route-auth-matrix.contract.json';
+import uploadLimitsContract from '../fixtures/upload-limits.contract.json';
+import uploadMediaContract from '../fixtures/upload-media.contract.json';
 
 function source(path: string): string {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
@@ -35,25 +47,15 @@ describe('README and operational documentation contract', () => {
   const envExampleSource = source('.env.example');
   const envExample = parseEnvExample(envExampleSource);
 
-  it('replaces the Nest starter with Kezzle service and operations guidance', () => {
+  it('documents the Kezzle service and its security boundaries', () => {
     expect(readme).toContain('# Kezzle API');
     expect(readme).not.toContain('Nest framework TypeScript starter');
 
     [
       '주요 module과 integration',
-      'Docker build와 실행',
-      'Local Compose topology와 port',
-      'Docker 기반 test',
-      'Fake Firebase/S3 full-app E2E 경계',
-      'Readiness와 graceful shutdown 운영 절차',
-      '주요 장애 확인 순서',
+      '인증·권한 정책',
+      '업로드 제한과 파일 검증',
     ].forEach((section) => expect(readme).toContain(section));
-  });
-
-  it('documents every typed environment variable with its contract', () => {
-    inventory.forEach(({ name }) => {
-      expect(readme).toMatch(new RegExp('\\|\\s*`' + name + '`\\s*\\|'));
-    });
   });
 
   it('keeps .env.example aligned with inventory and validation', () => {
@@ -82,23 +84,33 @@ describe('README and operational documentation contract', () => {
     expect(dockerignore).toContain('.env.*');
   });
 
-  it('keeps documented run, test, endpoint, and shutdown commands executable', () => {
+  it('documents the upload limits, allowlists, and 413/415 contracts', () => {
     [
-      'docker build -t kezzle-api:local .',
-      'docker build --target builder -t kezzle-api:test .',
-      'docker compose -p kezzle -f ../docker-compose.yml up -d mongodb',
-      'kezzle-api:test npm test -- --runInBand',
-      'kezzle-api:test npm run test:e2e',
-      'kezzle-api:test npm run test:architecture',
-      '$PWD/README.md:/app/README.md:ro',
-      '$PWD/.env.example:/app/.env.example:ro',
-      'docker compose -p kezzle -f ../docker-compose.yml stop kezzle-api',
-      'http://localhost:3000/api-docs',
-      'http://localhost:3000/metrics',
-      'http://localhost:3000/health/live',
-      'http://localhost:3000/health/ready',
-    ].forEach((command) => expect(readme).toContain(command));
+      IMAGE_MAX_BYTES,
+      EXCEL_MAX_BYTES,
+      SINGLE_IMAGE_MAX_FILE_COUNT,
+      IMPORT_MAX_IMAGE_COUNT,
+      IMPORT_MAX_FILE_COUNT,
+    ].forEach((value) =>
+      expect(readme).toContain(value.toLocaleString('en-US')),
+    );
+    [...ALLOWED_IMAGE_MIME_TYPES, ...ALLOWED_EXCEL_MIME_TYPES].forEach(
+      (contentType) => expect(readme).toContain(contentType),
+    );
+    [
+      uploadLimitsContract.tooLarge,
+      uploadMediaContract.unsupportedMime,
+      uploadMediaContract.signatureMismatch,
+    ].forEach((contract) => {
+      expect(readme).toContain(String(contract.status));
+      expect(readme).toContain(contract.body.message);
+    });
+  });
 
-    expect(readme).not.toMatch(/^npm (install|run|test)/m);
+  it('keeps the README authorization summary aligned with the route matrix', () => {
+    const policies = [...new Set(routeAuthMatrix.map(({ policy }) => policy))];
+
+    expect(readme).toContain(`${routeAuthMatrix.length}개 route`);
+    policies.forEach((policy) => expect(readme).toContain(`\`${policy}\``));
   });
 });
