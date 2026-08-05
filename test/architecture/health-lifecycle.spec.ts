@@ -17,12 +17,22 @@ describe('health and shutdown architecture', () => {
 
   it('enables shutdown hooks and only marks readiness after listen resolves', () => {
     const main = source('src/main.ts');
+    const configure = source('src/configure-application.ts');
     const listen = main.indexOf('await app.listen(application.port)');
     const ready = main.indexOf('readiness.markReady()');
 
-    expect(main).toContain('app.enableShutdownHooks()');
+    expect(main).toContain('configureApplication(app)');
+    expect(configure).toContain('app.enableShutdownHooks()');
     expect(listen).toBeGreaterThan(-1);
     expect(ready).toBeGreaterThan(listen);
+  });
+
+  it('logs a bootstrap failure once and exits non-zero', () => {
+    const main = source('src/main.ts');
+
+    expect(main).toContain('bootstrap().catch');
+    expect(main).toContain('bootstrap failed');
+    expect(main).toContain('process.exit(1)');
   });
 
   it('keeps Mongo required and Redis optional/degraded in readiness policy', () => {

@@ -171,4 +171,29 @@ describe('HomeCacheService', () => {
     expect(redis.disconnect).not.toHaveBeenCalled();
     expect(redis.removeAllListeners).toHaveBeenCalledTimes(1);
   });
+
+  it('forces disconnect when quit exceeds the shutdown limit', async () => {
+    redis.quit.mockReturnValue(new Promise(() => undefined));
+    const config = {
+      ...homeConfigFixture,
+      cache: { ...homeConfigFixture.cache, commandTimeoutMs: 20 },
+    };
+    const cache = service(redis, config);
+
+    await cache.onModuleDestroy();
+
+    expect(redis.quit).toHaveBeenCalledTimes(1);
+    expect(redis.disconnect).toHaveBeenCalledTimes(1);
+    expect(redis.removeAllListeners).toHaveBeenCalledTimes(1);
+  });
+
+  it('forces disconnect when quit rejects during shutdown', async () => {
+    redis.quit.mockRejectedValue(new Error('quit failed'));
+    const cache = service();
+
+    await cache.onModuleDestroy();
+
+    expect(redis.disconnect).toHaveBeenCalledTimes(1);
+    expect(redis.removeAllListeners).toHaveBeenCalledTimes(1);
+  });
 });

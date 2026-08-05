@@ -13,6 +13,7 @@ import { ObjectStoragePort } from 'src/media/application/object-storage.port';
 import { S3_CLIENT } from 'src/media/infrastructure/s3-object-storage.adapter';
 import { S3_STORAGE_CONFIG } from 'src/media/infrastructure/s3-storage.config';
 import { createFullAppE2eBuilder } from './support/full-app-e2e.builder';
+import { configureApplication } from 'src/configure-application';
 import { ReadinessState } from 'src/health/readiness-state';
 
 jest.setTimeout(30_000);
@@ -38,7 +39,7 @@ describe('Full AppModule external provider overrides (e2e)', () => {
 
     try {
       module = await builder.compile();
-      app = module.createNestApplication();
+      app = configureApplication(module.createNestApplication());
       await app.init();
       connection = module.get<Connection>(getConnectionToken('kezzle'));
       readiness = module.get(ReadinessState);
@@ -70,6 +71,11 @@ describe('Full AppModule external provider overrides (e2e)', () => {
             redis: 'disabled',
           },
         });
+
+      const swaggerResponse = await request(app.getHttpServer()).get(
+        '/api-docs',
+      );
+      expect(swaggerResponse.status).toBeLessThan(400);
 
       await request(app.getHttpServer())
         .get('/metrics')

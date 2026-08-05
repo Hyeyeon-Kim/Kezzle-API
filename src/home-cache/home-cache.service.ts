@@ -57,10 +57,41 @@ export class HomeCacheService implements OnModuleDestroy {
 
     try {
       if (this.redis.status !== 'end') {
-        await this.redis.quit().catch(() => this.redis.disconnect());
+        const quitFinished = await this.quitWithinShutdownLimit();
+        if (!quitFinished) {
+          this.redis.disconnect();
+        }
       }
     } finally {
       this.redis.removeAllListeners();
+    }
+  }
+
+  private async quitWithinShutdownLimit(): Promise<boolean> {
+    const limitMs = this.config.cache.commandTimeoutMs;
+    let timer: NodeJS.Timeout | undefined;
+    const deadline = new Promise<'timeout'>((resolve) => {
+      timer = setTimeout(() => resolve('timeout'), limitMs);
+    });
+
+    try {
+      const outcome = await Promise.race([this.redis.quit(), deadline]);
+      if (outcome === 'timeout') {
+        this.logger.warn(
+          `home cache Redis quit exceeded shutdown limit; forcing disconnect: limitMs=${limitMs}`,
+        );
+        return false;
+      }
+      return true;
+    } catch (error) {
+      this.logger.warn(
+        `home cache Redis quit failed; forcing disconnect: error=${this.errorName(
+          error,
+        )}`,
+      );
+      return false;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 
