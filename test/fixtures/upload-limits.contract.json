@@ -23,6 +23,14 @@
       "statusCode": 413
     }
   },
+  "tooManyFiles": {
+    "status": 400,
+    "body": {
+      "message": "Too many files",
+      "error": "Bad Request",
+      "statusCode": 400
+    }
+  },
   "success": {
     "singleImageStatus": 200,
     "singleImageBodyKeys": [

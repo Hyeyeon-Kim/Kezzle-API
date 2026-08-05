@@ -80,6 +80,24 @@ describe('Media file signature validator', () => {
     );
   });
 
+  it.each([
+    ['JPEG', 'cake.jpg', 'image/jpeg', Buffer.from([0xff, 0xd8])],
+    [
+      'PNG',
+      'cake.png',
+      'image/png',
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a]),
+    ],
+    ['WebP', 'cake.webp', 'image/webp', Buffer.from('RIFF0000WEB', 'ascii')],
+  ])(
+    'rejects a truncated %s signature as 415',
+    (_name, originalName, contentType, buffer) => {
+      expect(() =>
+        validateImageMediaFile({ originalName, contentType, buffer }),
+      ).toThrow(UnsupportedMediaFileException);
+    },
+  );
+
   it('rejects a non-ZIP payload disguised as XLSX as 415', () => {
     expect(() =>
       validateXlsxMediaFile({
@@ -87,6 +105,17 @@ describe('Media file signature validator', () => {
         contentType:
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         buffer: Buffer.from('<html></html>'),
+      }),
+    ).toThrow(UnsupportedMediaFileException);
+  });
+
+  it('rejects a truncated XLSX ZIP signature as 415', () => {
+    expect(() =>
+      validateXlsxMediaFile({
+        originalName: 'cakes.xlsx',
+        contentType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        buffer: Buffer.from([0x50, 0x4b, 0x03]),
       }),
     ).toThrow(UnsupportedMediaFileException);
   });

@@ -99,6 +99,7 @@ describe('README and operational documentation contract', () => {
     );
     [
       uploadLimitsContract.tooLarge,
+      uploadLimitsContract.tooManyFiles,
       uploadMediaContract.unsupportedMime,
       uploadMediaContract.signatureMismatch,
     ].forEach((contract) => {

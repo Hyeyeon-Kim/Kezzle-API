@@ -63,5 +63,6 @@ Cake import는 하나의 multipart request에 Multer의 공통 `fileSize`가 적
 | 상황                               |                  HTTP status | 기본 message                                 |
 | ---------------------------------- | ---------------------------: | -------------------------------------------- |
 | 파일당 크기 제한 초과              |      `413 Payload Too Large` | `File too large`                             |
+| 파일 개수 제한 초과                |            `400 Bad Request` | `Too many files`                             |
 | MIME allowlist 밖                  | `415 Unsupported Media Type` | `Unsupported upload media type`              |
 | magic byte·확장자·선언 MIME 불일치 | `415 Unsupported Media Type` | `File content does not match its media type` |

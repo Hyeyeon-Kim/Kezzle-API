@@ -122,6 +122,24 @@ describe('Upload size limit HTTP contract (e2e)', () => {
     },
   );
 
+  it('rejects too many files as the fixed 400 contract before storage', async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`/cakes/${ROUTE_AUTH_IDS.cakeId}`)
+      .set('Authorization', authorization)
+      .attach('file', image, {
+        filename: 'first.png',
+        contentType: 'image/png',
+      })
+      .attach('file', image, {
+        filename: 'second.png',
+        contentType: 'image/png',
+      });
+
+    expect(response.status).toBe(uploadContract.tooManyFiles.status);
+    expect(response.body).toEqual(uploadContract.tooManyFiles.body);
+    expect(objectStoragePut).not.toHaveBeenCalled();
+  });
+
   it('preserves successful single-image response and S3 put contracts', async () => {
     const routes = [
       `/cakes/${ROUTE_AUTH_IDS.cakeId}`,

@@ -14,6 +14,7 @@ const optionArgumentIndex = new Map([
   ['FileFieldsInterceptor', 1],
   ['FilesInterceptor', 2],
 ]);
+const uploadLimitProperties = new Set(['fileSize', 'files', 'maxCount']);
 
 function readSources(directory = srcRoot): Source[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -170,6 +171,47 @@ function uploadInterceptorViolations(source: Source): string[] {
   return violations;
 }
 
+function containsNumericLiteral(node: ts.Node): boolean {
+  if (ts.isNumericLiteral(node)) return true;
+  let found = false;
+  ts.forEachChild(node, (child) => {
+    if (containsNumericLiteral(child)) found = true;
+  });
+  return found;
+}
+
+function numericUploadLimitViolations(source: Source): string[] {
+  if (source.path === 'media/api/upload-limits.ts') return [];
+
+  const sourceFile = ts.createSourceFile(
+    source.path,
+    source.content,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const violations: string[] = [];
+
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isPropertyAssignment(node) &&
+      uploadLimitProperties.has(propertyName(node.name) ?? '') &&
+      containsNumericLiteral(node.initializer)
+    ) {
+      const line =
+        sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+      violations.push(
+        `${source.path}:${line} ${propertyName(
+          node.name,
+        )} must use upload-limits.ts`,
+      );
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+
+  return violations;
+}
+
 describe('Upload interceptor architecture boundary', () => {
   it('requires finite file-size options on every upload interceptor', () => {
     const violations = readSources().flatMap(uploadInterceptorViolations);
@@ -202,5 +244,27 @@ describe('Upload interceptor architecture boundary', () => {
         expect.stringContaining('FilesInterceptor requires options'),
       ]),
     );
+  });
+
+  it('keeps upload limit number literals in upload-limits.ts', () => {
+    const violations = readSources().flatMap(numericUploadLimitViolations);
+
+    expect(violations).toEqual([]);
+  });
+
+  it('detects inline file-size, file-count, and field-count literals', () => {
+    const violations = numericUploadLimitViolations({
+      path: 'unsafe-upload.controller.ts',
+      content: `
+        const options = { limits: { fileSize: 10 * 1024, files: 2 } };
+        const fields = [{ name: 'image', maxCount: 3 }];
+      `,
+    });
+
+    expect(violations).toEqual([
+      expect.stringContaining('fileSize must use upload-limits.ts'),
+      expect.stringContaining('files must use upload-limits.ts'),
+      expect.stringContaining('maxCount must use upload-limits.ts'),
+    ]);
   });
 });
