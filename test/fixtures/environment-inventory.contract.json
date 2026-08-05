@@ -1,6 +1,11 @@
 [
   { "name": "NODE_ENV", "requirement": "required", "default": null },
   { "name": "PORT", "requirement": "optional", "default": 3000 },
+  {
+    "name": "SHUTDOWN_DRAIN_MS",
+    "requirement": "optional",
+    "default": 1000
+  },
   { "name": "MONGODB_URL", "requirement": "required", "default": null },
   { "name": "MONGODB_DBNAME_MAIN", "requirement": "required", "default": null },
   { "name": "MONGODB_USERNAME", "requirement": "paired", "default": null },

@@ -12,6 +12,7 @@ describe('HomeCacheService', () => {
     eval: jest.Mock;
     quit: jest.Mock;
     disconnect: jest.Mock;
+    removeAllListeners: jest.Mock;
   };
   let metrics: { countCache: jest.Mock };
 
@@ -25,6 +26,7 @@ describe('HomeCacheService', () => {
       eval: jest.fn().mockResolvedValue(1),
       quit: jest.fn().mockResolvedValue('OK'),
       disconnect: jest.fn(),
+      removeAllListeners: jest.fn(),
     };
     metrics = { countCache: jest.fn() };
   });
@@ -150,5 +152,23 @@ describe('HomeCacheService', () => {
     );
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(metrics.countCache).not.toHaveBeenCalled();
+  });
+
+  it('reports optional Redis health without affecting origin fallback policy', () => {
+    expect(service(null).healthStatus()).toBe('disabled');
+    expect(service().healthStatus()).toBe('up');
+
+    redis.status = 'reconnecting';
+    expect(service().healthStatus()).toBe('down');
+  });
+
+  it('quits Redis and removes listeners during shutdown', async () => {
+    const cache = service();
+
+    await cache.onModuleDestroy();
+
+    expect(redis.quit).toHaveBeenCalledTimes(1);
+    expect(redis.disconnect).not.toHaveBeenCalled();
+    expect(redis.removeAllListeners).toHaveBeenCalledTimes(1);
   });
 });

@@ -53,9 +53,20 @@ export class HomeCacheService implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    if (this.redis && this.redis.status !== 'end') {
-      await this.redis.quit().catch(() => this.redis.disconnect());
+    if (!this.redis) return;
+
+    try {
+      if (this.redis.status !== 'end') {
+        await this.redis.quit().catch(() => this.redis.disconnect());
+      }
+    } finally {
+      this.redis.removeAllListeners();
     }
+  }
+
+  healthStatus(): 'up' | 'down' | 'disabled' {
+    if (!this.redis) return 'disabled';
+    return this.redisAvailable && this.redis.status === 'ready' ? 'up' : 'down';
   }
 
   private async read<T>(key: string): Promise<SwrEnvelope<T> | null> {

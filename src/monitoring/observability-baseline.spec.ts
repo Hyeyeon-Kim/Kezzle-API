@@ -372,7 +372,11 @@ describe('Observability Phase F canonical contract', () => {
           return { get: jest.fn().mockReturnValue('0') };
         }
         if (token === SchedulerRegistry) {
-          return { addInterval: jest.fn() };
+          return {
+            addInterval: jest.fn(),
+            doesExist: jest.fn().mockReturnValue(false),
+            deleteInterval: jest.fn(),
+          };
         }
         throw new Error(`Unexpected missing provider: ${String(token)}`);
       })

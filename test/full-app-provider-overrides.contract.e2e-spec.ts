@@ -13,6 +13,7 @@ import { ObjectStoragePort } from 'src/media/application/object-storage.port';
 import { S3_CLIENT } from 'src/media/infrastructure/s3-object-storage.adapter';
 import { S3_STORAGE_CONFIG } from 'src/media/infrastructure/s3-storage.config';
 import { createFullAppE2eBuilder } from './support/full-app-e2e.builder';
+import { ReadinessState } from 'src/health/readiness-state';
 
 jest.setTimeout(30_000);
 
@@ -33,12 +34,14 @@ describe('Full AppModule external provider overrides (e2e)', () => {
     let module: TestingModule | undefined;
     let app: INestApplication | undefined;
     let connection: Connection | undefined;
+    let readiness: ReadinessState | undefined;
 
     try {
       module = await builder.compile();
       app = module.createNestApplication();
       await app.init();
       connection = module.get<Connection>(getConnectionToken('kezzle'));
+      readiness = module.get(ReadinessState);
 
       expect(connection.readyState).toBe(1);
       expect(module.get(FirebaseAppProvider)).toBe(fakes.firebaseAppProvider);
@@ -48,6 +51,25 @@ describe('Full AppModule external provider overrides (e2e)', () => {
       expect(module.get(S3_STORAGE_CONFIG)).toBe(fakes.storageConfig);
       expect(module.get(S3_CLIENT)).toBe(fakes.s3Client);
       expect(module.get(ObjectStoragePort)).toBe(fakes.objectStorage);
+
+      await request(app.getHttpServer())
+        .get('/health/live')
+        .expect(200)
+        .expect({ status: 'ok' });
+      await request(app.getHttpServer()).get('/health/ready').expect(503);
+
+      readiness.markReady();
+      await request(app.getHttpServer())
+        .get('/health/ready')
+        .expect(200)
+        .expect({
+          status: 'ok',
+          checks: {
+            lifecycle: 'ready',
+            mongo: 'up',
+            redis: 'disabled',
+          },
+        });
 
       await request(app.getHttpServer())
         .get('/metrics')
@@ -75,5 +97,7 @@ describe('Full AppModule external provider overrides (e2e)', () => {
     expect(
       fakes.firebaseAppProvider.onApplicationShutdown,
     ).toHaveBeenCalledTimes(1);
+    expect(readiness?.current).toBe('shutting-down');
+    expect(connection?.readyState).toBe(0);
   });
 });

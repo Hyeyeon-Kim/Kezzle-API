@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   OnApplicationBootstrap,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
@@ -28,7 +29,9 @@ export type CurationRefreshResult = {
  * - 실패는 즉시 재시도하지 않고 다음 주기에 자연 재시도한다 (홈은 기존 데이터로 응답).
  */
 @Injectable()
-export class CurationRefreshService implements OnApplicationBootstrap {
+export class CurationRefreshService
+  implements OnApplicationBootstrap, OnModuleDestroy
+{
   private readonly logger = new Logger(CurationRefreshService.name);
   private running = false;
 
@@ -71,6 +74,12 @@ export class CurationRefreshService implements OnApplicationBootstrap {
     this.logger.log(
       `curation refresh scheduled: intervalMs=${this.refreshIntervalMs} staleMs=${this.staleMs}`,
     );
+  }
+
+  onModuleDestroy(): void {
+    if (this.schedulerRegistry.doesExist('interval', REFRESH_INTERVAL_NAME)) {
+      this.schedulerRegistry.deleteInterval(REFRESH_INTERVAL_NAME);
+    }
   }
 
   async handleInterval(): Promise<void> {

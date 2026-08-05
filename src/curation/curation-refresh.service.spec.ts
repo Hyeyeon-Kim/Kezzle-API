@@ -44,6 +44,8 @@ describe('CurationRefreshService', () => {
     };
     const schedulerRegistry = {
       addInterval: jest.fn(),
+      doesExist: jest.fn().mockReturnValue(false),
+      deleteInterval: jest.fn(),
     };
     const service = new CurationRefreshService(
       curationRepository as never,
@@ -149,6 +151,21 @@ describe('CurationRefreshService', () => {
     service.onApplicationBootstrap();
 
     expect(schedulerRegistry.addInterval).not.toHaveBeenCalled();
+  });
+
+  it('removes the refresh interval during shutdown', () => {
+    const { service, schedulerRegistry } = createMocks();
+    schedulerRegistry.doesExist.mockReturnValue(true);
+
+    service.onModuleDestroy();
+
+    expect(schedulerRegistry.doesExist).toHaveBeenCalledWith(
+      'interval',
+      'curation-refresh',
+    );
+    expect(schedulerRegistry.deleteInterval).toHaveBeenCalledWith(
+      'curation-refresh',
+    );
   });
 
   it('uses the configured stale threshold when querying stale curations', async () => {

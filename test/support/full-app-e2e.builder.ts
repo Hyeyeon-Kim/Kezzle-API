@@ -81,7 +81,7 @@ export function createFullAppE2eBuilder(
 
   const builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(appConfig.KEY)
-    .useValue({ nodeEnv: 'test', port: 3000 })
+    .useValue({ nodeEnv: 'test', port: 3000, shutdownDrainMs: 0 })
     .overrideProvider(authConfig.KEY)
     .useValue(authConfigFixture)
     .overrideProvider(databaseConfig.KEY)

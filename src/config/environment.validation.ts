@@ -4,6 +4,7 @@ type Environment = Record<string, unknown>;
 
 const DEFAULTS = {
   PORT: 3000,
+  SHUTDOWN_DRAIN_MS: 1000,
   VIT_API_BASE_URL: 'https://api.kezzlecake.com/vit',
   CLIP_API_BASE_URL: 'https://api.kezzlecake.com/clip',
   AI_HTTP_TIMEOUT_MS: 5000,
@@ -185,6 +186,15 @@ export function validateEnvironment(
         min: 1,
         max: 65535,
       }),
+  );
+  check(
+    () =>
+      void strictInteger(
+        environment,
+        'SHUTDOWN_DRAIN_MS',
+        DEFAULTS.SHUTDOWN_DRAIN_MS,
+        { min: 0 },
+      ),
   );
   check(() => {
     requiredString(environment, 'MONGODB_URL');

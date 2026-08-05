@@ -27,7 +27,7 @@ describe('environment validation contract', () => {
   it('keeps a unique required/optional/default inventory fixture', () => {
     const names = inventory.map((item) => item.name);
     expect(new Set(names).size).toBe(names.length);
-    expect(inventory).toHaveLength(52);
+    expect(inventory).toHaveLength(53);
     expect(
       inventory
         .filter((item) => item.requirement === 'required')
@@ -49,6 +49,7 @@ describe('environment validation contract', () => {
     expect(strictInteger({}, 'PORT', 3000, { min: 1 })).toBe(3000);
     expect(strictBoolean({}, 'FLAG', false)).toBe(false);
     expect(ENV_DEFAULTS.AI_HTTP_TIMEOUT_MS).toBe(5000);
+    expect(ENV_DEFAULTS.SHUTDOWN_DRAIN_MS).toBe(1000);
   });
 
   it.each([
@@ -71,6 +72,7 @@ describe('environment validation contract', () => {
     ['PORT', 'abc'],
     ['HOME_CACHE_TTL_JITTER_PERCENT', '101'],
     ['CURATION_REFRESH_INTERVAL_MS', '-1'],
+    ['SHUTDOWN_DRAIN_MS', '-1'],
   ])(
     'rejects invalid integer %s=%s instead of using a default',
     (name, value) => {

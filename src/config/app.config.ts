@@ -11,4 +11,10 @@ export default registerAs('app', () => ({
     min: 1,
     max: 65535,
   }),
+  shutdownDrainMs: strictInteger(
+    process.env,
+    'SHUTDOWN_DRAIN_MS',
+    ENV_DEFAULTS.SHUTDOWN_DRAIN_MS,
+    { min: 0 },
+  ),
 }));

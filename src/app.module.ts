@@ -22,6 +22,7 @@ import { CatalogQueryModule } from './catalog/catalog-query.module';
 import databaseConfig from './config/database.config';
 import appConfig from './config/app.config';
 import authConfig from './config/auth.config';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import authConfig from './config/auth.config';
     AnniversaryModule,
     CounterModule,
     PrometheusEndpointModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [
