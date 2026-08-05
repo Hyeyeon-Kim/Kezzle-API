@@ -1,4 +1,9 @@
-import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import { HomeMetrics } from 'src/home/application/home-metrics.port';
@@ -8,7 +13,7 @@ import { ConfigType } from '@nestjs/config';
 import homeConfig from 'src/config/home.config';
 
 @Injectable()
-export class HomeCacheService implements OnModuleDestroy {
+export class HomeCacheService implements OnApplicationShutdown {
   private readonly logger = new Logger(HomeCacheService.name);
   private redisAvailable = true;
 
@@ -52,7 +57,10 @@ export class HomeCacheService implements OnModuleDestroy {
     return this.refreshAndStore(options);
   }
 
-  async onModuleDestroy(): Promise<void> {
+  // onModuleDestroy 는 ReadinessState 의 drain 대기(beforeApplicationShutdown)보다
+  // 먼저 실행되므로, drain 창 동안 Redis 를 유지하려면 HTTP close 이후인
+  // onApplicationShutdown 에서 정리해야 한다.
+  async onApplicationShutdown(): Promise<void> {
     if (!this.redis) return;
 
     try {

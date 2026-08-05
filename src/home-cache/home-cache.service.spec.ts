@@ -165,7 +165,7 @@ describe('HomeCacheService', () => {
   it('quits Redis and removes listeners during shutdown', async () => {
     const cache = service();
 
-    await cache.onModuleDestroy();
+    await cache.onApplicationShutdown();
 
     expect(redis.quit).toHaveBeenCalledTimes(1);
     expect(redis.disconnect).not.toHaveBeenCalled();
@@ -180,7 +180,7 @@ describe('HomeCacheService', () => {
     };
     const cache = service(redis, config);
 
-    await cache.onModuleDestroy();
+    await cache.onApplicationShutdown();
 
     expect(redis.quit).toHaveBeenCalledTimes(1);
     expect(redis.disconnect).toHaveBeenCalledTimes(1);
@@ -191,7 +191,7 @@ describe('HomeCacheService', () => {
     redis.quit.mockRejectedValue(new Error('quit failed'));
     const cache = service();
 
-    await cache.onModuleDestroy();
+    await cache.onApplicationShutdown();
 
     expect(redis.disconnect).toHaveBeenCalledTimes(1);
     expect(redis.removeAllListeners).toHaveBeenCalledTimes(1);
