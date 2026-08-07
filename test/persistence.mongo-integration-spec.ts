@@ -1,13 +1,16 @@
 import { Connection, Model, createConnection } from 'mongoose';
 import { ObjectId } from 'mongodb';
-import { Cake, CakeSchema } from 'src/cake/entities/cake.schema';
-import { CurationPersistenceMapper } from 'src/curation/curation.persistence-mapper';
-import { CurationRepository } from 'src/curation/curation.repository';
+import {
+  CakePersistenceModel,
+  CakeSchema,
+} from 'src/cake/infrastructure/persistence/schema/cake.schema';
+import { CurationPersistenceMapper } from 'src/curation/infrastructure/persistence/curation.persistence-mapper';
+import { CurationRepository } from 'src/curation/infrastructure/persistence/curation.repository';
 import {
   Curation,
   CurationSchema,
-} from 'src/curation/entities/curation.schema';
-import { Store, StoreSchema } from 'src/store/entities/store.schema';
+} from 'src/curation/infrastructure/persistence/schema/curation.schema';
+import { Store, StoreSchema } from 'src/store/infrastructure/persistence/schema/store.schema';
 import { SearchEventRepository } from 'src/search/infrastructure/persistence/search-event.repository';
 import {
   KeywordLog,
@@ -26,11 +29,11 @@ import {
   PopularCakeRank,
   PopularCakeRankSchema,
 } from 'src/ranking/infrastructure/persistence/popular-cake-rank.schema';
-import { KeywordRankService } from 'src/ranking/keyword-rank.service';
-import { PopularRankService } from 'src/ranking/popular-rank.service';
-import { RankingQueryService } from 'src/ranking/ranking-query.service';
+import { KeywordRankService } from 'src/ranking/infrastructure/persistence/read-model/keyword-rank.service';
+import { PopularRankService } from 'src/ranking/infrastructure/persistence/read-model/popular-rank.service';
+import { RankingQueryService } from 'src/ranking/application/query/ranking-query.service';
 import { MongoPopularRankingSourceAdapter } from 'src/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
-import { User, UserSchema } from 'src/user/entities/user.schema';
+import { User, UserSchema } from 'src/user/infrastructure/persistence/schema/user.schema';
 import fixtures from './fixtures/legacy-persistence.contract.json';
 import { rankingConfigFixture } from './support/typed-config.fixtures';
 
@@ -40,7 +43,7 @@ function jsonValue(value: unknown): unknown {
 
 describe('Persistence Mongo integration contract', () => {
   let connection: Connection;
-  let cakeModel: Model<Cake>;
+  let cakeModel: Model<CakePersistenceModel>;
   let storeModel: Model<Store>;
   let userModel: Model<User>;
   let curationModel: Model<Curation>;
@@ -145,7 +148,7 @@ describe('Persistence Mongo integration contract', () => {
 
     expect(cake.faiss_id).toBe(202);
     expect(cake.is_delete).toBe(false);
-    const cakeWithTimestamps = cake.toObject() as Cake & {
+    const cakeWithTimestamps = cake.toObject() as CakePersistenceModel & {
       createdAt: Date;
       updatedAt: Date;
     };

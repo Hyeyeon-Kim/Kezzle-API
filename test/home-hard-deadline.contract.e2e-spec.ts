@@ -1,16 +1,17 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { AnniversaryService } from 'src/anniversary/anniversary.service';
-import { CakeService } from 'src/cake/cake.service';
+import { AnniversaryService } from 'src/anniversary/application/query/anniversary.service';
+import { CakeQueryService } from 'src/cake/application/query/cake-query.service';
 import homeConfig from 'src/config/home.config';
-import { CurationQueryService } from 'src/curation/curation-query.service';
-import { HomeCacheService } from 'src/home-cache/home-cache.service';
-import { HomeMetrics } from 'src/home/application/home-metrics.port';
+import { CurationQueryService } from 'src/curation/application/query/curation-query.service';
+import { HomeFeedService } from 'src/home/application/home-feed.service';
+import { HomeSectionLoader } from 'src/home/application/home-section.loader';
+import { HomeCachePort } from 'src/home/application/port/home-cache.port';
+import { HomeMetrics } from 'src/home/application/port/home-metrics.port';
+import { HomeController } from 'src/home/api/home.controller';
 import { HomePresenter } from 'src/home/api/home.presenter';
-import { HomeController } from 'src/home/home.controller';
-import { HomeFeedService } from 'src/home/home-feed.service';
-import { RankingQueryService } from 'src/ranking/ranking-query.service';
+import { RankingQueryService } from 'src/ranking/application/query/ranking-query.service';
 import { homeConfigFixture } from './support/typed-config.fixtures';
 
 describe('Home hard deadline HTTP contract (e2e)', () => {
@@ -95,13 +96,14 @@ describe('Home hard deadline HTTP contract (e2e)', () => {
       controllers: [HomeController],
       providers: [
         HomeFeedService,
+        HomeSectionLoader,
         HomePresenter,
-        { provide: CakeService, useValue: cakeService },
+        { provide: CakeQueryService, useValue: cakeService },
         { provide: AnniversaryService, useValue: anniversaryService },
         { provide: RankingQueryService, useValue: rankingQuery },
         { provide: CurationQueryService, useValue: curationQuery },
         { provide: HomeMetrics, useValue: homeMetrics },
-        { provide: HomeCacheService, useValue: homeCache },
+        { provide: HomeCachePort, useValue: homeCache },
         {
           provide: homeConfig.KEY,
           useValue: {

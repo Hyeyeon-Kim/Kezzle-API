@@ -11,7 +11,7 @@ import request from 'supertest';
 import { FirebaseTokenVerifier } from 'src/auth/application/firebase-token-verifier.port';
 import { TokenVerificationError } from 'src/auth/application/token-verification.error';
 import { FirebaseAuthStrategy } from 'src/auth/stategies/firebase-auth.stategies';
-import { UserService } from 'src/user/user.service';
+import { UserService } from 'src/user/application/user.service';
 
 @Controller('firebase-auth-contract')
 class FirebaseAuthContractController {

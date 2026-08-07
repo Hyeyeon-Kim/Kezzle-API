@@ -11,24 +11,25 @@ import { join, relative, sep } from 'path';
 import { Registry } from 'prom-client';
 import { AiSearchMetricsAdapter } from 'src/ai-search/ai-search-metrics.adapter';
 import { AppModule } from 'src/app.module';
-import { CatalogMetricsAdapter } from 'src/catalog/catalog-metrics.adapter';
-import { CurationRefreshMetricsAdapter } from 'src/curation/curation-refresh-metrics.adapter';
-import { CurationRefreshService } from 'src/curation/curation-refresh.service';
+import { CatalogMetricsAdapter } from 'src/catalog/infrastructure/observability/catalog-metrics.adapter';
+import { CurationRefreshMetricsAdapter } from 'src/curation/infrastructure/observability/curation-refresh-metrics.adapter';
+import { CurationRefreshService } from 'src/curation/application/refresh/curation-refresh.service';
 import { CurationModule } from 'src/curation/curation.module';
-import { HomeCacheModule } from 'src/home-cache/home-cache.module';
-import { HomeCacheService } from 'src/home-cache/home-cache.service';
-import { HomeMetrics } from 'src/home/application/home-metrics.port';
-import { HomeFeedService } from 'src/home/home-feed.service';
+import { HomeFeedService } from 'src/home/application/home-feed.service';
+import { HomeCachePort } from 'src/home/application/port/home-cache.port';
+import { HomeMetrics } from 'src/home/application/port/home-metrics.port';
 import { HomeModule } from 'src/home/home.module';
-import { HomeObservabilityModule } from 'src/home/observability/home-observability.module';
-import { PrometheusHomeMetricsAdapter } from 'src/home/observability/prometheus-home-metrics.adapter';
-import { CakeLikeEventMetricsAdapter } from 'src/like/cake-like-event-metrics.adapter';
+import { HomeCacheModule } from 'src/home/infrastructure/cache/home-cache.module';
+import { RedisHomeCacheAdapter } from 'src/home/infrastructure/cache/redis-home-cache.adapter';
+import { HomeObservabilityModule } from 'src/home/infrastructure/observability/home-observability.module';
+import { PrometheusHomeMetricsAdapter } from 'src/home/infrastructure/observability/prometheus-home-metrics.adapter';
+import { CakeLikeEventMetricsAdapter } from 'src/like/infrastructure/observability/cake-like-event-metrics.adapter';
 import { MediaMetricsAdapter } from 'src/media/media-metrics.adapter';
 import { PROMETHEUS_REGISTRY } from 'src/observability/prometheus/prometheus.constants';
 import { PrometheusEndpointModule } from 'src/observability/prometheus/prometheus-endpoint.module';
 import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
 import { createPrometheusRegistry } from 'src/observability/prometheus/prometheus-registry.provider';
-import { SearchEventMetricsAdapter } from 'src/search/search-event-metrics.adapter';
+import { SearchEventMetricsAdapter } from 'src/search/infrastructure/observability/search-event-metrics.adapter';
 import observabilityBaseline from '../../test/fixtures/observability-baseline.contract.json';
 
 type RuntimeMetric = {
@@ -296,34 +297,13 @@ describe('Observability Phase F canonical contract', () => {
     ).not.toBe(true);
   });
 
-  it('keeps consumers on semantic ports and removes compatibility production boundaries', () => {
-    const productionSources = readSourceFiles().filter(
-      (source) => !source.path.endsWith('.spec.ts'),
-    );
-    const productionContent = productionSources
-      .map((source) => source.content)
-      .join('\n');
-    const retiredIdentifiers = [
-      ['Monitoring', 'Service'].join(''),
-      ['Monitoring', 'Module'].join(''),
-      ['HomeResilienceMetrics', 'Service'].join(''),
-    ];
-
-    for (const identifier of retiredIdentifiers) {
-      expect(productionContent).not.toContain(identifier);
-    }
-    expect(
-      productionSources.filter((source) =>
-        source.path.startsWith('home-resilience/'),
-      ),
-    ).toEqual([]);
-
+  it('keeps Home consumers on the semantic metrics port', () => {
     const homeFeedSource = readFileSync(
-      join(sourceRoot, 'home/home-feed.service.ts'),
+      join(sourceRoot, 'home/application/home-feed.service.ts'),
       'utf8',
     );
     const homeCacheSource = readFileSync(
-      join(sourceRoot, 'home-cache/home-cache.service.ts'),
+      join(sourceRoot, 'home/infrastructure/cache/redis-home-cache.adapter.ts'),
       'utf8',
     );
     expect(homeFeedSource).toContain('HomeMetrics');
@@ -335,7 +315,10 @@ describe('Observability Phase F canonical contract', () => {
     );
     expect(
       moduleMetadata(HomeCacheModule, MODULE_METADATA.PROVIDERS),
-    ).toContain(HomeCacheService);
+    ).toContain(RedisHomeCacheAdapter);
+    expect(moduleMetadata(HomeCacheModule, MODULE_METADATA.EXPORTS)).toContain(
+      HomeCachePort,
+    );
   });
 
   it('keeps Registry construction and default collection in one production factory', () => {

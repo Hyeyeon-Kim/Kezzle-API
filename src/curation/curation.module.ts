@@ -1,14 +1,17 @@
 import { Module } from '@nestjs/common';
-import { CurationController } from './curation.controller';
-import { CurationService } from './curation.service';
-import { Curation, CurationSchema } from './entities/curation.schema';
+import { CurationController } from 'src/curation/api/curation.controller';
+import { CurationService } from 'src/curation/application/curation.service';
+import {
+  Curation,
+  CurationSchema,
+} from 'src/curation/infrastructure/persistence/schema/curation.schema';
 import { MongooseModule } from '@nestjs/mongoose';
-import { CurationRefreshService } from './curation-refresh.service';
+import { CurationRefreshService } from 'src/curation/application/refresh/curation-refresh.service';
 import { AiSearchModule } from 'src/ai-search/ai-search.module';
-import { CurationQueryService } from './curation-query.service';
-import { CurationRepository } from './curation.repository';
+import { CurationQueryService } from 'src/curation/application/query/curation-query.service';
+import { CurationRepository } from 'src/curation/infrastructure/persistence/curation.repository';
 import { PrometheusRegistryModule } from 'src/observability/prometheus/prometheus-registry.module';
-import { CurationRefreshMetricsAdapter } from './curation-refresh-metrics.adapter';
+import { CurationRefreshMetricsAdapter } from 'src/curation/infrastructure/observability/curation-refresh-metrics.adapter';
 import { ConfigModule } from '@nestjs/config';
 import curationConfig from 'src/config/curation.config';
 

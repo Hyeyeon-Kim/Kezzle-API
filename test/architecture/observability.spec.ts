@@ -213,8 +213,9 @@ describe('Observability architecture', () => {
       )
       .map((source) => source.path);
     const homeConsumers = [
-      'home/home-feed.service.ts',
-      'home-cache/home-cache.service.ts',
+      'home/application/home-feed.service.ts',
+      'home/application/home-section.loader.ts',
+      'home/infrastructure/cache/redis-home-cache.adapter.ts',
     ].map((path) => ({
       path,
       content: readFileSync(join(sourceRoot, path), 'utf8'),

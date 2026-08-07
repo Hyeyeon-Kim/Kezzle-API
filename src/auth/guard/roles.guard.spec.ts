@@ -1,6 +1,6 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Roles } from 'src/user/entities/roles.enum';
+import { Roles } from 'src/user/domain/roles.enum';
 import { RolesGuard } from './roles.guard';
 
 describe('RolesGuard', () => {

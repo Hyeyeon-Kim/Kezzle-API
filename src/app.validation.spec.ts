@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { CreateUserDto } from './user/dto/create-user.dto';
+import { CreateUserDto } from 'src/user/api/dto/request/create-user.dto';
 import { createValidationPipe } from './app.validation';
 
 describe('application validation pipe', () => {

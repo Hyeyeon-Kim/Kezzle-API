@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
-import { HomeCacheService } from 'src/home-cache/home-cache.service';
+import { HomeCachePort } from 'src/home/application/port/home-cache.port';
 import { ApplicationReadinessState, ReadinessState } from './readiness-state';
 
 export type DependencyStatus = 'up' | 'down' | 'disabled';
@@ -25,7 +25,7 @@ export class HealthService {
   constructor(
     @InjectConnection('kezzle')
     private readonly mongoConnection: Connection,
-    private readonly homeCache: HomeCacheService,
+    private readonly homeCache: HomeCachePort,
     private readonly readiness: ReadinessState,
   ) {}
 

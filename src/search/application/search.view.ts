@@ -1,7 +1,7 @@
-import { CakeView } from 'src/cake/application/cake.view';
+import { Cake } from 'src/cake/domain/cake';
 
 export interface SearchResultView {
-  readonly cakes: CakeView[];
+  readonly cakes: Cake[];
   readonly hasMore: boolean;
   readonly nextPage?: number;
 }

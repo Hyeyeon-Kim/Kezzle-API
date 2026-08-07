@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { Roles } from '../../user/entities/roles.enum';
+import { Roles } from 'src/user/domain/roles.enum';
 
 /**
  * Allow only specified roles to access a specific route

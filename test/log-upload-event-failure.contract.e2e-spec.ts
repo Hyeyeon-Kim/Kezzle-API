@@ -9,21 +9,21 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { ClipClient } from 'src/ai-search/clip-client';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
-import { CakeLikePort } from 'src/cake/cake-like.port';
-import { LikedStoreCatalogReader } from 'src/catalog/liked-store-catalog.reader';
+import { CakeLikePort } from 'src/cake/application/port/cake-like.port';
+import { LikedStoreCatalogReader } from 'src/catalog/application/port/liked-store-catalog.reader';
 import { LikePresenter } from 'src/like/api/like.presenter';
-import { LikeController } from 'src/like/like.controller';
-import { LikeService } from 'src/like/like.service';
+import { LikeController } from 'src/like/api/like.controller';
+import { LikeService } from 'src/like/application/like.service';
 import { CakeLikeEventRecorder } from 'src/like/application/port/cake-like-event-recorder.port';
-import { CakeLikeEventMetricsAdapter } from 'src/like/cake-like-event-metrics.adapter';
+import { CakeLikeEventMetricsAdapter } from 'src/like/infrastructure/observability/cake-like-event-metrics.adapter';
 import { SearchEventRecorder } from 'src/search/application/port/search-event-recorder.port';
 import { SearchHistoryReader } from 'src/search/application/port/search-history.reader';
-import { SearchController } from 'src/search/search.controller';
-import { SearchService } from 'src/search/search.service';
-import { SearchEventMetricsAdapter } from 'src/search/search-event-metrics.adapter';
-import { StoreLikePort } from 'src/store/store-like.port';
-import { Roles } from 'src/user/entities/roles.enum';
-import { UserLikePort } from 'src/user/user-like.port';
+import { SearchController } from 'src/search/api/search.controller';
+import { SearchService } from 'src/search/application/search.service';
+import { SearchEventMetricsAdapter } from 'src/search/infrastructure/observability/search-event-metrics.adapter';
+import { StoreLikePort } from 'src/store/application/port/store-like.port';
+import { Roles } from 'src/user/domain/roles.enum';
+import { UserLikePort } from 'src/user/application/port/user-like.port';
 
 @Injectable()
 class EventFailureContractGuard implements CanActivate {

@@ -8,21 +8,21 @@ import {
 import { APP_GUARD, Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { CakeController } from 'src/cake/cake.controller';
-import { CakeService } from 'src/cake/cake.service';
-import { CakeMediaService } from 'src/cake/cake-media.service';
-import { CakeImportService } from 'src/cake/cake-import.service';
-import { CurationController } from 'src/curation/curation.controller';
-import { CurationService } from 'src/curation/curation.service';
+import { CakeController } from 'src/cake/api/cake.controller';
+import { CakeQueryService } from 'src/cake/application/query/cake-query.service';
+import { CakeMediaService } from 'src/cake/application/media/cake-media.service';
+import { CakeImportService } from 'src/cake/application/import/cake-import.service';
+import { CurationController } from 'src/curation/api/curation.controller';
+import { CurationService } from 'src/curation/application/curation.service';
 import { createValidationPipe } from 'src/app.validation';
 import { IS_PUBLIC_KEY } from 'src/auth/decorators/public.decorator';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
-import { StoreController } from 'src/store/store.controller';
-import { StoreService } from 'src/store/store.service';
-import { StoreMediaService } from 'src/store/store-media.service';
-import { Roles } from 'src/user/entities/roles.enum';
-import { UserController } from 'src/user/user.controller';
-import { UserService } from 'src/user/user.service';
+import { StoreController } from 'src/store/api/store.controller';
+import { StoreService } from 'src/store/application/store.service';
+import { StoreMediaService } from 'src/store/application/media/store-media.service';
+import { Roles } from 'src/user/domain/roles.enum';
+import { UserController } from 'src/user/api/user.controller';
+import { UserService } from 'src/user/application/user.service';
 import fixtures from './fixtures/type-boundary-write.contract.json';
 
 @Injectable()
@@ -96,7 +96,7 @@ describe('Type boundary write HTTP contract', () => {
         CurationController,
       ],
       providers: [
-        { provide: CakeService, useValue: cakeService },
+        { provide: CakeQueryService, useValue: cakeService },
         { provide: CakeMediaService, useValue: cakeMediaService },
         { provide: CakeImportService, useValue: cakeImportService },
         { provide: StoreService, useValue: storeService },

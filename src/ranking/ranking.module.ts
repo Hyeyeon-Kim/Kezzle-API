@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { SearchEventModule } from 'src/search/infrastructure/persistence/search-event.module';
-import { PopularRankingSourceReader } from './application/popular-ranking-source.reader';
+import { PopularRankingSourceReader } from 'src/ranking/application/port/popular-ranking-source.reader';
 import {
   KeywordRank,
   KeywordRankSchema,
@@ -10,11 +10,11 @@ import {
   PopularCakeRank,
   PopularCakeRankSchema,
 } from './infrastructure/persistence/popular-cake-rank.schema';
-import { KeywordRankService } from './keyword-rank.service';
+import { KeywordRankService } from 'src/ranking/infrastructure/persistence/read-model/keyword-rank.service';
 import { MongoPopularRankingSourceAdapter } from './infrastructure/persistence/mongo-popular-ranking-source.adapter';
-import { PopularRankService } from './popular-rank.service';
-import { RankingController } from './ranking.controller';
-import { RankingQueryService } from './ranking-query.service';
+import { PopularRankService } from 'src/ranking/infrastructure/persistence/read-model/popular-rank.service';
+import { RankingController } from 'src/ranking/api/ranking.controller';
+import { RankingQueryService } from 'src/ranking/application/query/ranking-query.service';
 import { ConfigModule } from '@nestjs/config';
 import rankingConfig from 'src/config/ranking.config';
 

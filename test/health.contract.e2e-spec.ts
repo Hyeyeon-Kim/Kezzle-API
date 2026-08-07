@@ -6,7 +6,7 @@ import appConfig from 'src/config/app.config';
 import { HealthController } from 'src/health/health.controller';
 import { HealthService } from 'src/health/health.service';
 import { ReadinessState } from 'src/health/readiness-state';
-import { HomeCacheService } from 'src/home-cache/home-cache.service';
+import { HomeCachePort } from 'src/home/application/port/home-cache.port';
 
 describe('Health HTTP contract (e2e)', () => {
   let app: INestApplication;
@@ -35,7 +35,7 @@ describe('Health HTTP contract (e2e)', () => {
           },
         },
         {
-          provide: HomeCacheService,
+          provide: HomeCachePort,
           useValue: {
             healthStatus: () => redisStatus,
           },

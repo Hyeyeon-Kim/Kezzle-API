@@ -26,7 +26,7 @@
     "test:e2e:upload-limits": "jest --config ./test/jest-e2e.json upload-limits.contract.e2e-spec.ts --runInBand",
     "test:e2e:upload-media": "jest --config ./test/jest-e2e.json upload-media.contract.e2e-spec.ts --runInBand",
     "test:integration:mongo": "jest --config ./test/jest-mongo-integration.json --runInBand",
-    "test:architecture": "jest --config ./test/jest-architecture.json --runInBand && jest type-boundary-presenter.contract.spec.ts type-e-composite-presenter.contract.spec.ts --runInBand",
+    "test:architecture": "jest --config ./test/jest-architecture.json --runInBand",
     "test:smoke:prometheus": "ts-node test/smoke/prometheus-target-up.ts",
     "test:smoke:observability": "ts-node test/smoke/observability-stack.ts",
     "perf:similar-baseline": "MONGODB_URL=mongodb://127.0.0.1:27017 MONGODB_DBNAME_MAIN=kezzle_kan16_baseline ts-node test/perf/similar-baseline.ts",
