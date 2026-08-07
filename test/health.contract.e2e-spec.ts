@@ -6,7 +6,7 @@ import appConfig from 'src/platform/config/app.config';
 import { HealthController } from 'src/platform/health/health.controller';
 import { HealthService } from 'src/platform/health/health.service';
 import { ReadinessState } from 'src/platform/health/readiness-state';
-import { HomeCacheService } from 'src/modules/home/infrastructure/cache/home-cache.service';
+import { DependencyHealthRegistry } from 'src/platform/health/dependency-health.registry';
 
 describe('Health HTTP contract (e2e)', () => {
   let app: INestApplication;
@@ -15,6 +15,7 @@ describe('Health HTTP contract (e2e)', () => {
   let redisStatus: 'up' | 'down' | 'disabled' = 'disabled';
 
   beforeEach(async () => {
+    app = undefined;
     mongoReadyState = 1;
     redisStatus = 'disabled';
     const module = await Test.createTestingModule({
@@ -22,6 +23,7 @@ describe('Health HTTP contract (e2e)', () => {
       providers: [
         HealthService,
         ReadinessState,
+        DependencyHealthRegistry,
         {
           provide: appConfig.KEY,
           useValue: { nodeEnv: 'test', port: 3000, shutdownDrainMs: 0 },
@@ -34,22 +36,17 @@ describe('Health HTTP contract (e2e)', () => {
             },
           },
         },
-        {
-          provide: HomeCacheService,
-          useValue: {
-            healthStatus: () => redisStatus,
-          },
-        },
       ],
     }).compile();
 
     app = module.createNestApplication();
     await app.init();
     readiness = module.get(ReadinessState);
+    module.get(DependencyHealthRegistry).register('redis', () => redisStatus);
   });
 
   afterEach(async () => {
-    await app.close();
+    await app?.close();
   });
 
   it('keeps liveness 200 regardless of lifecycle and dependency failures', async () => {

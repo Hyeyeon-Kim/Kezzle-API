@@ -1,6 +1,9 @@
-import { CreateUserData, UpdateUserData } from '../../application/user.command';
-import { UserView } from '../../application/user.view';
-import { Roles } from '../../application/roles.enum';
+import {
+  CreateUserData,
+  UpdateUserData,
+} from 'src/modules/user/application/user.command';
+import { UserView } from 'src/modules/user/application/user.view';
+import { Roles } from 'src/platform/auth/roles.enum';
 
 interface UserPersistenceSource {
   readonly _id?: unknown;

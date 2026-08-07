@@ -17,7 +17,7 @@ import { CounterModule } from './modules/counter/counter.module';
 import { PrometheusEndpointModule } from './platform/observability/prometheus/prometheus-endpoint.module';
 import { FirebaseAuthGuard } from './platform/auth/guard/firebase-auth.guard';
 import { RolesGuard } from './platform/auth/guard/roles.guard';
-import { createValidationPipe } from './app.validation';
+import { createValidationPipe } from './platform/http/validation.pipe';
 import { CatalogQueryModule } from './modules/catalog/catalog-query.module';
 import databaseConfig from './platform/config/database.config';
 import appConfig from './platform/config/app.config';

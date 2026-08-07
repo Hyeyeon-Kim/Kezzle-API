@@ -1,13 +1,13 @@
-import { CreateCurationData } from '../../application/curation.command';
+import { CreateCurationData } from 'src/modules/curation/application/curation.command';
 import {
   CurationCakeSnapshotView,
   CurationView,
   StaleCurationView,
-} from '../../application/curation.view';
+} from 'src/modules/curation/application/curation.view';
 import {
   CurationCakeSnapshotSource,
   CurationExternalMapper,
-} from '../curation-external.mapper';
+} from 'src/modules/curation/application/mapper/curation-external.mapper';
 
 interface CurationPersistenceSource {
   readonly _id?: unknown;

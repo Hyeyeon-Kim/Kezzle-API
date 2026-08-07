@@ -1,16 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { FirebaseTokenVerifier } from 'src/platform/auth/application/firebase-token-verifier.port';
 import { verifyTokenOrThrowUnauthorized } from 'src/platform/auth/application/verify-token';
-import { AuthenticatedUser } from './authenticated-user';
-import { UserView } from './user.view';
-import { RegisterUserCommand, UpdateUserData } from './user.command';
-import { UserAlredyJoinedException } from './exceptions/user-already-joined.exception';
-import { UserRepository } from '../infrastructure/persistence/user.repository';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
+import { AuthenticatedUserReader } from 'src/platform/auth/application/authenticated-user.reader';
+import { UserView } from 'src/modules/user/application/user.view';
+import {
+  RegisterUserCommand,
+  UpdateUserData,
+} from 'src/modules/user/application/user.command';
+import { UserAlreadyJoinedException } from 'src/modules/user/application/exception/user-already-joined.exception';
+import { UserRepositoryPort } from './port/user-repository.port';
 
 @Injectable()
-export class UserService {
+export class UserService implements AuthenticatedUserReader {
   constructor(
-    private readonly userRepository: UserRepository,
+    private readonly userRepository: UserRepositoryPort,
     private readonly tokenVerifier: FirebaseTokenVerifier,
   ) {}
 
@@ -25,7 +29,7 @@ export class UserService {
       verifiedUser.uid,
     );
     if (existing) {
-      throw new UserAlredyJoinedException(verifiedUser.uid);
+      throw new UserAlreadyJoinedException(verifiedUser.uid);
     }
 
     return this.userRepository.create({

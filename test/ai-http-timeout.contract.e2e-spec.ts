@@ -4,16 +4,16 @@ import { createServer, Server } from 'http';
 import { AddressInfo } from 'net';
 import { Registry } from 'prom-client';
 import { AiSearchModule } from 'src/integrations/ai-search/ai-search.module';
-import { ClipClient } from 'src/integrations/ai-search/clip-client';
-import { VitClient } from 'src/integrations/ai-search/vit-client';
+import { ClipSearchPort } from 'src/integrations/ai-search/application/clip-search.port';
+import { VitSearchPort } from 'src/integrations/ai-search/application/vit-search.port';
 import aiConfig from 'src/platform/config/ai.config';
 import { PROMETHEUS_REGISTRY } from 'src/platform/observability/prometheus/prometheus.constants';
 
 describe('AI shared HTTP timeout contract (e2e)', () => {
   let server: Server;
   let module: TestingModule;
-  let vitClient: VitClient;
-  let clipClient: ClipClient;
+  let vitClient: VitSearchPort;
+  let clipClient: ClipSearchPort;
   let registry: Registry;
 
   beforeAll(async () => {
@@ -52,8 +52,8 @@ describe('AI shared HTTP timeout contract (e2e)', () => {
         httpTimeoutMs: 50,
       })
       .compile();
-    vitClient = module.get(VitClient);
-    clipClient = module.get(ClipClient);
+    vitClient = module.get(VitSearchPort);
+    clipClient = module.get(ClipSearchPort);
     registry = module.get(PROMETHEUS_REGISTRY);
   });
 

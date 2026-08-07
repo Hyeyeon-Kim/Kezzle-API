@@ -1,6 +1,6 @@
-import { UserView } from '../application/user.view';
-import { CreateUserResponseDto } from './dto/response-create-user.dto';
-import { UserResponseDto } from './dto/response-user.dto';
+import { UserView } from 'src/modules/user/application/user.view';
+import { CreateUserResponseDto } from './dto/response/create-user-response.dto';
+import { UserResponseDto } from './dto/response/user-response.dto';
 
 export class UserPresenter {
   static created(user: UserView): CreateUserResponseDto {

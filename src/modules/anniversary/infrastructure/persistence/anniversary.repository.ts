@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { AnniversaryView } from '../../application/anniversary.view';
-import { Anniversary } from './entities/anniversary.schema';
+import { AnniversaryView } from 'src/modules/anniversary/application/query/anniversary.view';
+import { AnniversaryRepositoryPort } from 'src/modules/anniversary/application/port/anniversary-repository.port';
+import { Anniversary } from 'src/modules/anniversary/infrastructure/persistence/schema/anniversary.schema';
 import { AnniversaryPersistenceMapper } from './anniversary.persistence-mapper';
 
 @Injectable()
-export class AnniversaryRepository {
+export class AnniversaryRepository implements AnniversaryRepositoryPort {
   constructor(
     @InjectModel(Anniversary.name, 'kezzle')
     private readonly anniversaryModel: Model<Anniversary>,

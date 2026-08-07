@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { User, UserSchema } from './entities/user.schema';
+import {
+  User,
+  UserSchema,
+} from 'src/modules/user/infrastructure/persistence/schema/user.schema';
 import { UserRepository } from './user.repository';
+import { UserRepositoryPort } from 'src/modules/user/application/port/user-repository.port';
 
 @Module({
   imports: [
@@ -10,7 +14,10 @@ import { UserRepository } from './user.repository';
       'kezzle',
     ),
   ],
-  providers: [UserRepository],
-  exports: [UserRepository],
+  providers: [
+    UserRepository,
+    { provide: UserRepositoryPort, useExisting: UserRepository },
+  ],
+  exports: [UserRepository, UserRepositoryPort],
 })
 export class UserRepositoryModule {}

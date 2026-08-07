@@ -1,13 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, PipelineStage } from 'mongoose';
-import { Store } from './entities/store.schema';
-import { StoreNotFoundException } from '../../application/exceptions/store-not-found.exception';
+import { Store } from 'src/modules/store/infrastructure/persistence/schema/store.schema';
+import { StoreNotFoundException } from 'src/modules/store/application/exception/store-not-found.exception';
 import {
   CreateStoreData,
   UpdateStoreData,
-} from '../../application/store.command';
-import { StoreSummaryView, StoreView } from '../../application/store.view';
+} from 'src/modules/store/application/store.command';
+import {
+  StoreSummaryView,
+  StoreView,
+} from 'src/modules/store/application/store.view';
+import { StoreRepositoryPort } from 'src/modules/store/application/port/store-repository.port';
 import { StorePersistenceMapper } from './store.persistence-mapper';
 import { WriteResult } from 'src/shared/application/write-result';
 
@@ -19,7 +23,7 @@ const STORE_SUMMARY_PROJECTION = {
 };
 
 @Injectable()
-export class StoreRepository {
+export class StoreRepository implements StoreRepositoryPort {
   constructor(
     @InjectModel(Store.name, 'kezzle')
     private readonly storeModel: Model<Store>,
@@ -75,16 +79,16 @@ export class StoreRepository {
     return stores.map((store) => StorePersistenceMapper.toView(store));
   }
 
-  async addUserLike(storeid: string, userId: string): Promise<void> {
+  async addUserLike(storeId: string, userId: string): Promise<void> {
     await this.storeModel.updateOne(
-      { _id: storeid },
+      { _id: storeId },
       { $addToSet: { user_like_ids: [userId] } },
     );
   }
 
-  async removeUserLike(storeid: string, userId: string): Promise<void> {
+  async removeUserLike(storeId: string, userId: string): Promise<void> {
     await this.storeModel.updateOne(
-      { _id: storeid },
+      { _id: storeId },
       { $pull: { user_like_ids: userId } },
     );
   }

@@ -9,13 +9,13 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { RolesAllowed } from 'src/platform/auth/decorators/roles.decorator';
-import { GetUser } from 'src/modules/user/api/decorators/get-user.decorator';
-import { Roles } from 'src/modules/user/application/roles.enum';
-import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
-import { CatalogQueryService } from '../application/catalog-query.service';
-import { CatalogPresenter } from './catalog.presenter';
-import { CatalogCakesResponseDto } from './dto/catalog-cake-response.dto';
-import { SimilarCakeCatalogQueryService } from '../application/similar-cake-catalog-query.service';
+import { GetUser } from 'src/platform/auth/decorators/get-user.decorator';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
+import { Roles } from 'src/platform/auth/roles.enum';
+import { CatalogQueryService } from 'src/modules/catalog/application/query/catalog-query.service';
+import { CatalogPresenter } from 'src/modules/catalog/api/catalog.presenter';
+import { CatalogCakesResponseDto } from 'src/modules/catalog/api/dto/response/catalog-cake-response.dto';
+import { SimilarCakeCatalogQueryService } from 'src/modules/catalog/application/query/similar-cake-catalog-query.service';
 
 @ApiTags('cakes')
 @ApiBearerAuth()

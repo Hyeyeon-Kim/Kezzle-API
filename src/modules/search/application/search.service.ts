@@ -1,20 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ClipClient } from 'src/integrations/ai-search/clip-client';
-import { CakeExternalMapper } from 'src/modules/cake/infrastructure/cake-external.mapper';
-import { SearchEventRecorder } from './port/search-event-recorder.port';
-import { SearchHistoryReader } from './port/search-history.reader';
-import { LatestSearchView, SearchResultView } from './search.view';
-import { SearchEventMetricsAdapter } from '../infrastructure/search-event-metrics.adapter';
+import { ClipSearchPort } from 'src/integrations/ai-search/application/clip-search.port';
+import { SearchEventRecorder } from 'src/modules/search/application/port/search-event-recorder.port';
+import { SearchHistoryReader } from 'src/modules/search/application/port/search-history.reader';
+import {
+  LatestSearchView,
+  SearchResultView,
+} from 'src/modules/search/application/search.view';
+import { SearchEventMetrics } from 'src/modules/search/application/port/search-event-metrics.port';
 
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
 
   constructor(
-    private readonly clipClient: ClipClient,
+    private readonly clipClient: ClipSearchPort,
     private readonly searchEventRecorder: SearchEventRecorder,
     private readonly searchHistoryReader: SearchHistoryReader,
-    private readonly metrics: SearchEventMetricsAdapter,
+    private readonly metrics: SearchEventMetrics,
   ) {}
 
   async search(
@@ -42,7 +44,7 @@ export class SearchService {
     }
 
     return {
-      cakes: result.map((cake) => CakeExternalMapper.toView(cake)),
+      cakes: result,
       nextPage,
       hasMore: !isLastPage,
     };

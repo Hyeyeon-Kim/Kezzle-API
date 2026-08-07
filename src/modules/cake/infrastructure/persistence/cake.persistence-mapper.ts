@@ -1,6 +1,9 @@
 import { ImageValue } from 'src/shared/image/application/image.value';
-import { CreateCakeData, UpdateCakeData } from '../../application/cake.command';
-import { CakeView } from '../../application/cake.view';
+import {
+  Cake,
+  CreateCakeData,
+  UpdateCakeData,
+} from '../../application/model/cake';
 
 export interface CakeImagePersistenceRecord {
   readonly name: string;
@@ -35,7 +38,7 @@ function dateValue(value: Date | string | undefined): Date | undefined {
 }
 
 export class CakePersistenceMapper {
-  static toView(source: CakePersistenceSource): CakeView {
+  static toDomain(source: CakePersistenceSource): Cake {
     return {
       id: identifier(source?._id) ?? identifier(source?.id),
       image: source?.image ? this.toImageValue(source.image) : undefined,

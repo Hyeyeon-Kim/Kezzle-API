@@ -7,12 +7,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { RolesAllowed } from 'src/platform/auth/decorators/roles.decorator';
-import { GetUser } from 'src/modules/user/api/decorators/get-user.decorator';
-import { Roles } from 'src/modules/user/application/roles.enum';
-import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
-import { CatalogQueryService } from '../application/catalog-query.service';
-import { CatalogPresenter } from './catalog.presenter';
-import { CatalogStoresResponseDto } from './dto/catalog-store-response.dto';
+import { GetUser } from 'src/platform/auth/decorators/get-user.decorator';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
+import { Roles } from 'src/platform/auth/roles.enum';
+import { CatalogQueryService } from 'src/modules/catalog/application/query/catalog-query.service';
+import { CatalogPresenter } from 'src/modules/catalog/api/catalog.presenter';
+import { CatalogStoresResponseDto } from 'src/modules/catalog/api/dto/response/catalog-store-response.dto';
 
 @ApiTags('stores')
 @Controller('stores')

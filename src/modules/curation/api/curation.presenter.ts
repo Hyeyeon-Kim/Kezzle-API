@@ -1,8 +1,11 @@
-import { CurationDetailView, CurationView } from '../application/curation.view';
 import {
+  CurationDetailView,
+  CurationView,
+} from 'src/modules/curation/application/curation.view';
+import {
+  CurationCakeDto,
   CurationCakeResponseDto,
-  CurationCakeResponsDto,
-} from './dto/response-curation-cake.dto';
+} from './dto/response/curation-cake-response.dto';
 
 export class CurationPresenter {
   static created(view: CurationView) {
@@ -34,10 +37,10 @@ export class CurationPresenter {
     };
   }
 
-  static detail(view: CurationDetailView): CurationCakeResponsDto {
-    return new CurationCakeResponsDto(
+  static detail(view: CurationDetailView): CurationCakeResponseDto {
+    return new CurationCakeResponseDto(
       view.description,
-      view.cakes.map((cake) => new CurationCakeResponseDto(cake)),
+      view.cakes.map((cake) => new CurationCakeDto(cake)),
     );
   }
 }

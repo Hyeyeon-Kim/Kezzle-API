@@ -3,7 +3,7 @@ import { CakePersistenceMapper } from './cake.persistence-mapper';
 
 describe('CakePersistenceMapper', () => {
   it('maps a legacy persistence record to a pure Cake view', () => {
-    expect(CakePersistenceMapper.toView(fixtures.cake)).toMatchObject({
+    expect(CakePersistenceMapper.toDomain(fixtures.cake)).toMatchObject({
       id: '65a000000000000000000001',
       image: {
         name: 'legacy-cake.png',

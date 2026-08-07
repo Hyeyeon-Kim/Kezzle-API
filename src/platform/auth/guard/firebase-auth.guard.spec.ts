@@ -6,7 +6,7 @@ import {
   HOME_RESILIENCE_AUTH_BYPASS_KEY,
 } from '../decorators/home-resilience-auth-bypass.decorator';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
-import { Roles } from 'src/modules/user/application/roles.enum';
+import { Roles } from 'src/platform/auth/roles.enum';
 
 jest.mock('@nestjs/passport', () => ({
   AuthGuard: jest.fn(

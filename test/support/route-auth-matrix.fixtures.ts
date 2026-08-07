@@ -1,5 +1,5 @@
 import { Connection, Types } from 'mongoose';
-import { Roles } from 'src/modules/user/application/roles.enum';
+import { Roles } from 'src/platform/auth/roles.enum';
 
 export const ROUTE_AUTH_IDS = Object.freeze({
   buyerSelfId: 'auth-matrix-buyer-self',

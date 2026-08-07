@@ -1,5 +1,5 @@
 import fixtures from '../../../../test/fixtures/type-boundary-read.contract.json';
-import { ImageExternalMapper } from 'src/shared/image/image-external.mapper';
+import { ImageExternalMapper } from 'src/shared/image/application/image-external.mapper';
 import { RankingPresenter } from './ranking.presenter';
 
 describe('RankingPresenter', () => {

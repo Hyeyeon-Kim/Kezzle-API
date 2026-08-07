@@ -1,6 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
-import { Roles } from 'src/modules/user/application/roles.enum';
-import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
+import { Roles } from 'src/platform/auth/roles.enum';
 
 export function assertSelfOrAdmin(
   user: AuthenticatedUser,

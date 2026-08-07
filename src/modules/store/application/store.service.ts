@@ -1,14 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
-import { UserNotOwnerException } from 'src/modules/user/application/exceptions/user-not-owner.exception';
-import { Roles } from 'src/modules/user/application/roles.enum';
-import { CreateStoreData, UpdateStoreData } from './store.command';
-import { StoreView } from './store.view';
-import { StoreRepository } from '../infrastructure/persistence/store.repository';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
+import { UserNotOwnerException } from 'src/platform/auth/exception/user-not-owner.exception';
+import { Roles } from 'src/platform/auth/roles.enum';
+import {
+  CreateStoreData,
+  UpdateStoreData,
+} from 'src/modules/store/application/store.command';
+import { StoreView } from 'src/modules/store/application/store.view';
+import { StoreRepositoryPort } from './port/store-repository.port';
 
 @Injectable()
 export class StoreService {
-  constructor(private readonly storeRepository: StoreRepository) {}
+  constructor(private readonly storeRepository: StoreRepositoryPort) {}
 
   async create(data: CreateStoreData): Promise<StoreView> {
     return this.storeRepository.create(data);

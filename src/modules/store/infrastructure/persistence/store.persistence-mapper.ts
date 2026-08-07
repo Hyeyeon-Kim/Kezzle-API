@@ -2,8 +2,11 @@ import { ImageValue } from 'src/shared/image/application/image.value';
 import {
   CreateStoreData,
   UpdateStoreData,
-} from '../../application/store.command';
-import { StoreSummaryView, StoreView } from '../../application/store.view';
+} from 'src/modules/store/application/store.command';
+import {
+  StoreSummaryView,
+  StoreView,
+} from 'src/modules/store/application/store.view';
 
 export interface StoreImagePersistenceRecord {
   readonly name: string;

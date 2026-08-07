@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, PipelineStage } from 'mongoose';
-import { KeywordEventReader } from '../../application/port/keyword-event.reader';
+import { Model } from 'mongoose';
 import { SearchEventRecorder } from '../../application/port/search-event-recorder.port';
 import {
   SearchHistoryEntry,
@@ -11,7 +10,7 @@ import { KeywordLog } from './search-event.schema';
 
 @Injectable()
 export class SearchEventRepository
-  implements SearchEventRecorder, SearchHistoryReader, KeywordEventReader
+  implements SearchEventRecorder, SearchHistoryReader
 {
   constructor(
     @InjectModel(KeywordLog.name, 'kezzle')
@@ -32,38 +31,5 @@ export class SearchEventRepository
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
-  }
-
-  async getRanked(
-    startDateStr: string,
-    endDateStr: string,
-    limit: number = 10,
-    maxTimeMs?: number,
-  ) {
-    const match: PipelineStage.Match = {
-      $match: {
-        createdAt: {
-          $gte: new Date(startDateStr),
-          $lte: new Date(endDateStr),
-        },
-      },
-    };
-    const group: PipelineStage.Group = {
-      $group: {
-        _id: '$searchWord',
-        count: { $sum: 1 },
-      },
-    };
-    const sort: PipelineStage.Sort = {
-      $sort: { count: -1, _id: 1 },
-    };
-
-    const aggregate = this.keywordModel
-      .aggregate([match, group, sort])
-      .limit(limit);
-    if (maxTimeMs !== undefined) {
-      aggregate.option({ maxTimeMS: maxTimeMs });
-    }
-    return aggregate;
   }
 }

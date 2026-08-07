@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { CakeLikeView } from 'src/modules/cake/application/cake-like.port';
-import { LikedStoreCatalogView } from 'src/modules/catalog/application/liked-store-catalog.reader';
-import { LikedCakeResponseDto } from './dto/liked-cake-response.dto';
-import { LikedStoreResponseDto } from './dto/liked-store-response.dto';
-import { ImageDto } from 'src/shared/image/api/image.dto';
+import { CakeLikeView } from 'src/modules/cake/application/port/cake-like.port';
+import { LikedStoreCatalogView } from 'src/modules/catalog/application/port/liked-store-catalog.reader';
+import { LikedCakeResponseDto } from 'src/modules/like/api/dto/response/liked-cake-response.dto';
+import { LikedStoreResponseDto } from 'src/modules/like/api/dto/response/liked-store-response.dto';
+import { ImageDto } from 'src/platform/http/dto/image.dto';
 
 @Injectable()
 export class LikePresenter {

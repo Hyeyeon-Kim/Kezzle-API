@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
-import { CounterService } from './infrastructure/persistence/counter.service';
+import { CounterService } from 'src/modules/counter/infrastructure/persistence/counter.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
   Counter,
   CounterSchema,
-} from './infrastructure/persistence/entities/counter.schema';
+} from 'src/modules/counter/infrastructure/persistence/schema/counter.schema';
+import { CounterSequencePort } from './application/port/counter-sequence.port';
 
 @Module({
   imports: [
@@ -13,7 +14,10 @@ import {
       'kezzle',
     ),
   ],
-  providers: [CounterService],
-  exports: [CounterService],
+  providers: [
+    CounterService,
+    { provide: CounterSequencePort, useExisting: CounterService },
+  ],
+  exports: [CounterSequencePort],
 })
 export class CounterModule {}

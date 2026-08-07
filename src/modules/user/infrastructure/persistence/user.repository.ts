@@ -1,15 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User } from './entities/user.schema';
-import { UserNotFoundException } from '../../application/exceptions/user-not-found';
-import { UserView } from '../../application/user.view';
-import { CreateUserData, UpdateUserData } from '../../application/user.command';
+import { User } from 'src/modules/user/infrastructure/persistence/schema/user.schema';
+import { UserNotFoundException } from 'src/modules/user/application/exception/user-not-found.exception';
+import { UserView } from 'src/modules/user/application/user.view';
+import {
+  CreateUserData,
+  UpdateUserData,
+} from 'src/modules/user/application/user.command';
+import { UserRepositoryPort } from 'src/modules/user/application/port/user-repository.port';
 import { UserPersistenceMapper } from './user.persistence-mapper';
 import { WriteResult } from 'src/shared/application/write-result';
 
 @Injectable()
-export class UserRepository {
+export class UserRepository implements UserRepositoryPort {
   constructor(
     @InjectModel(User.name, 'kezzle')
     private readonly userModel: Model<User>,

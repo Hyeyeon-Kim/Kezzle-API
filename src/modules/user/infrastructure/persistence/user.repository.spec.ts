@@ -1,4 +1,4 @@
-import { UserNotFoundException } from '../../application/exceptions/user-not-found';
+import { UserNotFoundException } from 'src/modules/user/application/exception/user-not-found.exception';
 import { UserRepository } from './user.repository';
 
 describe('UserRepository', () => {

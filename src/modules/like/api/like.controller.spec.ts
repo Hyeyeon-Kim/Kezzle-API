@@ -1,7 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
-import { Roles } from 'src/modules/user/application/roles.enum';
+import { Roles } from 'src/platform/auth/roles.enum';
 import { LikeController } from './like.controller';
-import { LikePresenter } from './like.presenter';
+import { LikePresenter } from 'src/modules/like/api/like.presenter';
 
 describe('LikeController ownership', () => {
   it('rejects another user liked-cake list', () => {

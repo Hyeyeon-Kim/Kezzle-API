@@ -1,19 +1,27 @@
 import { Module } from '@nestjs/common';
-import { CakeService } from './application/cake.service';
-import { CakeRepositoryModule } from './infrastructure/persistence/cake-repository.module';
+import { MongooseModule } from '@nestjs/mongoose';
+import { CakeQueryService } from './application/query/cake-query.service';
 import { CakeController } from './api/cake.controller';
 import { ObjectStorageModule } from 'src/integrations/media/object-storage.module';
 import { AnniversaryModule } from 'src/modules/anniversary/anniversary.module';
 import { CounterModule } from 'src/modules/counter/counter.module';
 import { AiSearchModule } from 'src/integrations/ai-search/ai-search.module';
 import { StoreModule } from 'src/modules/store/store.module';
-import { CakeCatalogRepositoryAdapter } from './infrastructure/cake-catalog.adapter';
-import { CakeCatalogReader } from './application/cake-catalog.reader';
-import { CakeLikeRepositoryAdapter } from './infrastructure/cake-like.adapter';
-import { CakeLikePort } from './application/cake-like.port';
-import { CakeMediaService } from './application/cake-media.service';
-import { CakeImportService } from './application/cake-import.service';
+import { CakeCatalogAdapter } from './infrastructure/integration/catalog/cake-catalog.adapter';
+import { CakeCatalogPort } from './application/port/cake-catalog.port';
+import { CakeLikeAdapter } from './infrastructure/integration/like/cake-like.adapter';
+import { CakeLikePort } from './application/port/cake-like.port';
+import { CakeMediaService } from './application/media/cake-media.service';
+import { CakeImportService } from './application/import/cake-import.service';
 import { MediaObservabilityModule } from 'src/integrations/media/media-observability.module';
+import {
+  CakePersistenceModel,
+  CakeSchema,
+} from './infrastructure/persistence/schema/cake.schema';
+import { MongooseCakeRepository } from './infrastructure/persistence/mongoose-cake.repository';
+import { CakeRepositoryPort } from './application/port/cake-repository.port';
+import { CakeCursorGeneratorPort } from './application/port/cake-cursor-generator.port';
+import { MongoObjectIdCakeCursorAdapter } from './infrastructure/persistence/mongo-object-id-cake-cursor.adapter';
 
 @Module({
   imports: [
@@ -21,20 +29,30 @@ import { MediaObservabilityModule } from 'src/integrations/media/media-observabi
     AnniversaryModule,
     CounterModule,
     AiSearchModule,
-    CakeRepositoryModule,
+    MongooseModule.forFeature(
+      [{ name: CakePersistenceModel.name, schema: CakeSchema }],
+      'kezzle',
+    ),
     StoreModule,
     MediaObservabilityModule,
   ],
   controllers: [CakeController],
   providers: [
-    CakeService,
+    CakeQueryService,
     CakeMediaService,
     CakeImportService,
-    CakeCatalogRepositoryAdapter,
-    { provide: CakeCatalogReader, useExisting: CakeCatalogRepositoryAdapter },
-    CakeLikeRepositoryAdapter,
-    { provide: CakeLikePort, useExisting: CakeLikeRepositoryAdapter },
+    MongooseCakeRepository,
+    { provide: CakeRepositoryPort, useExisting: MongooseCakeRepository },
+    MongoObjectIdCakeCursorAdapter,
+    {
+      provide: CakeCursorGeneratorPort,
+      useExisting: MongoObjectIdCakeCursorAdapter,
+    },
+    CakeCatalogAdapter,
+    { provide: CakeCatalogPort, useExisting: CakeCatalogAdapter },
+    CakeLikeAdapter,
+    { provide: CakeLikePort, useExisting: CakeLikeAdapter },
   ],
-  exports: [CakeService, CakeCatalogReader, CakeLikePort],
+  exports: [CakeQueryService, CakeCatalogPort, CakeLikePort],
 })
 export class CakeModule {}

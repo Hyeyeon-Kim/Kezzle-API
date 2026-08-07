@@ -1,7 +1,7 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
-import { Roles } from 'src/modules/user/application/roles.enum';
+import { Roles } from 'src/platform/auth/roles.enum';
 import { HOME_RESILIENCE_AUTH_BYPASS_KEY } from '../decorators/home-resilience-auth-bypass.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { Inject } from '@nestjs/common';

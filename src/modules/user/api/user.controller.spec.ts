@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { Roles } from '../application/roles.enum';
+import { Roles } from 'src/platform/auth/roles.enum';
 import { UserController } from './user.controller';
 
 describe('UserController ownership', () => {

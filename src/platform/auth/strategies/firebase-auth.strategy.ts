@@ -1,7 +1,7 @@
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
 import { Strategy, ExtractJwt } from 'passport-firebase-jwt';
-import { UserService } from 'src/modules/user/application/user.service';
+import { AuthenticatedUserReader } from '../application/authenticated-user.reader';
 import { FirebaseTokenVerifier } from '../application/firebase-token-verifier.port';
 import { verifyTokenOrThrowUnauthorized } from '../application/verify-token';
 
@@ -11,7 +11,7 @@ export class FirebaseAuthStrategy extends PassportStrategy(
   'firebase-auth',
 ) {
   constructor(
-    private readonly userservice: UserService,
+    private readonly authenticatedUserReader: AuthenticatedUserReader,
     private readonly tokenVerifier: FirebaseTokenVerifier,
   ) {
     super({
@@ -24,6 +24,6 @@ export class FirebaseAuthStrategy extends PassportStrategy(
       this.tokenVerifier,
       token,
     );
-    return this.userservice.findAuthenticatedUser(verifiedUser.uid);
+    return this.authenticatedUserReader.findAuthenticatedUser(verifiedUser.uid);
   }
 }

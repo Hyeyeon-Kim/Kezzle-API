@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
-import { AnniversaryService } from './application/anniversary.service';
+import { AnniversaryService } from 'src/modules/anniversary/application/query/anniversary.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
   Anniversary,
   AnniversarySchema,
-} from './infrastructure/persistence/entities/anniversary.schema';
+} from 'src/modules/anniversary/infrastructure/persistence/schema/anniversary.schema';
 import { AiSearchModule } from 'src/integrations/ai-search/ai-search.module';
-import { AnniversaryRepository } from './infrastructure/persistence/anniversary.repository';
+import { AnniversaryRepository } from 'src/modules/anniversary/infrastructure/persistence/anniversary.repository';
+import { AnniversaryRepositoryPort } from './application/port/anniversary-repository.port';
 
 @Module({
   imports: [
@@ -16,7 +17,14 @@ import { AnniversaryRepository } from './infrastructure/persistence/anniversary.
     ),
     AiSearchModule,
   ],
-  providers: [AnniversaryService, AnniversaryRepository],
+  providers: [
+    AnniversaryService,
+    AnniversaryRepository,
+    {
+      provide: AnniversaryRepositoryPort,
+      useExisting: AnniversaryRepository,
+    },
+  ],
   exports: [AnniversaryService],
 })
 export class AnniversaryModule {}

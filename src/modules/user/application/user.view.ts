@@ -1,4 +1,4 @@
-import { Roles } from './roles.enum';
+import { Roles } from 'src/platform/auth/roles.enum';
 
 export interface UserView {
   readonly id?: string;

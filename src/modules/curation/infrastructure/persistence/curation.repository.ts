@@ -2,18 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { WriteResult } from 'src/shared/application/write-result';
-import { CreateCurationData } from '../../application/curation.command';
+import { CreateCurationData } from 'src/modules/curation/application/curation.command';
 import {
   CurationCakeSnapshotView,
   CurationView,
   StaleCurationView,
-} from '../../application/curation.view';
-import { Curation } from './entities/curation.schema';
-import { CurationNotFoundException } from '../../application/exceptions/curation-not-found.exception';
+} from 'src/modules/curation/application/curation.view';
+import { Curation } from 'src/modules/curation/infrastructure/persistence/schema/curation.schema';
+import { CurationNotFoundException } from 'src/modules/curation/application/exception/curation-not-found.exception';
+import { CurationRepository } from 'src/modules/curation/application/port/curation-repository.port';
 import { CurationPersistenceMapper } from './curation.persistence-mapper';
 
 @Injectable()
-export class CurationRepository {
+export class MongooseCurationRepository implements CurationRepository {
   constructor(
     @InjectModel(Curation.name, 'kezzle')
     private readonly curationModel: Model<Curation>,

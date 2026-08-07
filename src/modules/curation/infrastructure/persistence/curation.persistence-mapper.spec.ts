@@ -1,8 +1,11 @@
 import fixtures from '../../../../../test/fixtures/legacy-persistence.contract.json';
 import { model } from 'mongoose';
 import { CurationPersistenceMapper } from './curation.persistence-mapper';
-import { CurationPresenter } from '../../api/curation.presenter';
-import { Curation, CurationSchema } from './entities/curation.schema';
+import { CurationPresenter } from 'src/modules/curation/api/curation.presenter';
+import {
+  Curation,
+  CurationSchema,
+} from 'src/modules/curation/infrastructure/persistence/schema/curation.schema';
 
 describe('CurationPersistenceMapper', () => {
   it('maps legacy snapshots to pure views and preserves additional keys', () => {

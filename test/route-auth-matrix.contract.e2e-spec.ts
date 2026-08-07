@@ -4,8 +4,8 @@ import { TestingModule } from '@nestjs/testing';
 import { Connection } from 'mongoose';
 import request from 'supertest';
 import * as XLSX from 'xlsx';
-import { ClipClient } from 'src/integrations/ai-search/clip-client';
-import { VitClient } from 'src/integrations/ai-search/vit-client';
+import { ClipSearchPort } from 'src/integrations/ai-search/application/clip-search.port';
+import { VitSearchPort } from 'src/integrations/ai-search/application/vit-search.port';
 import { ReadinessState } from 'src/platform/health/readiness-state';
 import routeAuthMatrixJson from './fixtures/route-auth-matrix.contract.json';
 import { createFullAppE2eBuilder } from './support/full-app-e2e.builder';
@@ -127,9 +127,9 @@ describe('Route authorization matrix contract (e2e)', () => {
     };
 
     module = await composition.builder
-      .overrideProvider(ClipClient)
+      .overrideProvider(ClipSearchPort)
       .useValue(clipClient)
-      .overrideProvider(VitClient)
+      .overrideProvider(VitSearchPort)
       .useValue(vitClient)
       .compile();
     app = module.createNestApplication();

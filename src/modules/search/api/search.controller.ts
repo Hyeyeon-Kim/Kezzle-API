@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { SearchService } from '../application/search.service';
-import { GetUser } from 'src/modules/user/api/decorators/get-user.decorator';
-import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
+import { SearchService } from 'src/modules/search/application/search.service';
+import { GetUser } from 'src/platform/auth/decorators/get-user.decorator';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
 import { assertSelfOrAdmin } from 'src/platform/auth/authorization/self-or-admin';
 import { SearchPresenter } from './search.presenter';
 

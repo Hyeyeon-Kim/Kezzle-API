@@ -21,21 +21,21 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
-import { CakeService } from '../application/cake.service';
-import { Roles } from 'src/modules/user/application/roles.enum';
+import { CakeQueryService } from '../application/query/cake-query.service';
+import { Roles } from 'src/platform/auth/roles.enum';
 import { RolesAllowed } from 'src/platform/auth/decorators/roles.decorator';
-import { GetUser } from 'src/modules/user/api/decorators/get-user.decorator';
-import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
-import { CakeResponseDto } from './dto/response-cake.dto';
+import { GetUser } from 'src/platform/auth/decorators/get-user.decorator';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
+import { CakeResponseDto } from './dto/response/cake-response.dto';
 import {
   FileFieldsInterceptor,
   FileInterceptor,
 } from '@nestjs/platform-express';
-import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
+import { CakeSimpleListResponseDto } from './dto/response/cake-simple-list-response.dto';
 import { CakePresenter } from './cake.presenter';
 import { MulterMediaFileMapper } from 'src/integrations/media/api/multer-media-file.mapper';
-import { CakeMediaService } from '../application/cake-media.service';
-import { CakeImportService } from '../application/cake-import.service';
+import { CakeMediaService } from '../application/media/cake-media.service';
+import { CakeImportService } from '../application/import/cake-import.service';
 import {
   IMPORT_MAX_EXCEL_COUNT,
   IMPORT_MAX_IMAGE_COUNT,
@@ -57,7 +57,7 @@ const cakeIdParams = {
 @ApiBearerAuth()
 export class CakeController {
   constructor(
-    private readonly cakeService: CakeService,
+    private readonly cakeQueryService: CakeQueryService,
     private readonly cakeMediaService: CakeMediaService,
     private readonly cakeImportService: CakeImportService,
   ) {}
@@ -80,9 +80,9 @@ export class CakeController {
   async getAllByNewest(
     @Query('after') after,
     @Query('count') limit,
-  ): Promise<CakesSimpleResponseDto> {
+  ): Promise<CakeSimpleListResponseDto> {
     return CakePresenter.simpleList(
-      await this.cakeService.findAllByNewest(after, parseInt(limit)),
+      await this.cakeQueryService.findAllByNewest(after, parseInt(limit)),
     );
   }
 
@@ -94,7 +94,7 @@ export class CakeController {
     @Query('page') page: string,
   ) {
     return CakePresenter.anniversary(
-      await this.cakeService.anniversary(anni, parseInt(page)),
+      await this.cakeQueryService.anniversary(anni, parseInt(page)),
       userDto.firebaseUid,
     );
   }
@@ -119,7 +119,7 @@ export class CakeController {
     @GetUser() userDto: AuthenticatedUser,
   ): Promise<CakeResponseDto> {
     return CakePresenter.detail(
-      await this.cakeService.findOne(cakeId),
+      await this.cakeQueryService.findOne(cakeId),
       userDto.firebaseUid,
     );
   }

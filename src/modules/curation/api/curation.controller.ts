@@ -1,8 +1,8 @@
 import { Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { CurationService } from '../application/curation.service';
+import { CurationService } from 'src/modules/curation/application/curation.service';
 import { Public } from 'src/platform/auth/decorators/public.decorator';
 import { RolesAllowed } from 'src/platform/auth/decorators/roles.decorator';
-import { Roles } from 'src/modules/user/application/roles.enum';
+import { Roles } from 'src/platform/auth/roles.enum';
 import { CurationPresenter } from './curation.presenter';
 
 @Controller('curation')

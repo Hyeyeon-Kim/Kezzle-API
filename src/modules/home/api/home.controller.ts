@@ -2,12 +2,12 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { AllowHomeResilienceAuthBypass } from 'src/platform/auth/decorators/home-resilience-auth-bypass.decorator';
 import { RolesAllowed } from 'src/platform/auth/decorators/roles.decorator';
-import { Roles } from 'src/modules/user/application/roles.enum';
-import { GetUser } from 'src/modules/user/api/decorators/get-user.decorator';
-import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
-import { HomePresenter } from './home.presenter';
-import { HomeResponseDto } from './dto/home-response.dto';
+import { Roles } from 'src/platform/auth/roles.enum';
+import { GetUser } from 'src/platform/auth/decorators/get-user.decorator';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
 import { HomeFeedService } from '../application/home-feed.service';
+import { HomeFeedResponseDto } from './dto/home-feed.response.dto';
+import { HomePresenter } from './home.presenter';
 
 @ApiTags('curation')
 @ApiBearerAuth()
@@ -20,7 +20,7 @@ export class HomeController {
 
   @ApiOkResponse({
     description: '홈 화면 정보들을 반환합니다.',
-    type: HomeResponseDto,
+    type: HomeFeedResponseDto,
   })
   @Get()
   @RolesAllowed(Roles.ADMIN, Roles.SELLER, Roles.BUYER)

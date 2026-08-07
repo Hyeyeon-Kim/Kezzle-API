@@ -4,54 +4,42 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { AnniversaryService } from 'src/modules/anniversary/application/anniversary.service';
-import { AnniversaryRecommendationView } from 'src/modules/anniversary/application/anniversary.view';
-import { CakeService } from 'src/modules/cake/application/cake.service';
-import { CakePageView } from 'src/modules/cake/application/cake-result.view';
-import { CakeView } from 'src/modules/cake/application/cake.view';
-import { CurationQueryService } from 'src/modules/curation/application/curation-query.service';
-import { CurationView } from 'src/modules/curation/application/curation.view';
-import { HomeCacheService } from 'src/modules/home/infrastructure/cache/home-cache.service';
-import { homeCachePolicy } from 'src/modules/home/infrastructure/cache/home-cache.policy';
-import { homeCacheKey } from 'src/modules/home/infrastructure/cache/home-cache.constants';
-import {
-  KeywordRankingView,
-  PopularRankingView,
-} from 'src/modules/ranking/application/ranking.view';
-import { RankingQueryService } from 'src/modules/ranking/application/ranking-query.service';
-import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
-import {
-  HomeSectionMetadataView,
-  HomeSectionsView,
-  HomeView,
-} from './home.view';
-import { HomeMetrics } from './home-metrics.port';
-import { HomeSectionName } from './home-metrics.types';
 import { ConfigType } from '@nestjs/config';
 import homeConfig from 'src/platform/config/home.config';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
+import {
+  HomeFeedView,
+  HomeSectionMetadataView,
+  HomeSectionsView,
+} from './home-feed.view';
 import {
   executeHomeSection,
   HomeSectionFallbackReason,
   HomeSectionResult,
   startHomeDeadline,
 } from './home-section.executor';
+import { HomeSectionData, HomeSectionLoader } from './home-section.loader';
+import { HomeMetrics } from './port/home-metrics.port';
+import { HomeSectionName } from './port/home-metrics.types';
+
+type HomeSectionResults = {
+  [Section in keyof HomeSectionData]: HomeSectionResult<
+    HomeSectionData[Section]
+  >;
+};
 
 @Injectable()
 export class HomeFeedService {
   private readonly logger = new Logger(HomeFeedService.name);
 
   constructor(
-    private readonly cakeService: CakeService,
-    private readonly anniversaryService: AnniversaryService,
-    private readonly rankingQuery: RankingQueryService,
-    private readonly curationQuery: CurationQueryService,
+    private readonly sectionLoader: HomeSectionLoader,
     private readonly homeMetrics: HomeMetrics,
-    private readonly homeCache: HomeCacheService,
     @Inject(homeConfig.KEY)
     private readonly config: ConfigType<typeof homeConfig>,
   ) {}
 
-  async getHome(user: AuthenticatedUser | undefined): Promise<HomeView> {
+  async getHome(user: AuthenticatedUser | undefined): Promise<HomeFeedView> {
     const startedAt = process.hrtime.bigint();
     return this.homeMetrics.run(async () => {
       try {
@@ -75,29 +63,18 @@ export class HomeFeedService {
 
   private async buildHome(
     user: AuthenticatedUser | undefined,
-  ): Promise<HomeView> {
-    const deadline = startHomeDeadline(this.getHomeHardDeadlineMs());
+  ): Promise<HomeFeedView> {
+    const deadline = startHomeDeadline(this.config.hardDeadlineMs);
     const startedAt = process.hrtime.bigint();
+    const fallback = this.sectionLoader.getFallbacks();
 
     try {
-      const recommendFallback: CakeView[] = [];
-      const anniversaryFallback = this.emptyAnniversary();
-      const popularFallback = this.rankingQuery.getPopularFallback();
-      const keywordRanksFallback = this.rankingQuery.getKeywordFallback();
-      const newestCakesFallback: CakePageView = {
-        cakes: [],
-        hasMore: false,
-      };
-      const curationsFallback: CurationView[] = [];
-
-      let recommendResult: HomeSectionResult<CakeView[]> | undefined;
-      let anniversaryResult:
-        | HomeSectionResult<AnniversaryRecommendationView>
-        | undefined;
-      let popularResult: HomeSectionResult<PopularRankingView> | undefined;
-      let keywordRanksResult: HomeSectionResult<KeywordRankingView> | undefined;
-      let newestCakesResult: HomeSectionResult<CakePageView> | undefined;
-      let curationsResult: HomeSectionResult<CurationView[]> | undefined;
+      let recommendResult: HomeSectionResults['recommendCakes'] | undefined;
+      let anniversaryResult: HomeSectionResults['anniversary'] | undefined;
+      let popularResult: HomeSectionResults['popularCakes'] | undefined;
+      let keywordRanksResult: HomeSectionResults['keywordRanks'] | undefined;
+      let newestCakesResult: HomeSectionResults['newestCakes'] | undefined;
+      let curationsResult: HomeSectionResults['curations'] | undefined;
 
       const recommendTimeout = this.getSectionTimeout('recommendCakes');
       const recommendSection = this.homeMetrics
@@ -105,30 +82,13 @@ export class HomeFeedService {
           this.runSection(
             'recommendCakes',
             recommendTimeout,
-            recommendFallback,
-            async (signal) => {
-              this.homeMetrics.countDb();
-              const seedCakeId = await this.cakeService.findRecommendationSeed(
+            fallback.recommendCakes,
+            (signal) =>
+              this.sectionLoader.loadRecommendCakes(
                 user,
                 recommendTimeout,
-              );
-              if (seedCakeId === null) {
-                return recommendFallback;
-              }
-              return this.homeCache.getWithSwr({
-                key: homeCacheKey(`similar:${seedCakeId}`),
-                ...homeCachePolicy(this.config.cache.policies, 'recommend'),
-                refresh: async () => {
-                  this.homeMetrics.countAi('vit');
-                  return this.cakeService
-                    .findAllByRecommend(seedCakeId, signal)
-                    .catch((error) => {
-                      this.homeMetrics.countAiError('vit');
-                      throw error;
-                    });
-                },
-              });
-            },
+                signal,
+              ),
             deadline.signal,
           ),
         )
@@ -139,7 +99,7 @@ export class HomeFeedService {
           (error) => {
             recommendResult = this.unexpectedSectionFallback(
               'recommendCakes',
-              recommendFallback,
+              fallback.recommendCakes,
               error,
               startedAt,
             );
@@ -152,26 +112,9 @@ export class HomeFeedService {
           this.runSection(
             'anniversary',
             anniversaryTimeout,
-            anniversaryFallback,
+            fallback.anniversary,
             (signal) =>
-              this.homeCache.getWithSwr({
-                key: homeCacheKey('anniversary'),
-                ...homeCachePolicy(this.config.cache.policies, 'anniversary'),
-                refresh: async () => {
-                  this.homeMetrics.countDb();
-                  const anniversary =
-                    await this.anniversaryService.findNextAnniversary(
-                      anniversaryTimeout,
-                    );
-                  this.homeMetrics.countAi('clip');
-                  return this.anniversaryService
-                    .getAnniversaryRecommendations(anniversary, signal)
-                    .catch((error) => {
-                      this.homeMetrics.countAiError('clip');
-                      throw error;
-                    });
-                },
-              }),
+              this.sectionLoader.loadAnniversary(anniversaryTimeout, signal),
             deadline.signal,
           ),
         )
@@ -182,7 +125,7 @@ export class HomeFeedService {
           (error) => {
             anniversaryResult = this.unexpectedSectionFallback(
               'anniversary',
-              anniversaryFallback,
+              fallback.anniversary,
               error,
               startedAt,
             );
@@ -195,20 +138,8 @@ export class HomeFeedService {
           this.runSection(
             'popularCakes',
             popularTimeout,
-            popularFallback,
-            () =>
-              this.homeCache.getWithSwr({
-                key: homeCacheKey('popular'),
-                ...homeCachePolicy(this.config.cache.policies, 'popular'),
-                refresh: () => {
-                  this.homeMetrics.countDb(2);
-                  return this.rankingQuery.getPopularCakes(
-                    NaN,
-                    3,
-                    popularTimeout,
-                  );
-                },
-              }),
+            fallback.popularCakes,
+            () => this.sectionLoader.loadPopularCakes(popularTimeout),
             deadline.signal,
           ),
         )
@@ -219,7 +150,7 @@ export class HomeFeedService {
           (error) => {
             popularResult = this.unexpectedSectionFallback(
               'popularCakes',
-              popularFallback,
+              fallback.popularCakes,
               error,
               startedAt,
             );
@@ -232,21 +163,8 @@ export class HomeFeedService {
           this.runSection(
             'keywordRanks',
             keywordRanksTimeout,
-            keywordRanksFallback,
-            () =>
-              this.homeCache.getWithSwr({
-                key: homeCacheKey('keyword-ranks'),
-                ...homeCachePolicy(this.config.cache.policies, 'keywordRanks'),
-                refresh: () => {
-                  this.homeMetrics.countDb(2);
-                  return this.rankingQuery.getKeywordRank(
-                    undefined,
-                    undefined,
-                    4,
-                    keywordRanksTimeout,
-                  );
-                },
-              }),
+            fallback.keywordRanks,
+            () => this.sectionLoader.loadKeywordRanks(keywordRanksTimeout),
             deadline.signal,
           ),
         )
@@ -257,7 +175,7 @@ export class HomeFeedService {
           (error) => {
             keywordRanksResult = this.unexpectedSectionFallback(
               'keywordRanks',
-              keywordRanksFallback,
+              fallback.keywordRanks,
               error,
               startedAt,
             );
@@ -270,20 +188,8 @@ export class HomeFeedService {
           this.runSection(
             'newestCakes',
             newestCakesTimeout,
-            newestCakesFallback,
-            () =>
-              this.homeCache.getWithSwr({
-                key: homeCacheKey('newest:4'),
-                ...homeCachePolicy(this.config.cache.policies, 'newest'),
-                refresh: () => {
-                  this.homeMetrics.countDb();
-                  return this.cakeService.findAllByNewest(
-                    undefined,
-                    4,
-                    newestCakesTimeout,
-                  );
-                },
-              }),
+            fallback.newestCakes,
+            () => this.sectionLoader.loadNewestCakes(newestCakesTimeout),
             deadline.signal,
           ),
         )
@@ -294,7 +200,7 @@ export class HomeFeedService {
           (error) => {
             newestCakesResult = this.unexpectedSectionFallback(
               'newestCakes',
-              newestCakesFallback,
+              fallback.newestCakes,
               error,
               startedAt,
             );
@@ -307,20 +213,8 @@ export class HomeFeedService {
           this.runSection(
             'curations',
             curationsTimeout,
-            curationsFallback,
-            () =>
-              this.homeCache.getWithSwr({
-                key: homeCacheKey('curations'),
-                ...homeCachePolicy(this.config.cache.policies, 'curations'),
-                refresh: async () => {
-                  this.homeMetrics.countDb();
-                  const curations = await this.curationQuery.findFeatured(
-                    4,
-                    curationsTimeout,
-                  );
-                  return curations;
-                },
-              }),
+            fallback.curations,
+            () => this.sectionLoader.loadCurations(curationsTimeout),
             deadline.signal,
           ),
         )
@@ -331,7 +225,7 @@ export class HomeFeedService {
           (error) => {
             curationsResult = this.unexpectedSectionFallback(
               'curations',
-              curationsFallback,
+              fallback.curations,
               error,
               startedAt,
             );
@@ -350,29 +244,37 @@ export class HomeFeedService {
         deadline.expired,
       ]);
 
-      const results = {
+      const results: HomeSectionResults = {
         recommendCakes:
           recommendResult ??
-          this.deadlineFallback('recommendCakes', recommendFallback, startedAt),
+          this.deadlineFallback(
+            'recommendCakes',
+            fallback.recommendCakes,
+            startedAt,
+          ),
         anniversary:
           anniversaryResult ??
-          this.deadlineFallback('anniversary', anniversaryFallback, startedAt),
+          this.deadlineFallback('anniversary', fallback.anniversary, startedAt),
         popularCakes:
           popularResult ??
-          this.deadlineFallback('popularCakes', popularFallback, startedAt),
+          this.deadlineFallback(
+            'popularCakes',
+            fallback.popularCakes,
+            startedAt,
+          ),
         keywordRanks:
           keywordRanksResult ??
           this.deadlineFallback(
             'keywordRanks',
-            keywordRanksFallback,
+            fallback.keywordRanks,
             startedAt,
           ),
         newestCakes:
           newestCakesResult ??
-          this.deadlineFallback('newestCakes', newestCakesFallback, startedAt),
+          this.deadlineFallback('newestCakes', fallback.newestCakes, startedAt),
         curations:
           curationsResult ??
-          this.deadlineFallback('curations', curationsFallback, startedAt),
+          this.deadlineFallback('curations', fallback.curations, startedAt),
       };
 
       for (const [section, result] of Object.entries(results)) {
@@ -417,13 +319,13 @@ export class HomeFeedService {
     }
   }
 
-  private runSection<T>(
-    name: string,
+  private runSection<Section extends HomeSectionName>(
+    name: Section,
     timeoutMs: number,
-    fallback: T,
-    operation: (signal: AbortSignal) => Promise<T>,
+    fallback: HomeSectionData[Section],
+    operation: (signal: AbortSignal) => Promise<HomeSectionData[Section]>,
     parentSignal?: AbortSignal,
-  ): Promise<HomeSectionResult<T>> {
+  ): Promise<HomeSectionResult<HomeSectionData[Section]>> {
     return executeHomeSection({
       name,
       timeoutMs,
@@ -435,7 +337,7 @@ export class HomeFeedService {
   }
 
   private deadlineFallback<T>(
-    name: string,
+    name: HomeSectionName,
     fallback: T,
     startedAt: bigint,
   ): HomeSectionResult<T> {
@@ -451,7 +353,7 @@ export class HomeFeedService {
   }
 
   private unexpectedSectionFallback<T>(
-    name: string,
+    name: HomeSectionName,
     fallback: T,
     error: unknown,
     startedAt: bigint,
@@ -474,28 +376,13 @@ export class HomeFeedService {
     return Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
   }
 
-  private getHomeHardDeadlineMs(): number {
-    return this.config.hardDeadlineMs;
-  }
-
   private getSectionTimeout(
     name: keyof ConfigType<typeof homeConfig>['sectionTimeoutMs'],
   ): number {
     return this.config.sectionTimeoutMs[name];
   }
 
-  private emptyAnniversary(): AnniversaryRecommendationView {
-    return { id: '', name: '', dday: '', mention: '', images: [] };
-  }
-
-  private sectionMetadata(results: {
-    recommendCakes: HomeSectionResult<unknown>;
-    anniversary: HomeSectionResult<unknown>;
-    popularCakes: HomeSectionResult<unknown>;
-    keywordRanks: HomeSectionResult<unknown>;
-    newestCakes: HomeSectionResult<unknown>;
-    curations: HomeSectionResult<unknown>;
-  }): HomeSectionsView {
+  private sectionMetadata(results: HomeSectionResults): HomeSectionsView {
     return {
       recommendCakes: this.sectionMetadataItem(results.recommendCakes),
       anniversary: this.sectionMetadataItem(results.anniversary),
@@ -519,7 +406,7 @@ export class HomeFeedService {
   }
 
   private logSectionFallback(
-    name: string,
+    name: HomeSectionName,
     error: unknown,
     reason: HomeSectionFallbackReason,
   ): void {

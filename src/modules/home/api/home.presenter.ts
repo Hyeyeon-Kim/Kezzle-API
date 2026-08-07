@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { HomeView } from '../application/home.view';
-import { HomeResponseDto } from './dto/home-response.dto';
+import { HomeFeedView } from '../application/home-feed.view';
+import { HomeFeedResponseDto } from './dto/home-feed.response.dto';
 
 @Injectable()
 export class HomePresenter {
-  response(view: HomeView): HomeResponseDto {
-    return new HomeResponseDto(view);
+  response(view: HomeFeedView): HomeFeedResponseDto {
+    return new HomeFeedResponseDto(view);
   }
 }

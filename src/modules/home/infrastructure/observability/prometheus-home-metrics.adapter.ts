@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import { monitorEventLoopDelay } from 'perf_hooks';
 import { Counter, Histogram, Registry } from 'prom-client';
 import { PROMETHEUS_REGISTRY } from 'src/platform/observability/prometheus/prometheus.constants';
-import { HomeMetrics } from '../../application/home-metrics.port';
+import { HomeMetrics } from '../../application/port/home-metrics.port';
 import {
   HomeAiDependency,
   HomeCacheEvent,
@@ -15,7 +15,7 @@ import {
   HomeSectionFallbackReason,
   HomeSectionName,
   HomeSectionStatus,
-} from '../../application/home-metrics.types';
+} from '../../application/port/home-metrics.types';
 
 type SectionMetric = {
   count: number;

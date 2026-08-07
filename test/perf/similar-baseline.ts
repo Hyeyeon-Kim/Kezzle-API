@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import {
   Store,
   StoreSchema,
-} from '../../src/modules/store/infrastructure/persistence/entities/store.schema';
+} from '../../src/modules/store/infrastructure/persistence/schema/store.schema';
 
 type ScenarioResult = {
   scenario: string;

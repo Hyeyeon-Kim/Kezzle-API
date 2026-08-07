@@ -2,18 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   CakeLikePort,
   CakeLikeView,
-} from 'src/modules/cake/application/cake-like.port';
-import { CakeAlredyLikeException } from 'src/modules/cake/application/exceptions/cake-already-like.exception';
+} from 'src/modules/cake/application/port/cake-like.port';
+import { CakeAlreadyLikedException } from 'src/modules/like/application/exception/cake-already-liked.exception';
 import {
   LikedStoreCatalogReader,
   LikedStoreCatalogView,
-} from 'src/modules/catalog/application/liked-store-catalog.reader';
-import { StoreAlredyLikeException } from 'src/modules/store/application/exceptions/store-already-like.exception';
-import { StoreLikePort } from 'src/modules/store/application/store-like.port';
-import { UserLikePort } from 'src/modules/user/application/user-like.port';
-import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
-import { CakeLikeEventRecorder } from './port/cake-like-event-recorder.port';
-import { CakeLikeEventMetricsAdapter } from '../infrastructure/cake-like-event-metrics.adapter';
+} from 'src/modules/catalog/application/port/liked-store-catalog.reader';
+import { StoreAlreadyLikedException } from 'src/modules/like/application/exception/store-already-liked.exception';
+import { StoreLikePort } from 'src/modules/store/application/port/store-like.port';
+import { UserLikePort } from 'src/modules/user/application/port/user-like.port';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
+import { CakeLikeEventRecorder } from 'src/modules/like/application/port/cake-like-event-recorder.port';
+import { CakeLikeEventMetrics } from 'src/modules/like/application/port/cake-like-event-metrics.port';
 
 @Injectable()
 export class LikeService {
@@ -25,75 +25,75 @@ export class LikeService {
     private readonly storeLikePort: StoreLikePort,
     private readonly likedStoreReader: LikedStoreCatalogReader,
     private readonly cakeLikeEventRecorder: CakeLikeEventRecorder,
-    private readonly metrics: CakeLikeEventMetricsAdapter,
+    private readonly metrics: CakeLikeEventMetrics,
   ) {}
 
-  async findUserLikeCake(userid: string): Promise<CakeLikeView[]> {
-    const user = await this.userLikePort.findByFirebaseUidOrThrow(userid);
+  async findUserLikeCake(userId: string): Promise<CakeLikeView[]> {
+    const user = await this.userLikePort.findByFirebaseUidOrThrow(userId);
 
     const cakes = await this.cakeLikePort.findByIds([...user.cakeLikeIds]);
     return cakes;
   }
 
-  async findUserLikeStore(userid: string): Promise<LikedStoreCatalogView[]> {
-    await this.userLikePort.findByFirebaseUidOrThrow(userid);
-    const stores = await this.likedStoreReader.findByUserLike(userid);
+  async findUserLikeStore(userId: string): Promise<LikedStoreCatalogView[]> {
+    await this.userLikePort.findByFirebaseUidOrThrow(userId);
+    const stores = await this.likedStoreReader.findByUserLike(userId);
     return stores;
   }
 
   async cakeAddLikeList(
-    cakeid: string,
+    cakeId: string,
     user: AuthenticatedUser,
   ): Promise<boolean> {
-    const cake = await this.cakeLikePort.findTargetOrThrow(cakeid);
+    const cake = await this.cakeLikePort.findTargetOrThrow(cakeId);
 
     const userId = user.firebaseUid;
     if (!cake.likedUserIds.includes(userId)) {
-      await this.cakeLikePort.addUserLike(cakeid, userId);
-    } else throw new CakeAlredyLikeException(cakeid);
+      await this.cakeLikePort.addUserLike(cakeId, userId);
+    } else throw new CakeAlreadyLikedException(cakeId);
 
-    await this.userLikePort.addCakeLike(userId, cakeid);
-    this.recordCakeLikeEvent(userId, cakeid, true);
+    await this.userLikePort.addCakeLike(userId, cakeId);
+    this.recordCakeLikeEvent(userId, cakeId, true);
     return true;
   }
 
   async cakeRemoveLikeList(
-    cakeid: string,
+    cakeId: string,
     user: AuthenticatedUser,
   ): Promise<boolean> {
-    await this.cakeLikePort.findTargetOrThrow(cakeid);
+    await this.cakeLikePort.findTargetOrThrow(cakeId);
     const userId = user.firebaseUid;
 
-    await this.cakeLikePort.removeUserLike(cakeid, userId);
-    await this.userLikePort.removeCakeLike(userId, cakeid);
-    this.recordCakeLikeEvent(userId, cakeid, false);
+    await this.cakeLikePort.removeUserLike(cakeId, userId);
+    await this.userLikePort.removeCakeLike(userId, cakeId);
+    this.recordCakeLikeEvent(userId, cakeId, false);
     return true;
   }
 
   async storeAddLikeList(
-    storeid: string,
+    storeId: string,
     user: AuthenticatedUser,
   ): Promise<boolean> {
-    const store = await this.storeLikePort.findTargetOrThrow(storeid);
+    const store = await this.storeLikePort.findTargetOrThrow(storeId);
 
     const userId = user.firebaseUid;
     if (!store.likedUserIds.includes(userId)) {
-      await this.storeLikePort.addUserLike(storeid, userId);
-    } else throw new StoreAlredyLikeException(storeid);
+      await this.storeLikePort.addUserLike(storeId, userId);
+    } else throw new StoreAlreadyLikedException(storeId);
 
-    await this.userLikePort.addStoreLike(userId, storeid);
+    await this.userLikePort.addStoreLike(userId, storeId);
     return true;
   }
 
   async storeRemoveLikeList(
-    storeid: string,
+    storeId: string,
     user: AuthenticatedUser,
   ): Promise<boolean> {
-    await this.storeLikePort.findTargetOrThrow(storeid);
+    await this.storeLikePort.findTargetOrThrow(storeId);
     const userId = user.firebaseUid;
 
-    await this.storeLikePort.removeUserLike(storeid, userId);
-    await this.userLikePort.removeStoreLike(userId, storeid);
+    await this.storeLikePort.removeUserLike(storeId, userId);
+    await this.userLikePort.removeStoreLike(userId, storeId);
     return true;
   }
 

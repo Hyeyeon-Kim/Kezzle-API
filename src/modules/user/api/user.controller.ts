@@ -18,15 +18,15 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserService } from '../application/user.service';
+import { UserService } from 'src/modules/user/application/user.service';
 import { RolesAllowed } from 'src/platform/auth/decorators/roles.decorator';
-import { Roles } from '../application/roles.enum';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UserResponseDto } from './dto/response-user.dto';
-import { GetUser } from './decorators/get-user.decorator';
-import { AuthenticatedUser } from '../application/authenticated-user';
-import { CreateUserResponseDto } from './dto/response-create-user.dto';
+import { Roles } from 'src/platform/auth/roles.enum';
+import { CreateUserDto } from 'src/modules/user/api/dto/request/create-user.dto';
+import { UpdateUserDto } from 'src/modules/user/api/dto/request/update-user.dto';
+import { UserResponseDto } from './dto/response/user-response.dto';
+import { GetUser } from 'src/platform/auth/decorators/get-user.decorator';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
+import { CreateUserResponseDto } from './dto/response/create-user-response.dto';
 import { Public } from 'src/platform/auth/decorators/public.decorator';
 import { assertSelfOrAdmin } from 'src/platform/auth/authorization/self-or-admin';
 import { UserPresenter } from './user.presenter';

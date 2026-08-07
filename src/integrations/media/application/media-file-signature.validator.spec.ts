@@ -1,4 +1,4 @@
-import { UnsupportedMediaFileException } from 'src/integrations/media/exception/unsupported-media-file.exception';
+import { UnsupportedMediaFileException } from 'src/platform/http/exception/unsupported-media-file.exception';
 import * as XLSX from 'xlsx';
 import {
   MEDIA_FILE_SIGNATURE_MISMATCH_MESSAGE,

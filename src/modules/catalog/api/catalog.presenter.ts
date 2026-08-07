@@ -1,25 +1,25 @@
 import { Injectable } from '@nestjs/common';
-import { CatalogCakeView } from 'src/modules/cake/application/cake-catalog.reader';
-import { CatalogStoreView } from 'src/modules/store/application/store-catalog.reader';
+import { CatalogCakeView } from 'src/modules/cake/application/port/cake-catalog.port';
+import { CatalogStoreView } from 'src/modules/store/application/port/store-catalog.reader';
 import {
   CatalogCakeResponseDto,
   CatalogCakesResponseDto,
-} from './dto/catalog-cake-response.dto';
+} from 'src/modules/catalog/api/dto/response/catalog-cake-response.dto';
 import {
   CatalogSimilarCakeResponseDto,
   CatalogSimilarCakesResponseDto,
-} from './dto/catalog-similar-cake-response.dto';
+} from 'src/modules/catalog/api/dto/response/catalog-similar-cake-response.dto';
 import {
   CatalogStoreResponseDto,
   CatalogStoresResponseDto,
-} from './dto/catalog-store-response.dto';
-import { ImageDto } from 'src/shared/image/api/image.dto';
+} from 'src/modules/catalog/api/dto/response/catalog-store-response.dto';
+import { ImageDto } from 'src/platform/http/dto/image.dto';
 import {
   CatalogCakePageView,
   CatalogSimilarCakePageView,
   CatalogSimilarCakeView,
   CatalogStorePageView,
-} from '../application/catalog.view';
+} from 'src/modules/catalog/application/query/catalog.view';
 
 @Injectable()
 export class CatalogPresenter {

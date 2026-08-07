@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
-import { HomeCacheService } from 'src/modules/home/infrastructure/cache/home-cache.service';
+import {
+  DependencyHealthRegistry,
+  DependencyStatus,
+} from './dependency-health.registry';
 import { ApplicationReadinessState, ReadinessState } from './readiness-state';
 
-export type DependencyStatus = 'up' | 'down' | 'disabled';
 export type HealthStatus = 'ok' | 'degraded' | 'unavailable';
 
 export interface LivenessResponse {
@@ -25,7 +27,7 @@ export class HealthService {
   constructor(
     @InjectConnection('kezzle')
     private readonly mongoConnection: Connection,
-    private readonly homeCache: HomeCacheService,
+    private readonly dependencyHealth: DependencyHealthRegistry,
     private readonly readiness: ReadinessState,
   ) {}
 
@@ -35,7 +37,7 @@ export class HealthService {
 
   readinessStatus(): ReadinessResponse {
     const mongo = this.mongoConnection.readyState === 1 ? 'up' : 'down';
-    const redis = this.homeCache.healthStatus();
+    const redis = this.dependencyHealth.status('redis');
     const unavailable = !this.readiness.acceptsTraffic || mongo === 'down';
 
     return {

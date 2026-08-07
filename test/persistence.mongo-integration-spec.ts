@@ -1,19 +1,19 @@
 import { Connection, Model, createConnection } from 'mongoose';
 import { ObjectId } from 'mongodb';
 import {
-  Cake,
+  CakePersistenceModel,
   CakeSchema,
-} from 'src/modules/cake/infrastructure/persistence/entities/cake.schema';
+} from 'src/modules/cake/infrastructure/persistence/schema/cake.schema';
 import { CurationPersistenceMapper } from 'src/modules/curation/infrastructure/persistence/curation.persistence-mapper';
-import { CurationRepository } from 'src/modules/curation/infrastructure/persistence/curation.repository';
+import { MongooseCurationRepository } from 'src/modules/curation/infrastructure/persistence/curation.repository';
 import {
   Curation,
   CurationSchema,
-} from 'src/modules/curation/infrastructure/persistence/entities/curation.schema';
+} from 'src/modules/curation/infrastructure/persistence/schema/curation.schema';
 import {
   Store,
   StoreSchema,
-} from 'src/modules/store/infrastructure/persistence/entities/store.schema';
+} from 'src/modules/store/infrastructure/persistence/schema/store.schema';
 import { SearchEventRepository } from 'src/modules/search/infrastructure/persistence/search-event.repository';
 import {
   KeywordLog,
@@ -32,14 +32,14 @@ import {
   PopularCakeRank,
   PopularCakeRankSchema,
 } from 'src/modules/ranking/infrastructure/persistence/popular-cake-rank.schema';
-import { KeywordRankService } from 'src/modules/ranking/infrastructure/persistence/keyword-rank.service';
-import { PopularRankService } from 'src/modules/ranking/infrastructure/persistence/popular-rank.service';
-import { RankingQueryService } from 'src/modules/ranking/application/ranking-query.service';
+import { KeywordRankService } from 'src/modules/ranking/infrastructure/persistence/read-model/keyword-rank.service';
+import { PopularRankService } from 'src/modules/ranking/infrastructure/persistence/read-model/popular-rank.service';
+import { RankingQueryService } from 'src/modules/ranking/application/query/ranking-query.service';
 import { MongoPopularRankingSourceAdapter } from 'src/modules/ranking/infrastructure/persistence/mongo-popular-ranking-source.adapter';
 import {
   User,
   UserSchema,
-} from 'src/modules/user/infrastructure/persistence/entities/user.schema';
+} from 'src/modules/user/infrastructure/persistence/schema/user.schema';
 import fixtures from './fixtures/legacy-persistence.contract.json';
 import { rankingConfigFixture } from './support/typed-config.fixtures';
 
@@ -49,7 +49,7 @@ function jsonValue(value: unknown): unknown {
 
 describe('Persistence Mongo integration contract', () => {
   let connection: Connection;
-  let cakeModel: Model<Cake>;
+  let cakeModel: Model<CakePersistenceModel>;
   let storeModel: Model<Store>;
   let userModel: Model<User>;
   let curationModel: Model<Curation>;
@@ -154,7 +154,7 @@ describe('Persistence Mongo integration contract', () => {
 
     expect(cake.faiss_id).toBe(202);
     expect(cake.is_delete).toBe(false);
-    const cakeWithTimestamps = cake.toObject() as Cake & {
+    const cakeWithTimestamps = cake.toObject() as CakePersistenceModel & {
       createdAt: Date;
       updatedAt: Date;
     };
@@ -169,7 +169,7 @@ describe('Persistence Mongo integration contract', () => {
 
   it('keeps Curation claim timestamps stable and bumps update timestamps', async () => {
     await new curationModel(fixtures.curation).save({ timestamps: false });
-    const repository = new CurationRepository(curationModel);
+    const repository = new MongooseCurationRepository(curationModel);
     const originalUpdatedAt = new Date(fixtures.curation.updatedAt);
     const claimedAt = new Date('2026-07-20T00:10:00.000Z');
 

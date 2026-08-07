@@ -2,9 +2,9 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Public } from 'src/platform/auth/decorators/public.decorator';
 import { RolesAllowed } from 'src/platform/auth/decorators/roles.decorator';
-import { Roles } from 'src/modules/user/application/roles.enum';
-import { RankingPresenter } from './ranking.presenter';
-import { RankingQueryService } from '../application/ranking-query.service';
+import { Roles } from 'src/platform/auth/roles.enum';
+import { RankingPresenter } from 'src/modules/ranking/api/ranking.presenter';
+import { RankingQueryService } from 'src/modules/ranking/application/query/ranking-query.service';
 
 @Controller()
 export class RankingController {

@@ -19,19 +19,19 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { StoreService } from '../application/store.service';
-import { CreateStoreDto } from './dto/create-store.dto';
-import { UpdateStoreDto } from './dto/update-store.dto';
-import { Roles } from 'src/modules/user/application/roles.enum';
+import { StoreService } from 'src/modules/store/application/store.service';
+import { CreateStoreDto } from 'src/modules/store/api/dto/request/create-store.dto';
+import { UpdateStoreDto } from 'src/modules/store/api/dto/request/update-store.dto';
+import { Roles } from 'src/platform/auth/roles.enum';
 import { RolesAllowed } from 'src/platform/auth/decorators/roles.decorator';
-import { GetUser } from 'src/modules/user/api/decorators/get-user.decorator';
-import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
-import { DetailStoreResponseDto } from './dto/response-detail-store.dto';
+import { GetUser } from 'src/platform/auth/decorators/get-user.decorator';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
+import { DetailStoreResponseDto } from './dto/response/detail-store-response.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { CreateStoreResponseDto } from './dto/response-create-store.dto';
+import { CreateStoreResponseDto } from './dto/response/create-store-response.dto';
 import { StorePresenter } from './store.presenter';
 import { MulterMediaFileMapper } from 'src/integrations/media/api/multer-media-file.mapper';
-import { StoreMediaService } from '../application/store-media.service';
+import { StoreMediaService } from 'src/modules/store/application/media/store-media.service';
 import { singleImageUploadOptions } from 'src/integrations/media/api/upload-options';
 
 const storeIdParams = {

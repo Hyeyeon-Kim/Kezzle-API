@@ -1,5 +1,5 @@
 import { StoreRepository } from './store.repository';
-import { StoreNotFoundException } from '../../application/exceptions/store-not-found.exception';
+import { StoreNotFoundException } from 'src/modules/store/application/exception/store-not-found.exception';
 
 describe('StoreRepository', () => {
   describe('findById', () => {

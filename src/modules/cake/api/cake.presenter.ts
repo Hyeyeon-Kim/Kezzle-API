@@ -1,28 +1,31 @@
-import { CakePageView } from '../application/cake-result.view';
-import { CakeView } from '../application/cake.view';
-import { CakeResponseDto } from './dto/response-cake.dto';
-import { CakesResponseDto } from './dto/response-cakes.dto';
-import { CakeSimpleResponseDto } from './dto/response-cake-simple.dto';
-import { CakesSimpleResponseDto } from './dto/response-cakes-simple.dto';
+import { CakeQueryResult } from '../application/query/cake-query-result';
+import { Cake } from '../application/model/cake';
+import { CakeResponseDto } from './dto/response/cake-response.dto';
+import { CakeListResponseDto } from './dto/response/cake-list-response.dto';
+import { CakeSimpleResponseDto } from './dto/response/cake-simple-response.dto';
+import { CakeSimpleListResponseDto } from './dto/response/cake-simple-list-response.dto';
 
 export class CakePresenter {
-  static detail(cake: CakeView, viewerId: string): CakeResponseDto {
+  static detail(cake: Cake, viewerId: string): CakeResponseDto {
     return new CakeResponseDto(cake, viewerId);
   }
 
-  static simpleList(page: CakePageView): CakesSimpleResponseDto {
-    return new CakesSimpleResponseDto(
+  static simpleList(page: CakeQueryResult): CakeSimpleListResponseDto {
+    return new CakeSimpleListResponseDto(
       page.cakes.map((cake) => new CakeSimpleResponseDto(cake)),
       page.hasMore,
     );
   }
 
-  static recommendations(cakes: CakeView[]): CakeSimpleResponseDto[] {
+  static recommendations(cakes: Cake[]): CakeSimpleResponseDto[] {
     return cakes.map((cake) => new CakeSimpleResponseDto(cake));
   }
 
-  static anniversary(page: CakePageView, viewerId: string): CakesResponseDto {
-    return new CakesResponseDto(
+  static anniversary(
+    page: CakeQueryResult,
+    viewerId: string,
+  ): CakeListResponseDto {
+    return new CakeListResponseDto(
       page.cakes.map((cake) => new CakeResponseDto(cake, viewerId)),
       page.hasMore,
     );

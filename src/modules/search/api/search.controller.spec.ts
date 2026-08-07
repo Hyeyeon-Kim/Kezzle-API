@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { Roles } from 'src/modules/user/application/roles.enum';
+import { Roles } from 'src/platform/auth/roles.enum';
 import { SearchController } from './search.controller';
 
 describe('SearchController ownership', () => {

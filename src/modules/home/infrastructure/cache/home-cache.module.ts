@@ -1,13 +1,19 @@
 import { Module } from '@nestjs/common';
 import Redis from 'ioredis';
+import { HomeCachePort } from 'src/modules/home/application/port/home-cache.port';
 import { HomeObservabilityModule } from 'src/modules/home/infrastructure/observability/home-observability.module';
 import { HOME_CACHE_REDIS } from './home-cache.constants';
-import { HomeCacheService } from './home-cache.service';
+import { RedisHomeCacheAdapter } from './redis-home-cache.adapter';
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import homeConfig from 'src/platform/config/home.config';
+import { DependencyHealthModule } from 'src/platform/health/dependency-health.module';
 
 @Module({
-  imports: [ConfigModule.forFeature(homeConfig), HomeObservabilityModule],
+  imports: [
+    ConfigModule.forFeature(homeConfig),
+    DependencyHealthModule,
+    HomeObservabilityModule,
+  ],
   providers: [
     {
       provide: HOME_CACHE_REDIS,
@@ -26,8 +32,12 @@ import homeConfig from 'src/platform/config/home.config';
         });
       },
     },
-    HomeCacheService,
+    RedisHomeCacheAdapter,
+    {
+      provide: HomeCachePort,
+      useExisting: RedisHomeCacheAdapter,
+    },
   ],
-  exports: [HomeCacheService],
+  exports: [HomeCachePort],
 })
 export class HomeCacheModule {}

@@ -5,7 +5,7 @@ import {
   PopularRankingCandidate,
   PopularRankingSourceQuery,
   PopularRankingSourceReader,
-} from '../../application/popular-ranking-source.reader';
+} from 'src/modules/ranking/application/port/popular-ranking-source.reader';
 
 const EVENT_COLLECTION = 'cakelikelogs';
 const CAKE_COLLECTION = 'cakes';

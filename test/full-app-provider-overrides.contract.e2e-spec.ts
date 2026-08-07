@@ -13,7 +13,7 @@ import { ObjectStoragePort } from 'src/integrations/media/application/object-sto
 import { S3_CLIENT } from 'src/integrations/media/infrastructure/s3-object-storage.adapter';
 import { S3_STORAGE_CONFIG } from 'src/integrations/media/infrastructure/s3-storage.config';
 import { createFullAppE2eBuilder } from './support/full-app-e2e.builder';
-import { configureApplication } from 'src/configure-application';
+import { configureApplication } from 'src/platform/http/configure-application';
 import { ReadinessState } from 'src/platform/health/readiness-state';
 
 jest.setTimeout(30_000);

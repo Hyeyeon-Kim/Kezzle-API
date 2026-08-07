@@ -17,7 +17,7 @@ describe('health and shutdown architecture', () => {
 
   it('enables shutdown hooks and only marks readiness after listen resolves', () => {
     const main = source('src/main.ts');
-    const configure = source('src/configure-application.ts');
+    const configure = source('src/platform/http/configure-application.ts');
     const listen = main.indexOf('await app.listen(application.port)');
     const ready = main.indexOf('readiness.markReady()');
 
@@ -41,6 +41,19 @@ describe('health and shutdown architecture', () => {
     expect(health).toContain("mongo === 'down'");
     expect(health).toContain("redis === 'down'");
     expect(health).toContain("? 'degraded'");
+  });
+
+  it('reads optional dependency health without importing Home internals', () => {
+    const healthModule = source('src/platform/health/health.module.ts');
+    const healthService = source('src/platform/health/health.service.ts');
+    const homeCache = source(
+      'src/modules/home/infrastructure/cache/redis-home-cache.adapter.ts',
+    );
+
+    expect(`${healthModule}\n${healthService}`).not.toContain('modules/home/');
+    expect(healthModule).toContain('DependencyHealthModule');
+    expect(healthService).toContain("dependencyHealth.status('redis')");
+    expect(homeCache).toContain("dependencyHealth?.register('redis'");
   });
 
   it('ships the API image with a readiness healthcheck and SIGTERM signal', () => {

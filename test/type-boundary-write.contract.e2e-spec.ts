@@ -9,18 +9,18 @@ import { APP_GUARD, Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { CakeController } from 'src/modules/cake/api/cake.controller';
-import { CakeService } from 'src/modules/cake/application/cake.service';
-import { CakeMediaService } from 'src/modules/cake/application/cake-media.service';
-import { CakeImportService } from 'src/modules/cake/application/cake-import.service';
+import { CakeQueryService } from 'src/modules/cake/application/query/cake-query.service';
+import { CakeMediaService } from 'src/modules/cake/application/media/cake-media.service';
+import { CakeImportService } from 'src/modules/cake/application/import/cake-import.service';
 import { CurationController } from 'src/modules/curation/api/curation.controller';
 import { CurationService } from 'src/modules/curation/application/curation.service';
-import { createValidationPipe } from 'src/app.validation';
+import { createValidationPipe } from 'src/platform/http/validation.pipe';
 import { IS_PUBLIC_KEY } from 'src/platform/auth/decorators/public.decorator';
 import { RolesGuard } from 'src/platform/auth/guard/roles.guard';
 import { StoreController } from 'src/modules/store/api/store.controller';
 import { StoreService } from 'src/modules/store/application/store.service';
-import { StoreMediaService } from 'src/modules/store/application/store-media.service';
-import { Roles } from 'src/modules/user/application/roles.enum';
+import { StoreMediaService } from 'src/modules/store/application/media/store-media.service';
+import { Roles } from 'src/platform/auth/roles.enum';
 import { UserController } from 'src/modules/user/api/user.controller';
 import { UserService } from 'src/modules/user/application/user.service';
 import fixtures from './fixtures/type-boundary-write.contract.json';
@@ -96,7 +96,7 @@ describe('Type boundary write HTTP contract', () => {
         CurationController,
       ],
       providers: [
-        { provide: CakeService, useValue: cakeService },
+        { provide: CakeQueryService, useValue: cakeService },
         { provide: CakeMediaService, useValue: cakeMediaService },
         { provide: CakeImportService, useValue: cakeImportService },
         { provide: StoreService, useValue: storeService },

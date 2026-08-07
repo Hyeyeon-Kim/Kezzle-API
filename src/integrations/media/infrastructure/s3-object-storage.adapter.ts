@@ -6,7 +6,7 @@ import {
   PutObjectRequest,
   StoredObject,
 } from '../application/object-storage.port';
-import { MediaMetricsAdapter } from '../media-metrics.adapter';
+import { MediaMetricsPort } from '../application/media-metrics.port';
 import { S3_STORAGE_CONFIG, S3StorageConfig } from './s3-storage.config';
 
 export interface S3Client {
@@ -46,7 +46,7 @@ export class S3ObjectStorageAdapter implements ObjectStoragePort {
   constructor(
     @Inject(S3_CLIENT) private readonly client: S3Client,
     @Inject(S3_STORAGE_CONFIG) private readonly config: S3StorageConfig,
-    private readonly metrics: MediaMetricsAdapter,
+    private readonly metrics: MediaMetricsPort,
   ) {}
 
   async put(request: PutObjectRequest): Promise<StoredObject> {

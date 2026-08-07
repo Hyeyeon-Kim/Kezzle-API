@@ -1,4 +1,4 @@
-import { AnniversaryView } from '../../application/anniversary.view';
+import { AnniversaryView } from 'src/modules/anniversary/application/query/anniversary.view';
 
 interface AnniversaryPersistenceSource {
   readonly _id?: unknown;

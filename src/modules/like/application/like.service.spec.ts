@@ -1,5 +1,5 @@
-import { CakeAlredyLikeException } from 'src/modules/cake/application/exceptions/cake-already-like.exception';
-import { StoreAlredyLikeException } from 'src/modules/store/application/exceptions/store-already-like.exception';
+import { CakeAlreadyLikedException } from 'src/modules/like/application/exception/cake-already-liked.exception';
+import { StoreAlreadyLikedException } from 'src/modules/like/application/exception/store-already-liked.exception';
 import { Logger } from '@nestjs/common';
 import { LikeService } from './like.service';
 
@@ -134,7 +134,7 @@ describe('LikeService public port boundary', () => {
     );
   });
 
-  it('keeps CakeAlredyLikeException and skips both writes for a duplicate', async () => {
+  it('keeps CakeAlreadyLikedException and skips both writes for a duplicate', async () => {
     const cakeLikePort = {
       findTargetOrThrow: jest
         .fn()
@@ -146,7 +146,7 @@ describe('LikeService public port boundary', () => {
 
     await expect(
       service.cakeAddLikeList('cake-1', viewer as any),
-    ).rejects.toBeInstanceOf(CakeAlredyLikeException);
+    ).rejects.toBeInstanceOf(CakeAlreadyLikedException);
     expect(cakeLikePort.addUserLike).not.toHaveBeenCalled();
     expect(userLikePort.addCakeLike).not.toHaveBeenCalled();
   });
@@ -264,7 +264,7 @@ describe('LikeService public port boundary', () => {
     });
     await expect(
       service.storeAddLikeList('store-1', viewer as any),
-    ).rejects.toBeInstanceOf(StoreAlredyLikeException);
+    ).rejects.toBeInstanceOf(StoreAlreadyLikedException);
     expect(storeLikePort.addUserLike).toHaveBeenCalledTimes(1);
     expect(userLikePort.addStoreLike).toHaveBeenCalledTimes(1);
   });

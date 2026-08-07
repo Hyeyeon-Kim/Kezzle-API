@@ -1,9 +1,12 @@
-import { LatestSearchView, SearchResultView } from '../application/search.view';
-import { LatestResponseDto } from './dto/response-latest-search.dto';
+import {
+  LatestSearchView,
+  SearchResultView,
+} from 'src/modules/search/application/search.view';
+import { LatestSearchResponseDto } from './dto/response/latest-search-response.dto';
 import {
   SearchCakeResponseDto,
   SearchResponseDto,
-} from './dto/response-search.dto';
+} from './dto/response/search-response.dto';
 
 export class SearchPresenter {
   static result(result: SearchResultView, viewerId: string): SearchResponseDto {
@@ -14,7 +17,7 @@ export class SearchPresenter {
     );
   }
 
-  static latest(result: LatestSearchView): LatestResponseDto {
-    return new LatestResponseDto(result.keywords);
+  static latest(result: LatestSearchView): LatestSearchResponseDto {
+    return new LatestSearchResponseDto(result.keywords);
   }
 }

@@ -5,7 +5,7 @@ import { AppModule } from './app.module';
 import { ConfigType } from '@nestjs/config';
 import appConfig from './platform/config/app.config';
 import { validateEnvironment } from './platform/config/environment.validation';
-import { configureApplication } from './configure-application';
+import { configureApplication } from './platform/http/configure-application';
 import { ReadinessState } from './platform/health/readiness-state';
 
 async function bootstrap(): Promise<void> {

@@ -217,7 +217,7 @@ describe('Observability architecture', () => {
       .map((source) => source.path);
     const homeConsumers = [
       'modules/home/application/home-feed.service.ts',
-      'modules/home/infrastructure/cache/home-cache.service.ts',
+      'modules/home/infrastructure/cache/redis-home-cache.adapter.ts',
     ].map((path) => ({
       path,
       content: readFileSync(join(sourceRoot, path), 'utf8'),
@@ -229,6 +229,54 @@ describe('Observability architecture', () => {
       expect(consumer.content).not.toMatch(
         /prom-client|PROMETHEUS_REGISTRY|MetricsAdapter|\bRegistry\b/,
       );
+    }
+  });
+
+  it('injects feature metrics through semantic application ports', () => {
+    const consumers = [
+      {
+        path: 'modules/catalog/application/query/similar-cake-catalog-query.service.ts',
+        port: 'CatalogMetrics',
+      },
+      {
+        path: 'modules/like/application/like.service.ts',
+        port: 'CakeLikeEventMetrics',
+      },
+      {
+        path: 'modules/search/application/search.service.ts',
+        port: 'SearchEventMetrics',
+      },
+    ];
+    const bindings = [
+      {
+        path: 'modules/catalog/catalog-query.module.ts',
+        port: 'CatalogMetrics',
+        adapter: 'CatalogMetricsAdapter',
+      },
+      {
+        path: 'modules/like/like.module.ts',
+        port: 'CakeLikeEventMetrics',
+        adapter: 'CakeLikeEventMetricsAdapter',
+      },
+      {
+        path: 'modules/search/search.module.ts',
+        port: 'SearchEventMetrics',
+        adapter: 'SearchEventMetricsAdapter',
+      },
+    ];
+
+    for (const consumer of consumers) {
+      const content = readFileSync(join(sourceRoot, consumer.path), 'utf8');
+      expect(content).toContain(consumer.port);
+      expect(content).not.toMatch(
+        /infrastructure\/observability|MetricsAdapter|prom-client|PROMETHEUS_REGISTRY/,
+      );
+    }
+
+    for (const binding of bindings) {
+      const content = readFileSync(join(sourceRoot, binding.path), 'utf8');
+      expect(content).toContain(`provide: ${binding.port}`);
+      expect(content).toContain(`useExisting: ${binding.adapter}`);
     }
   });
 

@@ -7,18 +7,18 @@ import {
 import { APP_GUARD, Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { AiSearchMetricsAdapter } from 'src/integrations/ai-search/ai-search-metrics.adapter';
+import { AiSearchMetricsAdapter } from 'src/integrations/ai-search/infrastructure/observability/ai-search-metrics.adapter';
 import { IS_PUBLIC_KEY } from 'src/platform/auth/decorators/public.decorator';
-import { CatalogMetricsAdapter } from 'src/modules/catalog/infrastructure/catalog-metrics.adapter';
-import { CurationRefreshMetricsAdapter } from 'src/modules/curation/infrastructure/curation-refresh-metrics.adapter';
-import { HomeMetrics } from 'src/modules/home/application/home-metrics.port';
+import { CatalogMetricsAdapter } from 'src/modules/catalog/infrastructure/observability/catalog-metrics.adapter';
+import { CurationRefreshMetricsAdapter } from 'src/modules/curation/infrastructure/observability/curation-refresh-metrics.adapter';
+import { HomeMetrics } from 'src/modules/home/application/port/home-metrics.port';
 import { HomeObservabilityModule } from 'src/modules/home/infrastructure/observability/home-observability.module';
-import { CakeLikeEventMetricsAdapter } from 'src/modules/like/infrastructure/cake-like-event-metrics.adapter';
-import { MediaMetricsAdapter } from 'src/integrations/media/media-metrics.adapter';
+import { CakeLikeEventMetricsAdapter } from 'src/modules/like/infrastructure/observability/cake-like-event-metrics.adapter';
+import { MediaMetricsAdapter } from 'src/integrations/media/infrastructure/observability/media-metrics.adapter';
 import { PROMETHEUS_REGISTRY } from 'src/platform/observability/prometheus/prometheus.constants';
 import { PrometheusEndpointModule } from 'src/platform/observability/prometheus/prometheus-endpoint.module';
 import { PrometheusRegistryModule } from 'src/platform/observability/prometheus/prometheus-registry.module';
-import { SearchEventMetricsAdapter } from 'src/modules/search/infrastructure/search-event-metrics.adapter';
+import { SearchEventMetricsAdapter } from 'src/modules/search/infrastructure/observability/search-event-metrics.adapter';
 import { Registry } from 'prom-client';
 import observabilityBaseline from './fixtures/observability-baseline.contract.json';
 

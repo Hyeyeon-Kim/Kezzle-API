@@ -1,4 +1,4 @@
-import { CakeView } from 'src/modules/cake/application/cake.view';
+import { Cake } from 'src/modules/cake/application/model/cake';
 
 export interface CurationImageView {
   readonly name?: string;
@@ -31,7 +31,7 @@ export interface CurationView {
 
 export interface CurationDetailView {
   readonly description: string;
-  readonly cakes: CakeView[];
+  readonly cakes: Cake[];
 }
 
 export interface StaleCurationView {

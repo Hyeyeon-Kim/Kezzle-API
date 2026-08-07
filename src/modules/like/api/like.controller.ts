@@ -9,15 +9,15 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { LikeService } from '../application/like.service';
-import { GetUser } from 'src/modules/user/api/decorators/get-user.decorator';
-import { AuthenticatedUser } from 'src/modules/user/application/authenticated-user';
-import { Roles } from 'src/modules/user/application/roles.enum';
+import { LikeService } from 'src/modules/like/application/like.service';
+import { GetUser } from 'src/platform/auth/decorators/get-user.decorator';
+import { AuthenticatedUser } from 'src/platform/auth/authenticated-user';
+import { Roles } from 'src/platform/auth/roles.enum';
 import { RolesAllowed } from 'src/platform/auth/decorators/roles.decorator';
 import { assertSelfOrAdmin } from 'src/platform/auth/authorization/self-or-admin';
-import { LikedCakeResponseDto } from './dto/liked-cake-response.dto';
-import { LikedStoreResponseDto } from './dto/liked-store-response.dto';
-import { LikePresenter } from './like.presenter';
+import { LikedCakeResponseDto } from 'src/modules/like/api/dto/response/liked-cake-response.dto';
+import { LikedStoreResponseDto } from 'src/modules/like/api/dto/response/liked-store-response.dto';
+import { LikePresenter } from 'src/modules/like/api/like.presenter';
 
 @ApiTags('likes')
 @Controller()

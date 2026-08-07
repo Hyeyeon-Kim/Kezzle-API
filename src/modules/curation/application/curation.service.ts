@@ -1,15 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { ClipClient } from 'src/integrations/ai-search/clip-client';
-import { CakeExternalMapper } from 'src/modules/cake/infrastructure/cake-external.mapper';
-import { CurationDetailView, CurationView } from './curation.view';
-import { CurationExternalMapper } from '../infrastructure/curation-external.mapper';
-import { CurationRepository } from '../infrastructure/persistence/curation.repository';
+import { ClipSearchPort } from 'src/integrations/ai-search/application/clip-search.port';
+import {
+  CurationDetailView,
+  CurationView,
+} from 'src/modules/curation/application/curation.view';
+import { CurationExternalMapper } from 'src/modules/curation/application/mapper/curation-external.mapper';
+import { CurationRepository } from 'src/modules/curation/application/port/curation-repository.port';
 
 @Injectable()
 export class CurationService {
   constructor(
     private readonly curationRepository: CurationRepository,
-    private readonly clipClient: ClipClient,
+    private readonly clipClient: ClipSearchPort,
   ) {}
 
   async createCuration(
@@ -55,7 +57,7 @@ export class CurationService {
 
     return {
       description: curation.description,
-      cakes: result.map((cake) => CakeExternalMapper.toView(cake)),
+      cakes: result,
     };
   }
 }

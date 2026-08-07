@@ -1,10 +1,13 @@
-import { ImageDto } from 'src/shared/image/api/image.dto';
-import { CreateStoreData, UpdateStoreData } from '../application/store.command';
-import { StoreView } from '../application/store.view';
-import { CreateStoreDto } from './dto/create-store.dto';
-import { CreateStoreResponseDto } from './dto/response-create-store.dto';
-import { DetailStoreResponseDto } from './dto/response-detail-store.dto';
-import { UpdateStoreDto } from './dto/update-store.dto';
+import { ImageDto } from 'src/platform/http/dto/image.dto';
+import {
+  CreateStoreData,
+  UpdateStoreData,
+} from 'src/modules/store/application/store.command';
+import { StoreView } from 'src/modules/store/application/store.view';
+import { CreateStoreDto } from 'src/modules/store/api/dto/request/create-store.dto';
+import { CreateStoreResponseDto } from './dto/response/create-store-response.dto';
+import { DetailStoreResponseDto } from './dto/response/detail-store-response.dto';
+import { UpdateStoreDto } from 'src/modules/store/api/dto/request/update-store.dto';
 
 export class StorePresenter {
   static toCreateData(dto: CreateStoreDto): CreateStoreData {

@@ -1,5 +1,6 @@
 import fixtures from '../../../../../test/fixtures/legacy-persistence.contract.json';
-import { Roles } from '../../application/roles.enum';
+import { Roles } from 'src/platform/auth/roles.enum';
+import { CreateUserResponseDto } from 'src/modules/user/api/dto/response/create-user-response.dto';
 import { UserPersistenceMapper } from './user.persistence-mapper';
 
 describe('UserPersistenceMapper', () => {
@@ -30,5 +31,21 @@ describe('UserPersistenceMapper', () => {
     expect(
       UserPersistenceMapper.toUpdatePersistence({ nickname: 'updated' }),
     ).toEqual({ nickname: 'updated' });
+  });
+
+  it('keeps the create-user API response on legacy keys', () => {
+    const response = new CreateUserResponseDto(
+      UserPersistenceMapper.toView(fixtures.user),
+    );
+
+    expect(response).toMatchObject({
+      _id: '65a000000000000000000003',
+      firebaseUid: 'legacy-user-1',
+      oauth_provider: 'password',
+      roles: [Roles.SELLER, Roles.BUYER],
+      cake_like_ids: ['cake-1'],
+      store_like_ids: [],
+    });
+    expect(response).not.toHaveProperty('oauthProvider');
   });
 });
