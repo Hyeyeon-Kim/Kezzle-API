@@ -3,18 +3,18 @@ import { TestingModule } from '@nestjs/testing';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import request from 'supertest';
-import { FirebaseTokenVerifier } from 'src/auth/application/firebase-token-verifier.port';
-import { FirebaseAppProvider } from 'src/auth/infrastructure/firebase/firebase-app.provider';
+import { FirebaseTokenVerifier } from 'src/platform/auth/application/firebase-token-verifier.port';
+import { FirebaseAppProvider } from 'src/platform/auth/infrastructure/firebase/firebase-app.provider';
 import {
   FIREBASE_APP,
   FIREBASE_AUTH_CLIENT,
-} from 'src/auth/infrastructure/firebase/firebase.constants';
-import { ObjectStoragePort } from 'src/media/application/object-storage.port';
-import { S3_CLIENT } from 'src/media/infrastructure/s3-object-storage.adapter';
-import { S3_STORAGE_CONFIG } from 'src/media/infrastructure/s3-storage.config';
+} from 'src/platform/auth/infrastructure/firebase/firebase.constants';
+import { ObjectStoragePort } from 'src/integrations/media/application/object-storage.port';
+import { S3_CLIENT } from 'src/integrations/media/infrastructure/s3-object-storage.adapter';
+import { S3_STORAGE_CONFIG } from 'src/integrations/media/infrastructure/s3-storage.config';
 import { createFullAppE2eBuilder } from './support/full-app-e2e.builder';
-import { configureApplication } from 'src/configure-application';
-import { ReadinessState } from 'src/health/readiness-state';
+import { configureApplication } from 'src/platform/http/configure-application';
+import { ReadinessState } from 'src/platform/health/readiness-state';
 
 jest.setTimeout(30_000);
 

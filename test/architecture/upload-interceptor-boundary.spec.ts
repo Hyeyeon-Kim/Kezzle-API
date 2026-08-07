@@ -8,7 +8,10 @@ type Source = {
 };
 
 const srcRoot = join(__dirname, '..', '..', 'src');
-const uploadOptionsPath = join(srcRoot, 'media/api/upload-options.ts');
+const uploadOptionsPath = join(
+  srcRoot,
+  'integrations/media/api/upload-options.ts',
+);
 const optionArgumentIndex = new Map([
   ['FileInterceptor', 1],
   ['FileFieldsInterceptor', 1],
@@ -127,7 +130,7 @@ function uploadInterceptorViolations(source: Source): string[] {
   );
   const optionFactoryImports = namedImports(
     sourceFile,
-    'src/media/api/upload-options',
+    'src/integrations/media/api/upload-options',
   );
   const safeFactories = safeOptionFactories();
   const violations: string[] = [];
@@ -181,7 +184,7 @@ function containsNumericLiteral(node: ts.Node): boolean {
 }
 
 function numericUploadLimitViolations(source: Source): string[] {
-  if (source.path === 'media/api/upload-limits.ts') return [];
+  if (source.path === 'integrations/media/api/upload-limits.ts') return [];
 
   const sourceFile = ts.createSourceFile(
     source.path,

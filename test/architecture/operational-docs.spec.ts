@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { validateEnvironment } from 'src/config/environment.validation';
+import { validateEnvironment } from 'src/platform/config/environment.validation';
 import inventory from '../fixtures/environment-inventory.contract.json';
 
 function source(path: string): string {

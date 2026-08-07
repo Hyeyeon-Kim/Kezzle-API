@@ -1,0 +1,24 @@
+import { Inject, Injectable } from '@nestjs/common';
+import { Counter, Registry } from 'prom-client';
+import { SearchEventMetrics } from 'src/modules/search/application/port/search-event-metrics.port';
+import { PROMETHEUS_REGISTRY } from 'src/platform/observability/prometheus/prometheus.constants';
+
+@Injectable()
+export class SearchEventMetricsAdapter implements SearchEventMetrics {
+  private readonly recordFailures: Counter;
+
+  constructor(
+    @Inject(PROMETHEUS_REGISTRY)
+    registry: Registry,
+  ) {
+    this.recordFailures = new Counter({
+      name: 'search_event_record_failures_total',
+      help: 'Total search event persistence failures',
+      registers: [registry],
+    });
+  }
+
+  countRecordFailure(): void {
+    this.recordFailures.inc();
+  }
+}

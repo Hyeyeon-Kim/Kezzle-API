@@ -7,23 +7,23 @@ import {
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { ClipClient } from 'src/ai-search/clip-client';
-import { RolesGuard } from 'src/auth/guard/roles.guard';
-import { CakeLikePort } from 'src/cake/cake-like.port';
-import { LikedStoreCatalogReader } from 'src/catalog/liked-store-catalog.reader';
-import { LikePresenter } from 'src/like/api/like.presenter';
-import { LikeController } from 'src/like/like.controller';
-import { LikeService } from 'src/like/like.service';
-import { CakeLikeEventRecorder } from 'src/like/application/port/cake-like-event-recorder.port';
-import { CakeLikeEventMetricsAdapter } from 'src/like/cake-like-event-metrics.adapter';
-import { SearchEventRecorder } from 'src/search/application/port/search-event-recorder.port';
-import { SearchHistoryReader } from 'src/search/application/port/search-history.reader';
-import { SearchController } from 'src/search/search.controller';
-import { SearchService } from 'src/search/search.service';
-import { SearchEventMetricsAdapter } from 'src/search/search-event-metrics.adapter';
-import { StoreLikePort } from 'src/store/store-like.port';
-import { Roles } from 'src/user/entities/roles.enum';
-import { UserLikePort } from 'src/user/user-like.port';
+import { ClipSearchPort } from 'src/integrations/ai-search/application/clip-search.port';
+import { RolesGuard } from 'src/platform/auth/guard/roles.guard';
+import { CakeLikePort } from 'src/modules/cake/application/port/cake-like.port';
+import { LikedStoreCatalogReader } from 'src/modules/catalog/application/port/liked-store-catalog.reader';
+import { LikePresenter } from 'src/modules/like/api/like.presenter';
+import { LikeController } from 'src/modules/like/api/like.controller';
+import { LikeService } from 'src/modules/like/application/like.service';
+import { CakeLikeEventRecorder } from 'src/modules/like/application/port/cake-like-event-recorder.port';
+import { CakeLikeEventMetrics } from 'src/modules/like/application/port/cake-like-event-metrics.port';
+import { SearchEventRecorder } from 'src/modules/search/application/port/search-event-recorder.port';
+import { SearchEventMetrics } from 'src/modules/search/application/port/search-event-metrics.port';
+import { SearchHistoryReader } from 'src/modules/search/application/port/search-history.reader';
+import { SearchController } from 'src/modules/search/api/search.controller';
+import { SearchService } from 'src/modules/search/application/search.service';
+import { StoreLikePort } from 'src/modules/store/application/port/store-like.port';
+import { Roles } from 'src/platform/auth/roles.enum';
+import { UserLikePort } from 'src/modules/user/application/port/user-like.port';
 
 @Injectable()
 class EventFailureContractGuard implements CanActivate {
@@ -79,7 +79,7 @@ describe('Log event create failure HTTP contract', () => {
         LikeService,
         LikePresenter,
         {
-          provide: ClipClient,
+          provide: ClipSearchPort,
           useValue: {
             koSearchPage: jest.fn().mockResolvedValue({
               result: [],
@@ -91,9 +91,9 @@ describe('Log event create failure HTTP contract', () => {
         { provide: CakeLikeEventRecorder, useValue: cakeLikeEventRecorder },
         { provide: SearchEventRecorder, useValue: searchEventRecorder },
         { provide: SearchHistoryReader, useValue: {} },
-        { provide: SearchEventMetricsAdapter, useValue: searchEventMetrics },
+        { provide: SearchEventMetrics, useValue: searchEventMetrics },
         {
-          provide: CakeLikeEventMetricsAdapter,
+          provide: CakeLikeEventMetrics,
           useValue: cakeLikeEventMetrics,
         },
         { provide: CakeLikePort, useValue: cakeLikePort },

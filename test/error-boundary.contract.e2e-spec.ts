@@ -10,8 +10,8 @@ import {
 import { Test } from '@nestjs/testing';
 import { IsString } from 'class-validator';
 import request from 'supertest';
-import { createValidationPipe } from 'src/app.validation';
-import { CakeNotFoundException } from 'src/cake/exceptions/cake-not-found.exception';
+import { createValidationPipe } from 'src/platform/http/validation.pipe';
+import { CakeNotFoundException } from 'src/modules/cake/application/exception/cake-not-found.exception';
 import contract from './fixtures/error-boundary.contract.json';
 
 class ValidationRequest {

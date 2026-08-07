@@ -7,7 +7,7 @@ function source(path: string): string {
 
 describe('health and shutdown architecture', () => {
   it('keeps both health routes public and outside Swagger', () => {
-    const controller = source('src/health/health.controller.ts');
+    const controller = source('src/platform/health/health.controller.ts');
 
     expect(controller.match(/@Public\(\)/g)).toHaveLength(2);
     expect(controller).toContain('@ApiExcludeController()');
@@ -17,7 +17,7 @@ describe('health and shutdown architecture', () => {
 
   it('enables shutdown hooks and only marks readiness after listen resolves', () => {
     const main = source('src/main.ts');
-    const configure = source('src/configure-application.ts');
+    const configure = source('src/platform/http/configure-application.ts');
     const listen = main.indexOf('await app.listen(application.port)');
     const ready = main.indexOf('readiness.markReady()');
 
@@ -36,11 +36,24 @@ describe('health and shutdown architecture', () => {
   });
 
   it('keeps Mongo required and Redis optional/degraded in readiness policy', () => {
-    const health = source('src/health/health.service.ts');
+    const health = source('src/platform/health/health.service.ts');
 
     expect(health).toContain("mongo === 'down'");
     expect(health).toContain("redis === 'down'");
     expect(health).toContain("? 'degraded'");
+  });
+
+  it('reads optional dependency health without importing Home internals', () => {
+    const healthModule = source('src/platform/health/health.module.ts');
+    const healthService = source('src/platform/health/health.service.ts');
+    const homeCache = source(
+      'src/modules/home/infrastructure/cache/redis-home-cache.adapter.ts',
+    );
+
+    expect(`${healthModule}\n${healthService}`).not.toContain('modules/home/');
+    expect(healthModule).toContain('DependencyHealthModule');
+    expect(healthService).toContain("dependencyHealth.status('redis')");
+    expect(homeCache).toContain("dependencyHealth?.register('redis'");
   });
 
   it('ships the API image with a readiness healthcheck and SIGTERM signal', () => {

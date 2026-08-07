@@ -1,5 +1,8 @@
 import mongoose from 'mongoose';
-import { Store, StoreSchema } from '../../src/store/entities/store.schema';
+import {
+  Store,
+  StoreSchema,
+} from '../../src/modules/store/infrastructure/persistence/schema/store.schema';
 
 type ScenarioResult = {
   scenario: string;

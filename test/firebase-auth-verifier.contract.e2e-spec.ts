@@ -8,10 +8,10 @@ import {
 import { AuthGuard, PassportModule } from '@nestjs/passport';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { FirebaseTokenVerifier } from 'src/auth/application/firebase-token-verifier.port';
-import { TokenVerificationError } from 'src/auth/application/token-verification.error';
-import { FirebaseAuthStrategy } from 'src/auth/stategies/firebase-auth.stategies';
-import { UserService } from 'src/user/user.service';
+import { FirebaseTokenVerifier } from 'src/platform/auth/application/firebase-token-verifier.port';
+import { AuthenticatedUserReader } from 'src/platform/auth/application/authenticated-user.reader';
+import { TokenVerificationError } from 'src/platform/auth/application/token-verification.error';
+import { FirebaseAuthStrategy } from 'src/platform/auth/strategies/firebase-auth.strategy';
 
 @Controller('firebase-auth-contract')
 class FirebaseAuthContractController {
@@ -25,7 +25,7 @@ class FirebaseAuthContractController {
 describe('Firebase verifier HTTP contract (e2e)', () => {
   let app: INestApplication;
   const verifier = { verify: jest.fn() };
-  const userService = { findAuthenticatedUser: jest.fn() };
+  const authenticatedUserReader = { findAuthenticatedUser: jest.fn() };
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
@@ -34,7 +34,10 @@ describe('Firebase verifier HTTP contract (e2e)', () => {
       providers: [
         FirebaseAuthStrategy,
         { provide: FirebaseTokenVerifier, useValue: verifier },
-        { provide: UserService, useValue: userService },
+        {
+          provide: AuthenticatedUserReader,
+          useValue: authenticatedUserReader,
+        },
       ],
     }).compile();
     app = module.createNestApplication();
@@ -43,7 +46,7 @@ describe('Firebase verifier HTTP contract (e2e)', () => {
 
   beforeEach(() => {
     verifier.verify.mockReset();
-    userService.findAuthenticatedUser.mockReset();
+    authenticatedUserReader.findAuthenticatedUser.mockReset();
   });
 
   afterAll(async () => app.close());
@@ -53,7 +56,7 @@ describe('Firebase verifier HTTP contract (e2e)', () => {
       uid: 'firebase-user-1',
       signInProvider: 'google.com',
     });
-    userService.findAuthenticatedUser.mockResolvedValue({
+    authenticatedUserReader.findAuthenticatedUser.mockResolvedValue({
       firebaseUid: 'firebase-user-1',
       nickname: 'verified',
       oauthProvider: 'google.com',
@@ -89,6 +92,8 @@ describe('Firebase verifier HTTP contract (e2e)', () => {
         expect(body.statusCode).toBe(401);
         expect(body.message).toBe(message);
       });
-    expect(userService.findAuthenticatedUser).not.toHaveBeenCalled();
+    expect(
+      authenticatedUserReader.findAuthenticatedUser,
+    ).not.toHaveBeenCalled();
   });
 });

@@ -1,11 +1,20 @@
 import { Model, model } from 'mongoose';
-import { Cake, CakeSchema } from 'src/cake/entities/cake.schema';
+import {
+  CakePersistenceModel,
+  CakeSchema,
+} from 'src/modules/cake/infrastructure/persistence/schema/cake.schema';
 import {
   Curation,
   CurationSchema,
-} from 'src/curation/entities/curation.schema';
-import { Store, StoreSchema } from 'src/store/entities/store.schema';
-import { User, UserSchema } from 'src/user/entities/user.schema';
+} from 'src/modules/curation/infrastructure/persistence/schema/curation.schema';
+import {
+  Store,
+  StoreSchema,
+} from 'src/modules/store/infrastructure/persistence/schema/store.schema';
+import {
+  User,
+  UserSchema,
+} from 'src/modules/user/infrastructure/persistence/schema/user.schema';
 import baseline from './fixtures/log-upload-baseline.contract.json';
 import fixtures from './fixtures/legacy-persistence.contract.json';
 
@@ -15,7 +24,10 @@ function hydrateToJson<T>(mongooseModel: Model<T>, fixture: unknown) {
 }
 
 describe('Type-A legacy persistence contract baseline', () => {
-  const cakeModel = model<Cake>('TypeABaselineCake', CakeSchema);
+  const cakeModel = model<CakePersistenceModel>(
+    'TypeABaselineCake',
+    CakeSchema,
+  );
   const storeModel = model<Store>('TypeABaselineStore', StoreSchema);
   const userModel = model<User>('TypeABaselineUser', UserSchema);
   const curationModel = model<Curation>(

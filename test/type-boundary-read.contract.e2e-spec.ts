@@ -8,27 +8,27 @@ import {
 import { APP_GUARD, Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { IS_PUBLIC_KEY } from 'src/auth/decorators/public.decorator';
-import { RolesGuard } from 'src/auth/guard/roles.guard';
-import { CakeController } from 'src/cake/cake.controller';
-import { CakeService } from 'src/cake/cake.service';
-import { CakeMediaService } from 'src/cake/cake-media.service';
-import { CakeImportService } from 'src/cake/cake-import.service';
-import { CurationController } from 'src/curation/curation.controller';
-import { CurationService } from 'src/curation/curation.service';
-import { HomeFeedService } from 'src/home/home-feed.service';
-import { HomeController } from 'src/home/home.controller';
-import { HomePresenter } from 'src/home/api/home.presenter';
-import { RankingController } from 'src/ranking/ranking.controller';
-import { RankingQueryService } from 'src/ranking/ranking-query.service';
-import { SearchController } from 'src/search/search.controller';
-import { SearchService } from 'src/search/search.service';
-import { StoreController } from 'src/store/store.controller';
-import { StoreService } from 'src/store/store.service';
-import { StoreMediaService } from 'src/store/store-media.service';
-import { Roles } from 'src/user/entities/roles.enum';
-import { UserController } from 'src/user/user.controller';
-import { UserService } from 'src/user/user.service';
+import { IS_PUBLIC_KEY } from 'src/platform/auth/decorators/public.decorator';
+import { RolesGuard } from 'src/platform/auth/guard/roles.guard';
+import { CakeController } from 'src/modules/cake/api/cake.controller';
+import { CakeQueryService } from 'src/modules/cake/application/query/cake-query.service';
+import { CakeMediaService } from 'src/modules/cake/application/media/cake-media.service';
+import { CakeImportService } from 'src/modules/cake/application/import/cake-import.service';
+import { CurationController } from 'src/modules/curation/api/curation.controller';
+import { CurationService } from 'src/modules/curation/application/curation.service';
+import { HomeFeedService } from 'src/modules/home/application/home-feed.service';
+import { HomeController } from 'src/modules/home/api/home.controller';
+import { HomePresenter } from 'src/modules/home/api/home.presenter';
+import { RankingController } from 'src/modules/ranking/api/ranking.controller';
+import { RankingQueryService } from 'src/modules/ranking/application/query/ranking-query.service';
+import { SearchController } from 'src/modules/search/api/search.controller';
+import { SearchService } from 'src/modules/search/application/search.service';
+import { StoreController } from 'src/modules/store/api/store.controller';
+import { StoreService } from 'src/modules/store/application/store.service';
+import { StoreMediaService } from 'src/modules/store/application/media/store-media.service';
+import { Roles } from 'src/platform/auth/roles.enum';
+import { UserController } from 'src/modules/user/api/user.controller';
+import { UserService } from 'src/modules/user/application/user.service';
 import fixtures from './fixtures/type-boundary-read.contract.json';
 
 const imageValue = (image) => ({
@@ -138,7 +138,7 @@ describe('Type-A read HTTP contract baseline', () => {
         HomeController,
       ],
       providers: [
-        { provide: CakeService, useValue: cakeService },
+        { provide: CakeQueryService, useValue: cakeService },
         { provide: CakeMediaService, useValue: {} },
         { provide: CakeImportService, useValue: {} },
         { provide: StoreService, useValue: storeService },

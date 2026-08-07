@@ -10,12 +10,15 @@
   },
   "scripts": {
     "build": "nest build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -26,7 +29,7 @@
     "test:e2e:upload-limits": "jest --config ./test/jest-e2e.json upload-limits.contract.e2e-spec.ts --runInBand",
     "test:e2e:upload-media": "jest --config ./test/jest-e2e.json upload-media.contract.e2e-spec.ts --runInBand",
     "test:integration:mongo": "jest --config ./test/jest-mongo-integration.json --runInBand",
-    "test:architecture": "jest --config ./test/jest-architecture.json --runInBand && jest type-boundary-presenter.contract.spec.ts type-e-composite-presenter.contract.spec.ts --runInBand",
+    "test:architecture": "jest --config ./test/jest-architecture.json --runInBand",
     "test:smoke:prometheus": "ts-node test/smoke/prometheus-target-up.ts",
     "test:smoke:observability": "ts-node test/smoke/observability-stack.ts",
     "perf:similar-baseline": "MONGODB_URL=mongodb://127.0.0.1:27017 MONGODB_DBNAME_MAIN=kezzle_kan16_baseline ts-node test/perf/similar-baseline.ts",
@@ -86,9 +89,6 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
-    "moduleNameMapper": {
-      "^src/(.*)$": "<rootDir>/$1"
-    },
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },

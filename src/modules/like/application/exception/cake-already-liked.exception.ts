@@ -1,0 +1,8 @@
+import { HttpStatus } from '@nestjs/common';
+import { CustomException } from 'src/platform/http/custom-exception';
+
+export class CakeAlreadyLikedException extends CustomException {
+  constructor(id: string) {
+    super(`케이크(${id})를 이미 좋아요 하셨습니다.`, HttpStatus.NOT_FOUND);
+  }
+}

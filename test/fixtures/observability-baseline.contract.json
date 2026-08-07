@@ -234,25 +234,25 @@
     ],
     "hiddenObservabilityConsumers": [],
     "featureMetricOwners": {
-      "src/ai-search/ai-search-metrics.adapter.ts": [
+      "src/integrations/ai-search/infrastructure/observability/ai-search-metrics.adapter.ts": [
         "ai_api_call_duration_seconds",
         "ai_api_errors_total"
       ],
-      "src/catalog/catalog-metrics.adapter.ts": [
+      "src/modules/catalog/infrastructure/observability/catalog-metrics.adapter.ts": [
         "similar_search_duration_seconds",
         "store_query_duration_seconds"
       ],
-      "src/search/search-event-metrics.adapter.ts": [
+      "src/modules/search/infrastructure/observability/search-event-metrics.adapter.ts": [
         "search_event_record_failures_total"
       ],
-      "src/like/cake-like-event-metrics.adapter.ts": [
+      "src/modules/like/infrastructure/observability/cake-like-event-metrics.adapter.ts": [
         "cake_like_event_record_failures_total"
       ],
-      "src/media/media-metrics.adapter.ts": [
+      "src/integrations/media/infrastructure/observability/media-metrics.adapter.ts": [
         "media_object_orphans_total",
         "object_storage_operation_failures_total"
       ],
-      "src/home/observability/prometheus-home-metrics.adapter.ts": [
+      "src/modules/home/infrastructure/observability/prometheus-home-metrics.adapter.ts": [
         "kezzle_home_ai_calls_total",
         "kezzle_home_cache_events_total",
         "kezzle_home_db_calls_total",
@@ -262,7 +262,7 @@
         "kezzle_home_section_duration_seconds",
         "kezzle_home_section_requests_total"
       ],
-      "src/curation/curation-refresh-metrics.adapter.ts": [
+      "src/modules/curation/infrastructure/observability/curation-refresh-metrics.adapter.ts": [
         "kezzle_curation_refresh_items_total",
         "kezzle_curation_refresh_runs_total",
         "kezzle_curation_stale_backlog"
