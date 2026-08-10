@@ -58,4 +58,42 @@ describe('CurationPersistenceMapper', () => {
     expect(serialized.cakes[0]).not.toHaveProperty('$__');
     expect(serialized.cakes[0]).toHaveProperty('legacy_extra', 'must-stay');
   });
+
+  it('writes normalized AI fields with the established snapshot and API keys', () => {
+    const view = CurationPersistenceMapper.toView({
+      _id: 'curation-1',
+      cakes: [
+        {
+          id: 'cake-1',
+          likeText: '12',
+          content: 'custom cake',
+          calculatedLikes: 14,
+          faissId: 7,
+          isDeleted: false,
+          extra: { modelVersion: 'v2' },
+        },
+      ],
+    });
+
+    const persisted = CurationPersistenceMapper.toCakePersistence(
+      view.cakes[0],
+    );
+    const presented = CurationPresenter.created(view).cakes[0];
+
+    for (const result of [persisted, presented]) {
+      expect(result).toMatchObject({
+        like_ins: '12',
+        content_ins: 'custom cake',
+        cal_likes: 14,
+        faiss_id: 7,
+        is_delete: false,
+        modelVersion: 'v2',
+      });
+      expect(result).not.toHaveProperty('likeText');
+      expect(result).not.toHaveProperty('content');
+      expect(result).not.toHaveProperty('calculatedLikes');
+      expect(result).not.toHaveProperty('faissId');
+      expect(result).not.toHaveProperty('isDeleted');
+    }
+  });
 });

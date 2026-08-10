@@ -6,6 +6,7 @@ import {
 } from './cake-image.schema';
 
 export type CakeDocument = CakePersistenceModel & Document;
+export const CAKE_MODEL_NAME = 'Cake';
 
 @Schema({ timestamps: true, collection: 'cakes' })
 export class CakePersistenceModel {

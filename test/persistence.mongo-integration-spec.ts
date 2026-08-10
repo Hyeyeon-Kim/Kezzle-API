@@ -1,6 +1,7 @@
 import { Connection, Model, createConnection } from 'mongoose';
 import { ObjectId } from 'mongodb';
 import {
+  CAKE_MODEL_NAME,
   CakePersistenceModel,
   CakeSchema,
 } from 'src/modules/cake/infrastructure/persistence/schema/cake.schema';
@@ -68,7 +69,7 @@ describe('Persistence Mongo integration contract', () => {
         process.env.MONGODB_DBNAME_INTEGRATION ??
         `kezzle_type_boundary_${process.pid}`,
     }).asPromise();
-    cakeModel = connection.model('ContractCake', CakeSchema, 'cakes');
+    cakeModel = connection.model(CAKE_MODEL_NAME, CakeSchema, 'cakes');
     storeModel = connection.model('ContractStore', StoreSchema, 'stores');
     userModel = connection.model('ContractUser', UserSchema, 'users');
     curationModel = connection.model(
@@ -165,6 +166,30 @@ describe('Persistence Mongo integration contract', () => {
     expect(user.roles).toEqual(['isBuyer']);
     expect(user.cake_like_ids).toEqual([]);
     expect(user.store_like_ids).toEqual([]);
+  });
+
+  it('populates Cake refs through the stable model token', async () => {
+    await new cakeModel(fixtures.cake).save({ timestamps: false });
+    await cakeLikeLogModel.create({
+      userId: 'user-1',
+      cakeId: fixtures.cake._id,
+      type: true,
+    });
+
+    const populated = await cakeLikeLogModel
+      .findOne({ cakeId: fixtures.cake._id })
+      .populate('cakeId')
+      .lean();
+    const populatedCake = populated?.cakeId as unknown as {
+      _id: ObjectId;
+      content_ins: string;
+    };
+
+    expect(connection.modelNames()).toContain(CAKE_MODEL_NAME);
+    expect(connection.modelNames()).not.toContain(CakePersistenceModel.name);
+    expect(cakeModel.collection.collectionName).toBe('cakes');
+    expect(String(populatedCake._id)).toBe(fixtures.cake._id);
+    expect(populatedCake.content_ins).toBe(fixtures.cake.content_ins);
   });
 
   it('keeps Curation claim timestamps stable and bumps update timestamps', async () => {
