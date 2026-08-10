@@ -15,7 +15,7 @@ import { CakeMediaService } from './application/media/cake-media.service';
 import { CakeImportService } from './application/import/cake-import.service';
 import { MediaObservabilityModule } from 'src/integrations/media/media-observability.module';
 import {
-  CakePersistenceModel,
+  CAKE_MODEL_NAME,
   CakeSchema,
 } from './infrastructure/persistence/schema/cake.schema';
 import { MongooseCakeRepository } from './infrastructure/persistence/mongoose-cake.repository';
@@ -30,7 +30,7 @@ import { MongoObjectIdCakeCursorAdapter } from './infrastructure/persistence/mon
     CounterModule,
     AiSearchModule,
     MongooseModule.forFeature(
-      [{ name: CakePersistenceModel.name, schema: CakeSchema }],
+      [{ name: CAKE_MODEL_NAME, schema: CakeSchema }],
       'kezzle',
     ),
     StoreModule,

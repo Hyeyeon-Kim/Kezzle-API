@@ -12,7 +12,17 @@ describe('CurationService', () => {
       updateCakes: jest.fn().mockResolvedValue(undefined),
     };
     const clipClient = {
-      koSearch: jest.fn().mockResolvedValue([{ _id: 'clip-cake' }]),
+      koSearch: jest.fn().mockResolvedValue([
+        {
+          id: 'clip-cake',
+          likeText: '12',
+          content: 'custom cake',
+          calculatedLikes: 14,
+          faissId: 7,
+          isDeleted: false,
+          extra: { modelVersion: 'v2' },
+        },
+      ]),
       koSearchPage: jest.fn().mockResolvedValue({ result: [] }),
     };
 
@@ -34,8 +44,14 @@ describe('CurationService', () => {
     expect(curationRepository.updateCakes).toHaveBeenCalledWith('cur-1', [
       expect.objectContaining({
         id: 'clip-cake',
+        likeText: '12',
+        content: 'custom cake',
+        calculatedLikes: 14,
+        faissId: 7,
+        isDeleted: false,
         tags: [],
         likedUserIds: [],
+        extra: { modelVersion: 'v2' },
       }),
     ]);
   });

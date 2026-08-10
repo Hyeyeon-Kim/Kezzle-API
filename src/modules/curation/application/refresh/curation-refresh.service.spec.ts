@@ -1,6 +1,10 @@
 import { CurationRefreshService } from './curation-refresh.service';
 
 describe('CurationRefreshService', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   function staleCuration(id: string) {
     return {
       id,
@@ -151,5 +155,80 @@ describe('CurationRefreshService', () => {
       skipped: 0,
       failed: 0,
     });
+  });
+
+  it('keeps a cross-instance claim while the first refresh is in flight', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-07-20T00:00:00.000Z'));
+    const stale = staleCuration('cur-1');
+    let activeClaim: Date | undefined;
+    const curationRepository = {
+      findStale: jest.fn().mockResolvedValue([stale]),
+      claimRefresh: jest
+        .fn()
+        .mockImplementation(
+          (
+            _id: string,
+            _expectedUpdatedAt: Date,
+            claimedBefore: Date,
+            claimedAt: Date,
+          ) => {
+            if (activeClaim && activeClaim >= claimedBefore) {
+              return Promise.resolve(false);
+            }
+            activeClaim = claimedAt;
+            return Promise.resolve(true);
+          },
+        ),
+    };
+    let releaseRefresh: () => void = () => undefined;
+    let markStarted: () => void = () => undefined;
+    const refreshStarted = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const firstCurationService = {
+      updateCuration: jest.fn().mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseRefresh = resolve;
+            markStarted();
+          }),
+      ),
+    };
+    const secondCurationService = {
+      updateCuration: jest.fn().mockResolvedValue(undefined),
+    };
+    const metrics = {
+      countRun: jest.fn(),
+      countItems: jest.fn(),
+      setStaleBacklog: jest.fn(),
+    };
+    const policy = { staleMs: 60_000, claimTtlMs: 10_000 };
+    const firstService = new CurationRefreshService(
+      curationRepository as never,
+      firstCurationService as never,
+      metrics as never,
+      policy,
+    );
+    const secondService = new CurationRefreshService(
+      curationRepository as never,
+      secondCurationService as never,
+      metrics as never,
+      policy,
+    );
+
+    const firstRun = firstService.runOnce();
+    await refreshStarted;
+    jest.setSystemTime(new Date('2026-07-20T00:00:05.000Z'));
+
+    await expect(secondService.runOnce()).resolves.toEqual({
+      stale: 1,
+      refreshed: 0,
+      skipped: 1,
+      failed: 0,
+    });
+    expect(secondCurationService.updateCuration).not.toHaveBeenCalled();
+
+    releaseRefresh();
+    await firstRun;
   });
 });

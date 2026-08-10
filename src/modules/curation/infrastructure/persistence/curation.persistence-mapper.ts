@@ -77,7 +77,12 @@ export class CurationPersistenceMapper {
         : undefined,
       owner_store_id: cake.ownerStoreId,
       cursor: cake.cursor,
+      like_ins: cake.likeText,
       tag_ins: cake.tags,
+      content_ins: cake.content,
+      cal_likes: cake.calculatedLikes,
+      faiss_id: cake.faissId,
+      is_delete: cake.isDeleted,
       user_like_ids: cake.likedUserIds,
       score: cake.score,
     };

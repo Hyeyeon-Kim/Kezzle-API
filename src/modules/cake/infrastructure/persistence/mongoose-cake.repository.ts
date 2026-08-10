@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, PipelineStage } from 'mongoose';
 import { ObjectId } from 'mongodb';
-import { CakePersistenceModel } from './schema/cake.schema';
+import { CAKE_MODEL_NAME, CakePersistenceModel } from './schema/cake.schema';
 import { CakeNotFoundException } from '../../application/exception/cake-not-found.exception';
 import {
   Cake,
@@ -16,7 +16,7 @@ import { CakeRepositoryPort } from '../../application/port/cake-repository.port'
 @Injectable()
 export class MongooseCakeRepository implements CakeRepositoryPort {
   constructor(
-    @InjectModel(CakePersistenceModel.name, 'kezzle')
+    @InjectModel(CAKE_MODEL_NAME, 'kezzle')
     private readonly cakeModel: Model<CakePersistenceModel>,
   ) {}
 

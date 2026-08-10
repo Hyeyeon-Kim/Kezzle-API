@@ -8,8 +8,18 @@ export interface CurationCakeSnapshotSource {
   readonly ownerStoreId?: string;
   readonly owner_store_id?: string;
   readonly cursor?: string;
+  readonly likeText?: string;
+  readonly like_ins?: string;
   readonly tags?: string[];
   readonly tag_ins?: string[];
+  readonly content?: string;
+  readonly content_ins?: string;
+  readonly calculatedLikes?: number;
+  readonly cal_likes?: number;
+  readonly faissId?: number;
+  readonly faiss_id?: number;
+  readonly isDeleted?: boolean;
+  readonly is_delete?: boolean;
   readonly likedUserIds?: string[];
   readonly user_like_ids?: string[];
   readonly score?: number;
@@ -28,8 +38,18 @@ const KNOWN_KEYS = new Set([
   'ownerStoreId',
   'owner_store_id',
   'cursor',
+  'likeText',
+  'like_ins',
   'tags',
   'tag_ins',
+  'content',
+  'content_ins',
+  'calculatedLikes',
+  'cal_likes',
+  'faissId',
+  'faiss_id',
+  'isDeleted',
+  'is_delete',
   'likedUserIds',
   'user_like_ids',
   'score',
@@ -55,7 +75,12 @@ export class CurationExternalMapper {
         : undefined,
       ownerStoreId: record?.ownerStoreId ?? record?.owner_store_id,
       cursor: record?.cursor,
+      likeText: record?.likeText ?? record?.like_ins,
       tags: [...(record?.tags ?? record?.tag_ins ?? [])],
+      content: record?.content ?? record?.content_ins,
+      calculatedLikes: record?.calculatedLikes ?? record?.cal_likes,
+      faissId: record?.faissId ?? record?.faiss_id,
+      isDeleted: record?.isDeleted ?? record?.is_delete,
       likedUserIds: [...(record?.likedUserIds ?? record?.user_like_ids ?? [])],
       score: record?.score,
       extra: {

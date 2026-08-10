@@ -18,10 +18,12 @@ import { ConfigModule } from '@nestjs/config';
 import curationConfig from 'src/platform/config/curation.config';
 import { CurationRefreshJob } from 'src/modules/curation/infrastructure/scheduling/curation-refresh.job';
 import { curationRefreshPolicyProvider } from 'src/modules/curation/infrastructure/scheduling/curation-refresh-policy.provider';
+import aiConfig from 'src/platform/config/ai.config';
 
 @Module({
   imports: [
     ConfigModule.forFeature(curationConfig),
+    ConfigModule.forFeature(aiConfig),
     MongooseModule.forFeature(
       [{ name: Curation.name, schema: CurationSchema }],
       'kezzle',

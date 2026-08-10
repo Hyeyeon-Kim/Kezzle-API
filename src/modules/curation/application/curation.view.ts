@@ -12,7 +12,12 @@ export interface CurationCakeSnapshotView {
   readonly image?: CurationImageView;
   readonly ownerStoreId?: string;
   readonly cursor?: string;
+  readonly likeText?: string;
   readonly tags: string[];
+  readonly content?: string;
+  readonly calculatedLikes?: number;
+  readonly faissId?: number;
+  readonly isDeleted?: boolean;
   readonly likedUserIds: string[];
   readonly score?: number;
   readonly extra: Readonly<Record<string, unknown>>;
